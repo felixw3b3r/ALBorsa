@@ -33,8 +33,8 @@ mongoose.connect(MONGODB_URI)
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-import YahooFinance from 'yahoo-finance2';
-const yahooFinance = new (YahooFinance as any)();
+import YahooFinanceModule from 'yahoo-finance2';
+const yahooFinance = new (YahooFinanceModule as any)();
 
 // User Schema & Model
 const userSchema = new mongoose.Schema({
@@ -72,13 +72,13 @@ app.get('/api/stocks', authMiddleware, async (req, res) => {
     const yahooSymbols = rawSymbols.map(s => s.trim().toUpperCase());
 
     console.log('📈 Batch fetching from Yahoo:', yahooSymbols);
-    const quotes = await yahooFinance.quote(yahooSymbols);
+    const quotes: any = await (yahooFinance as any).quote(yahooSymbols);
     const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
       code: q.symbol.replace('.IS', ''),
       name: q.shortName || q.longName || q.symbol,
-      price: q.regularMarketPrice,
-      lastprice: q.regularMarketPrice,
-      rate: q.regularMarketChangePercent,
+      price: q.regularMarketPrice || q.price || q.bid || q.ask || 0,
+      lastprice: q.regularMarketPrice || q.price || 0,
+      rate: q.regularMarketChangePercent || 0,
       currency: q.currency,
       updatedAt: new Date()
     }));
@@ -90,7 +90,6 @@ app.get('/api/stocks', authMiddleware, async (req, res) => {
   }
 });
 
-// Yahoo Finance'den global hisse ve borsa verilerini çek
 app.get('/api/yahoo', authMiddleware, async (req, res) => {
   try {
     const symbolsQuery = req.query.symbols as string;
@@ -102,7 +101,7 @@ app.get('/api/yahoo', authMiddleware, async (req, res) => {
     console.log(`📈 Fetching Yahoo Finance data for: ${symbols.join(', ')}`);
     
     // Yahoo Finance API'sinden çoklu fiyat sorgusu
-    const quotes = await yahooFinance.quote(symbols);
+    const quotes: any = await (yahooFinance as any).quote(symbols);
     
     // Gelen veriyi frontend'in daha kolay okuyabileceği sade bir formata çevirelim
     const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
@@ -145,7 +144,7 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     // Eğer sorgulanan tarih bugün veya gelecekteyse, doğrudan güncel fiyatı dön
     if (queryDate >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
        try {
-         const quote = await yahooFinance.quote(yahooSymbol);
+         const quote: any = await (yahooFinance as any).quote(yahooSymbol);
          return res.json({ success: true, price: quote.regularMarketPrice || quote.price, date: new Date(), isLive: true });
        } catch (e) {
          // Quote başarısız olursa historical'a devam et
@@ -158,7 +157,7 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     const toDate = new Date(queryDate);
     toDate.setDate(toDate.getDate() + 2); // Birkaç gün sonrasını da kapsa (hafta sonu vs)
 
-    const results = await yahooFinance.historical(yahooSymbol, {
+    const results: any = await (yahooFinance as any).historical(yahooSymbol, {
       period1: fromDate,
       period2: toDate,
       interval: '1d'
@@ -181,7 +180,7 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
       // Eğer NASDAQ ise TL'ye çevir (Tarihsel Kur ile)
       if (market === "NASDAQ 500") {
         try {
-          const exchangeResults = await yahooFinance.historical('USDTRY=X', {
+          const exchangeResults: any = await (yahooFinance as any).historical('USDTRY=X', {
             period1: fromDate,
             period2: toDate,
             interval: '1d'
@@ -213,7 +212,7 @@ app.get('/api/exchange-rate', authMiddleware, async (req, res) => {
   try {
     console.log('🌍 Fetching currency rates from Yahoo Finance...');
     const symbols = ['USDTRY=X', 'EURTRY=X', 'GBPTRY=X'];
-    const quotes = await yahooFinance.quote(symbols);
+    const quotes: any = await (yahooFinance as any).quote(symbols);
     
     const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => {
       const code = q.symbol.substring(0, 3);
@@ -261,7 +260,6 @@ app.get('/api/crypto', authMiddleware, async (req, res) => {
   }
 });
 
-// Portfolio Schema & Model
 const portfolioSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   name: { type: String, required: true },
@@ -271,10 +269,535 @@ const portfolioSchema = new mongoose.Schema({
   color: { type: String, default: '#8b00e8' },
 }, { timestamps: true });
 
-// User bazlı unique index (Bir kullanıcı aynı hisseden sadece bir tane ekleyebilir)
-portfolioSchema.index({ userId: 1, name: 1 }, { unique: true });
+// Market Data Schema (15dk'lık veriler için)
+const marketDataSchema = new mongoose.Schema({
+  symbol: { type: String, required: true },
+  price: { type: Number, required: true },
+  timestamp: { type: Date, required: true },
+}, { timestamps: true });
 
+// Aynı sembol için aynı dakikada mükerrer kayıt olmasın
+marketDataSchema.index({ symbol: 1, timestamp: 1 }, { unique: true });
+
+const MarketData = mongoose.model('MarketData', marketDataSchema);
 const Portfolio = mongoose.model('Portfolio', portfolioSchema);
+
+app.get('/api/stocks/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    let { range = '1d', interval = '15m' } = req.query as any;
+
+    // Sembolü hazırla: Eğer nokta, şapka veya tire yoksa ve 5 karakterse .IS ekle
+    let formattedSymbol = symbol.toUpperCase();
+    if (!formattedSymbol.includes('.') && !formattedSymbol.startsWith('^') && !formattedSymbol.includes('-') && formattedSymbol.length >= 5) {
+      formattedSymbol = `${formattedSymbol}.IS`;
+    }
+
+    // Hassasiyet ayarları
+    // Hassasiyet ayarları (User Request) - Hem Türkçe hem İngilizce kısaltmaları destekle
+    let intervalVal: any = '1d';
+    // Zaman aralığını hesapla (Kütüphane range desteklemiyor, period1 zorunlu) - Saatleri sıfırla (Garantici yöntem)
+    const period1 = new Date();
+    period1.setHours(0, 0, 0, 0);
+    
+    // Küçük harfe çevirip kontrol et
+    const r = range.toLowerCase();
+
+    if (r === '1d' || r === '1g' || r === '2g' || r === '3g') {
+      intervalVal = '15m';
+      period1.setDate(period1.getDate() - 14); 
+    } else if (r === '1w' || r === '1h') {
+      intervalVal = '30m';
+      period1.setDate(period1.getDate() - 14);
+    } else if (r === '1m' || r === '1a' || r === '3m' || r === '3a' || r === '1y' || r === '1s') {
+      // KRİTİK: BIST endeksleri için Yahoo '1d' (günlük) geçmişi vermiyor, ama '1h' (saatlik) veriyor.
+      // Bu yüzden tüm uzun vadeli BIST grafiklerinde saatlik hassasiyeti zorunlu kılıyoruz.
+      intervalVal = formattedSymbol.endsWith('.IS') ? '1h' : '1d';
+      
+      if (r === '1m' || r === '1a') period1.setMonth(period1.getMonth() - 1);
+      else if (r === '3m' || r === '3a') period1.setMonth(period1.getMonth() - 3);
+      else period1.setFullYear(period1.getFullYear() - 1);
+    }
+
+    // Dinamik Sembol ve Hassasiyet Avcısı: Yahoo bazen nazlanır
+    let chart: any = null;
+    let quotes: any[] = [];
+    
+    // Denenecek semboller ve hassasiyetler
+    const symbolVariants = [formattedSymbol];
+    if (!formattedSymbol.startsWith('^')) symbolVariants.push(`^${formattedSymbol.replace('.IS', '')}`);
+    if (formattedSymbol.endsWith('.IS')) symbolVariants.push(formattedSymbol.replace('.IS', ''));
+
+    const intervalsToTry = [intervalVal, '1h', '1d'];
+
+    // Önce en iyi sembol ve en iyi hassasiyeti dene, olmazsa kademeli düşür
+    outerLoop: for (const variant of symbolVariants) {
+      for (const inv of intervalsToTry) {
+        try {
+          // KRİTİK: v3'te doğrulamayı kapatmak için 'validateResult: false' kullanılır.
+          const attempt: any = await (yahooFinance as any).chart(variant, { 
+            period1: period1,
+            interval: inv
+          }, { validateResult: false }); 
+          
+          const attemptQuotes = (attempt.quotes || []).filter((q: any) => q.close != null);
+          
+          if (attemptQuotes.length > 0) {
+            chart = attempt;
+            quotes = attemptQuotes;
+            console.log(`✅ Success: ${variant} with ${inv}`);
+            break outerLoop;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+    
+    // GENEL FALLBACK: Hala veri yoksa geniş aralığı dene
+    if (quotes.length === 0) {
+      console.log(`⚠️ No data found anywhere for ${formattedSymbol}, trying broad fallback...`);
+      const fallbackDate = new Date();
+      fallbackDate.setFullYear(fallbackDate.getFullYear() - 2);
+      
+      // KRİTİK: BIST (.IS) için 1d yerine 1h kullan (1d sadece 1 quote döndürüyor)
+      const fallbackIntervals = formattedSymbol.endsWith('.IS') ? ['1h', '1d'] : ['1d'];
+      
+      outerFallback: for (const variant of symbolVariants) {
+        for (const fallbackInterval of fallbackIntervals) {
+          try {
+            const attempt = await (yahooFinance as any).chart(variant, { period1: fallbackDate, interval: fallbackInterval }, { validateResult: false });
+            const attemptQuotes = (attempt.quotes || []).filter((q: any) => q.close != null);
+            if (attemptQuotes.length > 0) {
+              chart = attempt;
+              quotes = attemptQuotes;
+              console.log(`✅ Fallback success: ${variant} with ${fallbackInterval}`);
+              break outerFallback;
+            }
+          } catch (e) { continue; }
+        }
+      }
+    }
+
+    // AKILLI İŞLEM GÜNÜ FİLTRESİ (1G, 2G, 3G İçin) - Sayısal Sıralama ile Hatasız
+    if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
+      // 1. Tüm benzersiz işlem günlerini gece yarısına yuvarlayarak sayısal (timestamp) olarak bul
+      const uniqueDays = [...new Set(quotes.map((q: any) => {
+        const d = new Date(q.date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+      }))].sort((a, b) => b - a); // En yeni gün en başta (Sayısal sıralama)
+
+      // 2. İstenen gün sayısını belirle
+      let daysToKeep = 1;
+      if (r === '2g') daysToKeep = 2;
+      else if (r === '3g') daysToKeep = 3;
+
+      // 3. Sadece en son 'daysToKeep' kadar benzersiz güne ait verileri tut
+      const targetDays = uniqueDays.slice(0, daysToKeep);
+      quotes = quotes.filter((q: any) => {
+        const d = new Date(q.date);
+        d.setHours(0, 0, 0, 0);
+        return targetDays.includes(d.getTime());
+      });
+    }
+
+    const history = quotes.map((q: any) => q.close);
+    const timestamps = quotes.map((q: any) => q.date);
+
+    // BAŞARILI SEMBOLÜ KULLAN: Grafik hangi sembolle geldiyse fiyatı da ondan iste (BIST 100 mantığı)
+    const activeSymbol = (chart && chart.meta && chart.meta.symbol) || formattedSymbol;
+    
+    let liveQuote: any = {};
+    try {
+      liveQuote = await (yahooFinance as any).quote(activeSymbol);
+    } catch (e) {
+      console.warn(`Quote fetch failed for ${activeSymbol}, using empty fallback.`);
+    }
+    
+    res.json({
+      symbol: activeSymbol,
+      name: liveQuote?.shortName || liveQuote?.longName || activeSymbol,
+      price: liveQuote?.regularMarketPrice || liveQuote?.price || liveQuote?.bid || liveQuote?.regularMarketPreviousClose || (history.length > 0 ? history[history.length - 1] : 0),
+      change: liveQuote?.regularMarketChange || 0,
+      changePercent: liveQuote?.regularMarketChangePercent || 0,
+      category: activeSymbol.startsWith('^') ? 'Global Endeksler' : 'Borsa İstanbul',
+      history,
+      timestamps
+    });
+
+  } catch (error: any) {
+    console.error(`Error for ${req.params.symbol}:`, error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Hisseye Özel Haberler (Yahoo Finance)
+app.get('/api/stocks/:symbol/news', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const formattedSymbol = symbol.includes('.') || symbol.startsWith('^') || symbol.includes('-')
+      ? symbol.toUpperCase()
+      : `${symbol.toUpperCase()}.IS`;
+
+    // Daha iyi sonuç için şirketin adını da alalım
+    const liveQuote: any = await (yahooFinance as any).quote(formattedSymbol);
+    const searchQuery = liveQuote.shortName || liveQuote.longName || formattedSymbol;
+
+    console.log(`📰 Fetching news for ${searchQuery} (${formattedSymbol})`);
+    
+    // Sadece sembolle değil, isimle arama yapıyoruz (Daha alakalı sonuçlar için)
+    const result: any = await (yahooFinance as any).search(searchQuery, { newsCount: 10 });
+    
+    const news = (result.news || []).map((item: any) => ({
+      id: item.uuid,
+      title: item.title,
+      publisher: item.publisher,
+      link: item.link,
+      providerPublishTime: item.providerPublishTime,
+      thumbnail: item.thumbnail?.resolutions?.[0]?.url || 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
+      type: item.type
+    }));
+
+    res.json(news);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Haber İçeriğini Çek (Basit Scraper)
+app.get('/api/news/content', async (req, res) => {
+  try {
+    const { url } = req.query as { url: string };
+    if (!url) return res.status(400).json({ error: 'URL gerekli' });
+
+    const response = await fetch(url);
+    const html = await response.text();
+    
+    // Basit metin ayıklama: Paragrafları yakala ve temizle
+    const paragraphs = html.match(/<p>(.*?)<\/p>/g) || [];
+    const content = paragraphs
+      .map(p => p.replace(/<[^>]*>/g, ''))
+      .filter(p => p.length > 40)
+      .slice(0, 15)
+      .join('\n\n');
+
+    res.json({ content: content || 'Haber içeriği şu an çekilemiyor. Lütfen orijinal kaynağı ziyaret edin.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// KAP Bildirimlerini Arşivden Çek ve Analiz Et
+app.get('/api/stocks/:symbol/kap', async (req, res) => {
+  res.json([]); 
+});
+
+// Endeks Bileşenlerini Getir (Batch Fetching)
+app.get('/api/stocks/:symbol/components', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const formattedSymbol = symbol.includes('.') || symbol.startsWith('^') || symbol.includes('-')
+      ? symbol.toUpperCase()
+      : `${symbol.toUpperCase()}.IS`;
+
+    const componentSymbols = INDEX_COMPONENTS[formattedSymbol] || [];
+    if (componentSymbols.length === 0) return res.json([]);
+
+    console.log(`🚀 Fetching ${componentSymbols.length} components for ${formattedSymbol}`);
+    
+    // Toplu veri çekme
+    const quotes: any = await (yahooFinance as any).quote(componentSymbols);
+    const data = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
+      symbol: q.symbol.replace('.IS', ''),
+      name: q.shortName || q.longName || q.symbol,
+      price: q.regularMarketPrice,
+      change: q.regularMarketChange,
+      changePercent: q.regularMarketChangePercent,
+      history: [] // Özet için history boş olabilir
+    }));
+    res.json(data);
+  } catch (error: any) {
+    console.error('Components fetch error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endeks Bileşenleri (BIST 100 - Tam Liste ve Sıralı)
+const INDEX_COMPONENTS: { [key: string]: string[] } = {
+  'XU100.IS': [
+    'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
+    'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
+    'EFORC.IS', 'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TKFEN.IS', 'ODAS.IS', 'AKSEN.IS', 'AEFES.IS', 'MGROS.IS',
+    'TTKOM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'KOZAL.IS', 'KOZAA.IS', 'IPEKE.IS', 'OTKAR.IS',
+    'ALARK.IS', 'MAVI.IS', 'CCOLA.IS', 'ULKER.IS', 'GUBRF.IS', 'AGHOL.IS', 'DOAS.IS', 'ZOREN.IS', 'BERA.IS', 'TURSG.IS',
+    'SKBNK.IS', 'TSKB.IS', 'VESTL.IS', 'KARSN.IS', 'EGEEN.IS', 'OYAKC.IS', 'KORDS.IS', 'ALBRK.IS', 'BRISA.IS', 'LOGO.IS',
+    'QUAGR.IS', 'ASUZU.IS', 'GENIL.IS', 'CWENE.IS', 'ALFAS.IS', 'SDTTR.IS', 'MIATK.IS', 'REEDR.IS', 'SAYAS.IS', 'EUPWR.IS',
+    'GESAN.IS', 'SMRTG.IS', 'BRYAT.IS', 'CANTE.IS', 'AKFGY.IS', 'KAYSE.IS', 'ENERY.IS', 'TATEN.IS', 'EBEBK.IS', 'TABGD.IS',
+    'VAKFN.IS', 'IZMDC.IS', 'KTSPR.IS', 'BTCIM.IS', 'OYYAT.IS', 'KFEIN.IS', 'ARDYZ.IS', 'FORMT.IS', 'QNBFB.IS', 'BVSAN.IS',
+    'MHRGY.IS', 'BORLS.IS', 'BHRGY.IS', 'AVPGY.IS', 'SURGY.IS', 'MEGMT.IS', 'LMKDC.IS', 'MOGAN.IS', 'ENTRA.IS', 'KOTON.IS',
+    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'KUZAY.IS', 'LKMNH.IS', 'PKENT.IS'
+  ],
+  'XU050.IS': [
+    'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
+    'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
+    'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TKFEN.IS', 'ODAS.IS', 'AKSEN.IS', 'AEFES.IS', 'MGROS.IS', 'TTKOM.IS',
+    'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'KOZAL.IS', 'KOZAA.IS', 'IPEKE.IS', 'OTKAR.IS', 'ALARK.IS',
+    'MAVI.IS', 'CCOLA.IS', 'ULKER.IS', 'GUBRF.IS', 'AGHOL.IS', 'DOAS.IS', 'ZOREN.IS', 'BERA.IS', 'TURSG.IS', 'SKBNK.IS'
+  ],
+  'XU030.IS': [
+    'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
+    'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
+    'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'KOZAL.IS', 'ALARK.IS', 'GUBRF.IS'
+  ],
+  'XBANK.IS': [
+    'AKBNK.IS', 'GARAN.IS', 'ISCTR.IS', 'YKBNK.IS', 'VAKBN.IS', 'HALKB.IS', 'ALBRK.IS', 'SKBNK.IS', 'TSKB.IS', 'QNBFB.IS',
+    'VAKFN.IS', 'HALKS.IS', 'KLNMA.IS'
+  ],
+  'XUTEK.IS': [
+    'ASELS.IS', 'TCELL.IS', 'TTKOM.IS', 'SASA.IS', 'KONTR.IS', 'YEOTK.IS', 'MIATK.IS', 'SDTTR.IS', 'REEDR.IS', 'ARDYZ.IS',
+    'KFEIN.IS', 'LOGO.IS', 'FORMT.IS', 'LINK.IS', 'ALCTL.IS', 'KAREL.IS', 'VBTYO.IS', 'PCILT.IS', 'ESCOM.IS', 'INDES.IS'
+  ],
+  '^GSPC': [
+    'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'TSLA', 'AMD', 'INTC',
+    'BRK-B', 'LLY', 'AVGO', 'JPM', 'UNH', 'V', 'XOM', 'MA', 'HD', 'PG', 
+    'COST', 'JNJ', 'ABBV', 'CRM', 'WMT', 'BAC', 'NFLX', 'CVX', 'KO', 'ADBE',
+    'PEP', 'MRK', 'ORCL', 'TMO', 'LIN', 'ACN', 'MCD', 'ABT', 'CSCO', 'DHR',
+    'QCOM', 'GE', 'INTU', 'TXN', 'VZ', 'AMAT', 'PFE', 'PM', 'IBM', 'AMGN',
+    'NOW', 'ISRG', 'AXP', 'CAT', 'LOW', 'UNP', 'HON', 'COP', 'GS', 'MS',
+    'LMT', 'NEE', 'BKNG', 'T', 'DE', 'RTX', 'VRTX', 'TJX', 'PLD', 'ELV',
+    'SYK', 'BLK', 'ETN', 'BSX', 'PGR', 'MDLZ', 'REGN', 'MMC', 'ADI', 'C',
+    'ADP', 'AMT', 'CI', 'PANW', 'GILD', 'BA', 'CB', 'LRCX', 'SCHW', 'MU',
+    'CVS', 'KLAC', 'EQIX', 'VLO', 'ZTS', 'EOG', 'FI', 'APH', 'WM',
+    'HUM', 'CDNS', 'TGT', 'AON', 'SHW', 'MO', 'HCA', 'MCK', 'MCO', 'GD',
+    'MPC', 'MAR', 'USB', 'EMR', 'CTAS', 'NXPI', 'ADSK', 'FDX', 'ORLY', 'AJG'
+  ],
+  '^NDX': [
+    'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'AVGO', 'TSLA', 'COST',
+    'NFLX', 'ADBE', 'AMD', 'PEP', 'LIN', 'TMUS', 'INTU', 'CSCO', 'QCOM', 'AMAT',
+    'TXN', 'AMGN', 'ISRG', 'HON', 'INTC', 'VRTX', 'BKNG', 'MU', 'SBUX', 'PANW',
+    'MDLZ', 'REGN', 'LRCX', 'ADI', 'KLAC', 'EQIX', 'VLO', 'ZTS', 'EOG', 'FI',
+    'APH', 'WM', 'HUM', 'CDNS', 'TGT', 'AON', 'SHW', 'MO', 'HCA', 'MCK',
+    'MCO', 'GD', 'MPC', 'MAR', 'USB', 'EMR', 'CTAS', 'NXPI', 'ADSK', 'FDX',
+    'ORLY', 'AJG', 'CHTR', 'PCAR', 'MNST', 'PAYX', 'ROST', 'IDXX', 'KDP', 'FAST',
+    'CPRT', 'LULU', 'EXC', 'CTSH', 'GIGA', 'EA', 'KHC', 'ODFL', 'BKR', 'WBD',
+    'ANSS', 'TEAM', 'ILMN', 'WDAY', 'DDOG', 'MCHP', 'AZN', 'BIIB', 'SIRI', 'EBAY',
+    'VRSK', 'LCID', 'MELI', 'ZM', 'ADP', 'PDD', 'SNPS', 'CRWD', 'ATVI', 'DXCM'
+  ],
+  '^IXIC': [
+    'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'AVGO', 'TSLA', 'COST',
+    'NFLX', 'ADBE', 'AMD', 'PEP', 'TMUS', 'INTU', 'CSCO', 'QCOM', 'AMAT', 'TXN'
+  ]
+};
+
+// Market Özeti için Global Cache
+let marketSummaryCache: { data: any, timestamp: number } | null = null;
+
+// Ana Piyasa Özeti (SÜPER HIZLI - NO INTERNAL FETCH)
+app.get('/api/market-summary', async (req, res) => {
+  try {
+    // 1. Global Cache Kontrolü (5 dakika - Sequential fetch uzun sürdüğü için)
+    const forceRefresh = req.query.refresh === 'true';
+    if (!forceRefresh && marketSummaryCache && (Date.now() - marketSummaryCache.timestamp < 300000)) {
+      console.log("🚀 Serving Global Market Summary from Cache");
+      return res.json(marketSummaryCache.data);
+    }
+
+    const mainSymbols = [
+      'XU100.IS', 'XU050.IS', 'XU030.IS', 'XBANK.IS', 'XUTEK.IS',
+      '^GSPC', '^NDX', '^IXIC', '^SOX', '^NYFANG', '^NBI',
+      'BTC-USD', 'ETH-USD'
+    ];
+
+    console.log(`📊 Batch processing market summary for ${mainSymbols.length} tickers`);
+
+    // 2. Yahoo'dan toplu fiyatları çek
+    const quotes: any = await (yahooFinance as any).quote(mainSymbols);
+    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+
+    // 3. Yahoo Spark API ile tüm sembollerin 15dk'lık sparkline'ını TEK SEFERDE çek
+    //    Bu endpoint rate-limit yemez çünkü toplu (bulk) istek atıyoruz
+    let sparkData: Record<string, number[]> = {};
+    try {
+      const sparkSymbols = mainSymbols.join('%2C');
+      const sparkUrl = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${sparkSymbols}&range=1d&interval=15m`;
+      const sparkRes = await (axios as any).get(sparkUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 15000
+      });
+      const sparkSpark = sparkRes.data?.spark?.result || [];
+      for (const item of sparkSpark) {
+        const sym = item.symbol;
+        const closes = item.response?.[0]?.indicators?.quote?.[0]?.close || [];
+        sparkData[sym] = closes.filter((c: any) => c != null);
+      }
+      console.log(`✅ Spark API: ${Object.keys(sparkData).length} symbols loaded`);
+    } catch (e: any) {
+      console.warn(`⚠️ Spark API failed, will use chart() fallback:`, e.message?.slice(0, 60));
+    }
+
+    // 4. Fiyat verisi ile sparkline'ı birleştir
+    const results = await Promise.all(quotesArray.map(async (quote: any) => {
+      try {
+        const symbol = quote.symbol;
+        let history: number[] = sparkData[symbol] || [];
+
+        // Spark API boş döndürdüyse chart() fallback'ini kullan
+        if (history.length < 5) {
+          try {
+            const sparklineDate = new Date();
+            sparklineDate.setDate(sparklineDate.getDate() - 14);
+            const chart: any = await (yahooFinance as any).chart(symbol, { period1: sparklineDate, interval: '15m' }, { validateResult: false });
+            let sparkQuotes = (chart.quotes || []).filter((q: any) => q.close != null);
+            
+            if (sparkQuotes.length > 5) {
+              // Sadece son seansı göster
+              const lastDate = new Date(sparkQuotes[sparkQuotes.length - 1].date);
+              sparkQuotes = sparkQuotes.filter((q: any) => {
+                const d = new Date(q.date);
+                return d.getDate() === lastDate.getDate() && d.getMonth() === lastDate.getMonth();
+              });
+              history = sparkQuotes.map((q: any) => q.close);
+            }
+          } catch (e) { /* sessizce geç */ }
+        }
+
+        return {
+          symbol: quote.symbol,
+          price: quote.regularMarketPrice || quote.price || quote.regularMarketPreviousClose || 0,
+          change: quote.regularMarketChange || 0,
+          changePercent: quote.regularMarketChangePercent || 0,
+          history
+        };
+      } catch (e: any) {
+        return {
+          symbol: quote.symbol,
+          price: quote.regularMarketPrice || quote.price || quote.regularMarketPreviousClose || 0,
+          change: quote.regularMarketChange || 0,
+          changePercent: quote.regularMarketChangePercent || 0,
+          history: []
+        };
+      }
+    }));
+
+    // 4. Cache'e kaydet
+    marketSummaryCache = {
+      data: results,
+      timestamp: Date.now()
+    };
+
+    res.json(results);
+  } catch (error: any) {
+    console.error('Market Summary Error:', error.message);
+    res.json([]); // Hata olsa bile boş dizi dön ki frontend patlamasın
+  }
+});
+
+// Basit bir in-memory cache (Hız için)
+// 15 Dakikalık Veri Toplama Motoru (Market Data Collector)
+const mainTickers = [
+  'XU100.IS', 'XU050.IS', 'XU030.IS', 'XBANK.IS', 'XUTEK.IS',
+  '^GSPC', '^NDX', '^IXIC', '^SOX', '^NYFANG', '^NBI',
+  'BTC-USD', 'ETH-USD', 'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS'
+];
+
+async function collectMarketData() {
+  const now = new Date();
+  const day = now.getDay();
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+
+  // BIST Çalışma Saatleri (10:00 - 18:15)
+  const isBistOpen = day >= 1 && day <= 5 && (
+    (hour > 10 && hour < 18) || 
+    (hour === 10 && minute >= 0) || 
+    (hour === 18 && minute <= 15)
+  );
+
+  // Kripto her zaman açık, Global endeksler için de kontrol eklenebilir
+  console.log(`🕒 [Data Collector] Running at ${now.toLocaleTimeString()}`);
+
+  try {
+    const quotes: any = await (yahooFinance as any).quote(mainTickers);
+    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+
+    const records = quotesArray.map((q: any) => ({
+      symbol: q.symbol,
+      price: q.regularMarketPrice || q.price || q.regularMarketPreviousClose || 0,
+      timestamp: new Date()
+    }));
+
+    // Veritabanına toplu kaydet (Duplicate hatasını önlemek için insertMany yerine tek tek veya try-catch ile)
+    for (const record of records) {
+      try {
+        await MarketData.findOneAndUpdate(
+          { symbol: record.symbol, timestamp: { $gte: new Date(now.getTime() - 5 * 60 * 1000) } }, // Son 5 dk içinde kayıt varsa güncelle
+          record,
+          { upsert: true, new: true }
+        );
+      } catch (err) {
+        // Sessizce devam et
+      }
+    }
+    console.log(`✅ [Data Collector] Saved ${records.length} records to DB.`);
+  } catch (error: any) {
+    console.error('❌ [Data Collector] Error:', error.message);
+  }
+}
+
+// Her 15 dakikada bir çalıştır
+setInterval(collectMarketData, 15 * 60 * 1000);
+
+// İlk açılışta bir kez çalıştır
+setTimeout(collectMarketData, 5000);
+
+const componentsCache: { [key: string]: { data: any, timestamp: number } } = {};
+const CACHE_DURATION = 30 * 1000; // 30 saniye
+
+// Endeks bileşenlerini getir (SÜPER HIZLI - BATCH MODE)
+app.get('/api/stocks/:symbol/components', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const cacheKey = symbol.toUpperCase();
+    
+    // 1. Cache kontrolü
+    if (componentsCache[cacheKey] && (Date.now() - componentsCache[cacheKey].timestamp < CACHE_DURATION)) {
+      console.log(`⚡ Serving components from cache for ${cacheKey}`);
+      return res.json(componentsCache[cacheKey].data);
+    }
+
+    const components = INDEX_COMPONENTS[cacheKey];
+    if (!components) {
+      return res.status(404).json({ message: 'Bileşen listesi bulunamadı' });
+    }
+
+    console.log(`🚀 Batch fetching ${components.length} stocks for ${cacheKey}`);
+
+    // 2. TOPLU SORGU (Tüm hisseleri tek seferde iste)
+    // yahooFinance.quote bir array kabul eder ve tek bir HTTP isteği atar.
+    const quotes: any = await (yahooFinance as any).quote(components);
+    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+
+    const results = quotesArray.map((quote: any) => ({
+      symbol: quote.symbol,
+      name: quote.shortName || quote.symbol.split('.')[0],
+      price: quote.regularMarketPrice || quote.price || quote.bid || 0,
+      change: quote.regularMarketChange || 0,
+      changePercent: quote.regularMarketChangePercent || 0
+    }));
+
+    // 3. Cache'e kaydet
+    componentsCache[cacheKey] = {
+      data: results,
+      timestamp: Date.now()
+    };
+
+    res.json(results);
+  } catch (error: any) {
+    console.error('Batch Fetch Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Auth Routes
 

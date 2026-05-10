@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 export async function fetchStockData(symbol: string) {
-  // Ensure symbol ends with .IS
-  const formattedSymbol = symbol.endsWith('.IS') ? symbol : `${symbol}.IS`;
+  // Akıllı formatlama: Eğer sembolde nokta, tire veya şapka yoksa .IS ekle
+  const formattedSymbol = (symbol.includes('.') || symbol.includes('-') || symbol.startsWith('^')) 
+    ? symbol 
+    : `${symbol}.IS`;
   
   // A mock or basic implementation using a public free API (Yahoo Finance v8 chart API)
   try {

@@ -83,4 +83,15 @@ router.get('/analyze/:symbol', async (req, res) => {
   }
 });
 
+// Basit stok verisi çekme rotası
+router.get('/stocks/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const data = await fetchStockData(symbol);
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
