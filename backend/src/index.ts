@@ -657,11 +657,24 @@ app.get('/api/market-summary', async (req, res) => {
     const quotes: any = await (yahooFinance as any).quote(mainSymbols);
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
-    // 3. Yahoo Spark API ile tüm sembollerin 15dk'lık sparkline'ını TEK SEFERDE çek
-    //    Bu endpoint rate-limit yemez çünkü toplu (bulk) istek atıyoruz
+    // 3. Kripto için Binance Klines sparkline (24 saat × 15dk = 96 nokta, rate-limitsiz)
     let sparkData: Record<string, number[]> = {};
     try {
-      const sparkSymbols = mainSymbols.join('%2C');
+      const [btcRes, ethRes] = await Promise.all([
+        axios.get('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=96', { timeout: 8000 }),
+        axios.get('https://api.binance.com/api/v3/klines?symbol=ETHUSDT&interval=15m&limit=96', { timeout: 8000 })
+      ]);
+      sparkData['BTC-USD'] = btcRes.data.map((k: any[]) => parseFloat(k[4]));
+      sparkData['ETH-USD'] = ethRes.data.map((k: any[]) => parseFloat(k[4]));
+      console.log(`✅ Binance sparkline: BTC ${sparkData['BTC-USD'].length}pts, ETH ${sparkData['ETH-USD'].length}pts`);
+    } catch (e: any) {
+      console.warn(`⚠️ Binance sparkline failed:`, e.message?.slice(0, 60));
+    }
+
+    // Yahoo Spark API ile diğer sembollerin (BIST + Global endeksler) sparkline'ını TEK SEFERDE çek
+    try {
+      const nonCryptoSymbols = mainSymbols.filter(s => !sparkData[s]);
+      const sparkSymbols = nonCryptoSymbols.join('%2C');
       const sparkUrl = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${sparkSymbols}&range=1d&interval=15m`;
       const sparkRes = await (axios as any).get(sparkUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -673,7 +686,7 @@ app.get('/api/market-summary', async (req, res) => {
         const closes = item.response?.[0]?.indicators?.quote?.[0]?.close || [];
         sparkData[sym] = closes.filter((c: any) => c != null);
       }
-      console.log(`✅ Spark API: ${Object.keys(sparkData).length} symbols loaded`);
+      console.log(`✅ Spark API: ${Object.keys(sparkData).length} symbols total`);
     } catch (e: any) {
       console.warn(`⚠️ Spark API failed, will use chart() fallback:`, e.message?.slice(0, 60));
     }
