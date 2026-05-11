@@ -696,9 +696,23 @@ app.get('/api/market-summary', async (req, res) => {
       try {
         const symbol = quote.symbol;
         let history: number[] = sparkData[symbol] || [];
+        
+        let price = quote.regularMarketPrice || quote.price || quote.regularMarketPreviousClose || 0;
+        let change = quote.regularMarketChange || 0;
+        let changePercent = quote.regularMarketChangePercent || 0;
 
-        // Spark API boş döndürdüyse chart() fallback'ini kullan
-        if (history.length < 5) {
+        // KRİPTO İÇİN VERİ TUTARLILIĞI: Eğer kripto ise ve Binance verimiz varsa, 
+        // Yahoo'nun tutarsız değişim verisi yerine Binance trendine göre hesapla
+        if ((symbol === 'BTC-USD' || symbol === 'ETH-USD') && history.length > 0) {
+          const startPrice = history[0];
+          const currentPrice = history[history.length - 1];
+          price = currentPrice;
+          change = currentPrice - startPrice;
+          changePercent = (change / startPrice) * 100;
+        }
+
+        // Spark API boş döndürdüyse chart() fallback'ini kullan (BIST vb. için)
+        if (history.length < 5 && !['BTC-USD', 'ETH-USD'].includes(symbol)) {
           try {
             const sparklineDate = new Date();
             sparklineDate.setDate(sparklineDate.getDate() - 14);
@@ -706,7 +720,6 @@ app.get('/api/market-summary', async (req, res) => {
             let sparkQuotes = (chart.quotes || []).filter((q: any) => q.close != null);
             
             if (sparkQuotes.length > 5) {
-              // Sadece son seansı göster
               const lastDate = new Date(sparkQuotes[sparkQuotes.length - 1].date);
               sparkQuotes = sparkQuotes.filter((q: any) => {
                 const d = new Date(q.date);
@@ -714,22 +727,22 @@ app.get('/api/market-summary', async (req, res) => {
               });
               history = sparkQuotes.map((q: any) => q.close);
             }
-          } catch (e) { /* sessizce geç */ }
+          } catch (e) { /* fallback fail */ }
         }
 
         return {
           symbol: quote.symbol,
-          price: quote.regularMarketPrice || quote.price || quote.regularMarketPreviousClose || 0,
-          change: quote.regularMarketChange || 0,
-          changePercent: quote.regularMarketChangePercent || 0,
+          price,
+          change,
+          changePercent,
           history
         };
       } catch (e: any) {
         return {
           symbol: quote.symbol,
-          price: quote.regularMarketPrice || quote.price || quote.regularMarketPreviousClose || 0,
-          change: quote.regularMarketChange || 0,
-          changePercent: quote.regularMarketChangePercent || 0,
+          price: 0,
+          change: 0,
+          changePercent: 0,
           history: []
         };
       }
