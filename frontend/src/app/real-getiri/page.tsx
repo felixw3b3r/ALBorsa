@@ -189,21 +189,35 @@ export default function RealGetiriPage() {
     let benchGain = 0;
     let benchGainPercent = 0;
 
-    if (benchHistPrice && benchmarkCurrentPrice) {
+    if (benchmarkCurrentPrice) {
       const isBenchUSD = benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F";
-      
-      if (isBenchUSD) {
-        const hist = historicalRates[item._id];
-        const histUSD = hist?.usd || usdRate;
-        const costInUSD = costTL / (histUSD || 1);
-        const units = costInUSD / benchHistPrice;
-        benchValue = units * benchmarkCurrentPrice * usdRate;
-      } else {
-        const units = costTL / benchHistPrice;
-        benchValue = units * benchmarkCurrentPrice;
+
+      // ÖNEMLİ: Benchmark, bu hissenin kendisiyse → kullanıcının gerçek alış fiyatını kullan.
+      // API fiyatı kullanıcının gerçek alış fiyatından farklı olabilir (intraday vs kapanış, komisyon vb.)
+      // Bu sayede "ASELS turnusolunu ASELS ile kıyasla" = gerçek portföy değeriyle birebir eşleşir.
+      const benchNorm = benchmarkTicker.toUpperCase().replace('.IS', '');
+      const itemNorm = itemName.replace('.IS', '');
+      const isSameStock = benchNorm === itemNorm;
+
+      if (isSameStock) {
+        // Aynı hisse: simülasyon = gerçek portföy (kullanıcının kendi alış fiyatını baz al)
+        benchValue = valueTL;
+        benchGain = plTL;
+        benchGainPercent = plPercent;
+      } else if (benchHistPrice) {
+        if (isBenchUSD) {
+          const hist = historicalRates[item._id];
+          const histUSD = hist?.usd || usdRate;
+          const costInUSD = costTL / (histUSD || 1);
+          const units = costInUSD / benchHistPrice;
+          benchValue = units * benchmarkCurrentPrice * usdRate;
+        } else {
+          const units = costTL / benchHistPrice;
+          benchValue = units * benchmarkCurrentPrice;
+        }
+        benchGain = benchValue - costTL;
+        benchGainPercent = costTL > 0 ? (benchGain / costTL) * 100 : 0;
       }
-      benchGain = benchValue - costTL;
-      benchGainPercent = costTL > 0 ? (benchGain / costTL) * 100 : 0;
     }
 
     return {
@@ -348,9 +362,14 @@ export default function RealGetiriPage() {
               <div className="text-center md:text-right bg-white/5 p-6 rounded-[2rem] border border-white/5 backdrop-blur-md">
                 <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2 leading-none">Mevcut Portföyünüz</p>
                 <h3 className="text-4xl font-black text-white mb-3 tracking-tighter">₺{(totalCurrentValueTL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
-                <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm shadow-xl ${totalPLTL >= 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
-                  {totalPLTL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
-                  %{totalPLPercentTL.toFixed(1)} Kâr
+                <div className={`inline-flex flex-col items-center gap-1 px-6 py-3 rounded-2xl font-black shadow-xl ${totalPLTL >= 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    {totalPLTL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                    %{totalPLPercentTL.toFixed(1)} Kâr
+                  </div>
+                  <div className="text-xs opacity-80">
+                    ₺{Math.abs(totalPLTL).toLocaleString(undefined, { maximumFractionDigits: 0 })} {totalPLTL >= 0 ? 'Net Kâr' : 'Zarar'}
+                  </div>
                 </div>
               </div>
 
@@ -358,9 +377,14 @@ export default function RealGetiriPage() {
               <div className="text-center md:text-right bg-white/5 p-6 rounded-[2rem] border border-white/5 backdrop-blur-md">
                 <p className="text-cyan-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2 leading-none">Toplam Simüle Değer</p>
                 <h3 className="text-4xl font-black text-white mb-3 tracking-tighter">₺{(totalBenchmarkValue || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
-                <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm shadow-xl ${totalBenchmarkPL >= 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
-                  {totalBenchmarkPL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
-                  ₺{Math.abs(totalBenchmarkPL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} (%{totalBenchmarkPLPercent.toFixed(1)})
+                <div className={`inline-flex flex-col items-center gap-1 px-6 py-3 rounded-2xl font-black shadow-xl ${totalBenchmarkPL >= 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    {totalBenchmarkPL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                    %{totalBenchmarkPLPercent.toFixed(1)} Getiri
+                  </div>
+                  <div className="text-xs opacity-80">
+                    ₺{Math.abs(totalBenchmarkPL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} {totalBenchmarkPL >= 0 ? 'Net Kâr' : 'Zarar'}
+                  </div>
                 </div>
               </div>
             </div>
