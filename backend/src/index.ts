@@ -303,6 +303,48 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     // Küçük harfe çevirip kontrol et
     const r = range.toLowerCase();
 
+    // ===== KRİPTO ERKEN ÇIKIŞ: Binance Klines API (24/7, limitsiz, 15dk hassasiyet) =====
+    const cryptoMap: Record<string, string> = {
+      'BTC-USD': 'BTCUSDT', 'ETH-USD': 'ETHUSDT',
+      'BNB-USD': 'BNBUSDT', 'SOL-USD': 'SOLUSDT',
+      'XRP-USD': 'XRPUSDT', 'DOGE-USD': 'DOGEUSDT'
+    };
+    const binanceSymbol = cryptoMap[formattedSymbol];
+
+    if (binanceSymbol) {
+      try {
+        const binanceConfig: Record<string, { interval: string; limit: number }> = {
+          '1g': { interval: '15m', limit: 96 },  '1d': { interval: '15m', limit: 96 },
+          '2g': { interval: '30m', limit: 96 },  '3g': { interval: '1h',  limit: 72 },
+          '1h': { interval: '1h',  limit: 168 }, '1w': { interval: '1h',  limit: 168 },
+          '1a': { interval: '4h',  limit: 180 }, '1m': { interval: '4h',  limit: 180 },
+          '3a': { interval: '1d',  limit: 90 },  '3m': { interval: '1d',  limit: 90 },
+          '1y': { interval: '1d',  limit: 365 }, '1s': { interval: '1d',  limit: 365 },
+        };
+        const cfg = binanceConfig[r] || { interval: '15m', limit: 96 };
+        
+        const klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${cfg.interval}&limit=${cfg.limit}`;
+        const klinesRes = await axios.get(klinesUrl, { timeout: 8000 });
+        const klines = klinesRes.data;
+        const history: number[] = klines.map((k: any[]) => parseFloat(k[4]));
+        const timestamps: number[] = klines.map((k: any[]) => k[0]);
+        
+        const tickerRes = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, { timeout: 5000 });
+        const ticker = tickerRes.data;
+        const price = parseFloat(ticker.lastPrice);
+        const change = parseFloat(ticker.priceChange);
+        const changePercent = parseFloat(ticker.priceChangePercent);
+        const displayName = { 'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum', 'BNB-USD': 'BNB', 'SOL-USD': 'Solana', 'XRP-USD': 'XRP', 'DOGE-USD': 'Dogecoin' }[formattedSymbol] || formattedSymbol;
+        
+        console.log(`✅ Binance Klines: ${binanceSymbol} ${cfg.interval} × ${history.length} bars`);
+        return res.json({ symbol: formattedSymbol, name: displayName, price, change, changePercent, category: 'Kripto Paralar', history, timestamps });
+      } catch (binanceErr: any) {
+        console.warn(`⚠️ Binance fallback for ${binanceSymbol}:`, binanceErr.message?.slice(0, 60));
+      }
+    }
+    // ===== KRİPTO SONU =====
+
+
     if (r === '1d' || r === '1g' || r === '2g' || r === '3g') {
       intervalVal = '15m';
       period1.setDate(period1.getDate() - 14); 
