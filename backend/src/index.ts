@@ -701,8 +701,7 @@ app.get('/api/market-summary', async (req, res) => {
         let change = quote.regularMarketChange || 0;
         let changePercent = quote.regularMarketChangePercent || 0;
 
-        // KRİPTO İÇİN VERİ TUTARLILIĞI: Eğer kripto ise ve Binance verimiz varsa, 
-        // Yahoo'nun tutarsız değişim verisi yerine Binance trendine göre hesapla
+        // KRİPTO: 24 saatlik rolling pencere (Binance standardı)
         if ((symbol === 'BTC-USD' || symbol === 'ETH-USD') && history.length > 0) {
           const startPrice = history[0];
           const currentPrice = history[history.length - 1];
