@@ -421,22 +421,39 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       }
     }
 
-    // AKILLI İŞLEM GÜNÜ FİLTRESİ (1G, 2G, 3G İçin) - Sayısal Sıralama ile Hatasız
+    // AKILLI İŞLEM GÜNÜ FİLTRESİ (1G, 2G, 3G İçin) - Kapalı Piyasa Korumalı
     if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
       // 1. Tüm benzersiz işlem günlerini gece yarısına yuvarlayarak sayısal (timestamp) olarak bul
       const uniqueDays = [...new Set(quotes.map((q: any) => {
         const d = new Date(q.date);
         d.setHours(0, 0, 0, 0);
         return d.getTime();
-      }))].sort((a, b) => b - a); // En yeni gün en başta (Sayısal sıralama)
+      }))].sort((a, b) => b - a); // En yeni gün en başta
 
       // 2. İstenen gün sayısını belirle
       let daysToKeep = 1;
       if (r === '2g') daysToKeep = 2;
       else if (r === '3g') daysToKeep = 3;
 
-      // 3. Sadece en son 'daysToKeep' kadar benzersiz güne ait verileri tut
-      const targetDays = uniqueDays.slice(0, daysToKeep);
+      // 3. KAPALI PİYASA KORUMASI: En güncel gün < 10 bar içeriyorsa (gece/after-hours/hafta sonu),
+      //    o günü atla ve bir önceki TAM seans verisine geç.
+      let dayOffset = 0;
+      while (dayOffset < uniqueDays.length - daysToKeep) {
+        const candidateDay = uniqueDays[dayOffset];
+        const barsInDay = quotes.filter((q: any) => {
+          const d = new Date(q.date);
+          d.setHours(0, 0, 0, 0);
+          return d.getTime() === candidateDay;
+        }).length;
+        if (barsInDay < 10) {
+          dayOffset++; // Eksik gün → bir önceki güne git
+        } else {
+          break; // Tam seans bulundu
+        }
+      }
+
+      // 4. Sadece hedef günlerin barlarını tut
+      const targetDays = uniqueDays.slice(dayOffset, dayOffset + daysToKeep);
       quotes = quotes.filter((q: any) => {
         const d = new Date(q.date);
         d.setHours(0, 0, 0, 0);
