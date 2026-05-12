@@ -12,7 +12,7 @@ export default function Navbar() {
   const navLinks = [
     { name: "Ana Sayfa", href: "/" },
     { name: "Portfolyo", href: "/portfolio" },
-    { name: "Real Getiri", href: "/real-getiri" },
+    { name: "Turnusol Kağıdı", href: "/real-getiri" },
     { name: "Piyasalar", href: "/piyasalar" },
     { name: "AI Analiz", href: "/ai-analiz" },
     { name: "Eğitim", href: "/egitim" },

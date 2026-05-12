@@ -3,7 +3,41 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink } from 'lucide-react';
+import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink, Image as ImageIcon } from 'lucide-react';
+
+// Logo Bileşeni (Fallback destekli)
+function SymbolLogo({ symbol, color }: { symbol: string, color: string }) {
+  const [error, setError] = useState(false);
+  const cleanSymbol = symbol.split('.')[0].toUpperCase();
+  
+  // Önce SVG sonra PNG dene
+  const logoPath = error ? `/logos/${cleanSymbol}.png` : `/logos/${cleanSymbol}.svg`;
+
+  return (
+    <div 
+      className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 shrink-0 transition-transform group-hover:scale-110 shadow-lg"
+      style={{ backgroundColor: `${color}15` }}
+    >
+      {!error || logoPath.endsWith('.png') ? (
+        <img 
+          src={logoPath} 
+          alt={symbol}
+          className="w-full h-full object-contain p-1"
+          onError={(e) => {
+            if (!error) setError(true); // SVG hata verirse PNG'ye geç
+            else (e.target as any).style.display = 'none'; // İkisi de yoksa gizle
+          }}
+        />
+      ) : null}
+      {/* Eğer her iki format da hata verirse baş harfi göster */}
+      {(error && logoPath.endsWith('.png')) && (
+        <span className="text-xs font-black" style={{ color }}>
+          {symbol[0]}
+        </span>
+      )}
+    </div>
+  );
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -252,12 +286,17 @@ export default function IndexDetailsPage() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   onClick={() => router.push(`/piyasalar/${comp.symbol}`)}
-                  className={`bg-white/5 border p-3 rounded-2xl flex items-center justify-between transition-all group cursor-pointer ${
+                  className={`bg-white/5 border p-4 rounded-2xl flex items-center gap-4 transition-all group cursor-pointer ${
                     searchTerm && (comp.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || comp.name.toLowerCase().includes(searchTerm.toLowerCase()))
                     ? 'border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.1)]'
                     : 'border-white/5'
                   } hover:bg-white/10 hover:border-white/20`}
                 >
+                  <SymbolLogo 
+                    symbol={comp.symbol} 
+                    color={comp.changePercent >= 0 ? "#4ade80" : "#f87171"} 
+                  />
+
                   <div className="flex flex-col flex-grow">
                     <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">{comp.symbol.split('.')[0]}</span>
                     <div className="flex items-baseline gap-2">

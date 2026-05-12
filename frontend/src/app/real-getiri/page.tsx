@@ -190,17 +190,14 @@ export default function RealGetiriPage() {
     let benchGainPercent = 0;
 
     if (benchmarkCurrentPrice) {
+      // ÖNEMLİ: Altın ve NASDAQ dolar bazlıdır, bunları işaretleyelim
       const isBenchUSD = benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F";
 
-      // ÖNEMLİ: Benchmark, bu hissenin kendisiyse → kullanıcının gerçek alış fiyatını kullan.
-      // API fiyatı kullanıcının gerçek alış fiyatından farklı olabilir (intraday vs kapanış, komisyon vb.)
-      // Bu sayede "ASELS turnusolunu ASELS ile kıyasla" = gerçek portföy değeriyle birebir eşleşir.
       const benchNorm = benchmarkTicker.toUpperCase().replace('.IS', '');
       const itemNorm = itemName.replace('.IS', '');
       const isSameStock = benchNorm === itemNorm;
 
       if (isSameStock) {
-        // Aynı hisse: simülasyon = gerçek portföy (kullanıcının kendi alış fiyatını baz al)
         benchValue = valueTL;
         benchGain = plTL;
         benchGainPercent = plPercent;
@@ -230,27 +227,38 @@ export default function RealGetiriPage() {
       benchGain,
       benchGainPercent,
       benchHistPrice,
-      benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker)
+      benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))
     };
   }).sort((a, b) => b.currentValue - a.currentValue);
 
   const totalCostTL = processedData.reduce((acc, item) => acc + (item.costTL || 0), 0);
   const totalCurrentValueTL = processedData.reduce((acc, item) => acc + (item.currentValue || 0), 0);
   const totalBenchmarkValue = processedData.reduce((acc, item) => acc + (item.benchValue || 0), 0);
+
+  // REAL USD/EUR MALIYET HESABI: Her bir alımın kendi tarihindeki kuruna göre toplam maliyeti bul
+  const totalCostUSD = processedData.reduce((acc, item) => {
+    const hist = historicalRates[item._id];
+    const histUSD = hist?.usd || usdRate;
+    return acc + (item.costTL / (histUSD || 1));
+  }, 0);
   
+  const totalCostEUR = processedData.reduce((acc, item) => {
+    const hist = historicalRates[item._id];
+    const histEUR = hist?.eur || eurRate;
+    return acc + (item.costTL / (histEUR || 1));
+  }, 0);
+
+  const totalValueUSD = totalCurrentValueTL / (usdRate || 1);
+  const totalValueEUR = totalCurrentValueTL / (eurRate || 1);
+  
+  const totalPLPercentUSD = totalCostUSD > 0 ? (((totalValueUSD - totalCostUSD) / totalCostUSD) * 100) : 0;
+  const totalPLPercentEUR = totalCostEUR > 0 ? (((totalValueEUR - totalCostEUR) / totalCostEUR) * 100) : 0;
+
   const totalBenchmarkPL = totalBenchmarkValue - totalCostTL;
   const totalBenchmarkPLPercent = totalCostTL > 0 ? (totalBenchmarkPL / totalCostTL) * 100 : 0;
 
   const totalPLTL = totalCurrentValueTL - totalCostTL;
   const totalPLPercentTL = totalCostTL > 0 ? (totalPLTL / totalCostTL) * 100 : 0;
-
-  const totalValueUSD = totalCurrentValueTL / (usdRate || 1);
-  const totalCostUSD = totalCostTL / (usdRate || 1);
-  const totalPLPercentUSD = totalCostUSD > 0 ? (((totalValueUSD - totalCostUSD) / totalCostUSD) * 100) : 0;
-
-  const totalValueEUR = totalCurrentValueTL / (eurRate || 1);
-  const totalCostEUR = totalCostTL / (eurRate || 1);
-  const totalPLPercentEUR = totalCostEUR > 0 ? (((totalValueEUR - totalCostEUR) / totalCostEUR) * 100) : 0;
 
   if (!mounted) return null;
 
@@ -266,7 +274,7 @@ export default function RealGetiriPage() {
       <div className="relative z-10 max-w-7xl mx-auto pt-24 md:pt-32 px-4 md:px-6 pb-20">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div>
-            <h1 className="text-3xl md:text-5xl font-black tracking-tighter mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-400 to-blue-500">REAL GETİRİ</h1>
+            <h1 className="text-3xl md:text-5xl font-black tracking-tighter mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-400 to-blue-500 uppercase">TURNUSOL KAĞIDI</h1>
             <p className="text-gray-400 text-sm font-medium">Varlıklarınızın enflasyon ve döviz karşısındaki gerçek gücü.</p>
           </div>
           
@@ -278,7 +286,7 @@ export default function RealGetiriPage() {
               <BarChart3 className="text-cyan-400 w-5 h-5" />
               <div className="text-left">
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none mb-1">Kıyaslama Varlığı</p>
-                <p className="text-sm font-black text-white uppercase">{benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker)}</p>
+                <p className="text-sm font-black text-white uppercase">{benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))}</p>
               </div>
             </button>
 
@@ -332,18 +340,27 @@ export default function RealGetiriPage() {
               <div className="p-3 bg-cyan-500/20 rounded-2xl"><Activity className="text-cyan-400 w-6 h-6" /></div>
               <span className="text-[10px] font-black bg-cyan-400 text-black px-2 py-1 rounded-lg uppercase">Dolar Real</span>
             </div>
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Dolar Bazlı Getiri</p>
-            <h3 className={`text-3xl font-black ${totalPLPercentUSD >= 0 ? 'text-green-400' : 'text-red-400'}`}>%{totalPLPercentUSD.toFixed(2)}</h3>
-            <p className="text-xs text-gray-400 mt-2">Dolar artışından arındırılmış güç.</p>
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Dolar Getiri Oranı</p>
+            <h3 className={`text-3xl font-black ${totalPLPercentUSD >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              %{totalPLPercentUSD.toFixed(2)}
+            </h3>
+            <p className={`text-sm mt-2 font-black ${totalPLPercentUSD >= 0 ? 'text-green-400/80' : 'text-red-400/80'}`}>
+              {totalPLPercentUSD >= 0 ? '+' : ''}${(totalValueUSD - totalCostUSD).toLocaleString(undefined, { maximumFractionDigits: 2 })} Net Kar
+            </p>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl border-purple-500/10">
             <div className="flex justify-between items-start mb-4">
               <div className="p-3 bg-purple-500/20 rounded-2xl"><BarChart3 className="text-purple-400 w-6 h-6" /></div>
+              <span className="text-[10px] font-black bg-purple-500/20 text-purple-400 px-2 py-1 rounded-lg uppercase">Euro Bazlı</span>
             </div>
-            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Euro Bazlı Getiri</p>
-            <h3 className={`text-3xl font-black ${totalPLPercentEUR >= 0 ? 'text-green-400' : 'text-red-400'}`}>%{totalPLPercentEUR.toFixed(2)}</h3>
-            <p className="text-xs text-gray-400 mt-2">Satın alma gücü (Euro).</p>
+            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">Euro Getiri Oranı</p>
+            <h3 className={`text-3xl font-black ${totalPLPercentEUR >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              %{totalPLPercentEUR.toFixed(2)}
+            </h3>
+            <p className={`text-sm mt-2 font-black ${totalPLPercentEUR >= 0 ? 'text-green-400/80' : 'text-red-400/80'}`}>
+              {totalPLPercentEUR >= 0 ? '+' : ''}€{(totalValueEUR - totalCostEUR).toLocaleString(undefined, { maximumFractionDigits: 2 })} Net Kar
+            </p>
           </motion.div>
         </div>
 
@@ -352,9 +369,9 @@ export default function RealGetiriPage() {
           <div className="absolute top-0 right-0 p-8 opacity-10 text-cyan-400"><BarChart3 size={120} /></div>
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
             <div>
-              <h2 className="text-3xl font-black mb-2 italic tracking-tighter uppercase underline decoration-cyan-500/30">TURNUSOL ÖZETİ ( {benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker)} )</h2>
+              <h2 className="text-3xl font-black mb-2 italic tracking-tighter uppercase underline decoration-cyan-500/30">TURNUSOL ÖZETİ ( {benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))} )</h2>
               <p className="text-gray-400 text-sm max-w-md font-medium leading-relaxed">
-                Eğer portföyünüzdeki her varlığı aldığınız tarihte o parayla doğrudan <span className="text-white font-black underline decoration-cyan-500">{benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker)}</span> alsaydınız:
+                Eğer portföyünüzdeki her varlığı aldığınız tarihte o parayla doğrudan <span className="text-white font-black underline decoration-cyan-500">{benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))}</span> alsaydınız:
               </p>
             </div>
             <div className="flex flex-col md:flex-row items-center md:items-end gap-8 md:gap-12">
@@ -421,19 +438,30 @@ export default function RealGetiriPage() {
 
                   <div className="text-right min-w-[220px]">
                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">EĞER {stock.benchmarkAssetName} ALSAYDIN</p>
-                    <p className="font-black text-2xl text-gray-400 tracking-tighter">₺{stock.benchValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                    <p className="font-black text-2xl text-gray-400 tracking-tighter">
+                      {(benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? "$" : (benchmarkCurrency === "EUR" ? "€" : "₺")}
+                      {((benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? (stock.benchValue / usdRate) : (benchmarkCurrency === "EUR" ? (stock.benchValue / eurRate) : stock.benchValue)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
                     <div className={`text-[11px] font-black flex items-center justify-end gap-1 mt-1 ${stock.benchGainPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {stock.benchGainPercent >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      ₺{Math.abs(stock.benchGain).toLocaleString(undefined, { maximumFractionDigits: 0 })} (%{stock.benchGainPercent.toFixed(1)})
+                      {(benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? "$" : (benchmarkCurrency === "EUR" ? "€" : "₺")}
+                      {Math.abs((benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? (stock.benchGain / usdRate) : (benchmarkCurrency === "EUR" ? (stock.benchGain / eurRate) : stock.benchGain)).toLocaleString(undefined, { maximumFractionDigits: 0 })} 
+                      (%{stock.benchGainPercent.toFixed(1)})
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-2">
                       <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/5">
                         <span className="text-[9px] text-gray-500 font-bold uppercase">H:</span>
-                        <span className="text-[10px] text-gray-400 font-black">{benchmarkCurrency === "TRY" ? "₺" : "$"}{stock.benchHistPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span className="text-[10px] text-gray-400 font-black">
+                          {(benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? "$" : "₺"}
+                          {stock.benchHistPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/5">
+                      <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/10 shadow-sm">
                         <span className="text-[9px] text-gray-500 font-bold uppercase">C:</span>
-                        <span className="text-[10px] text-cyan-400 font-black">{benchmarkCurrency === "TRY" ? "₺" : "$"}{benchmarkCurrentPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span className="text-[10px] text-cyan-400 font-black">
+                          {(benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? "$" : "₺"}
+                          {benchmarkCurrentPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -450,7 +478,7 @@ export default function RealGetiriPage() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSearchingBenchmark(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
             <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-12 w-full max-w-lg shadow-[0_0_100px_rgba(6,182,212,0.2)]">
               <div className="flex justify-between items-center mb-10">
-                <h2 className="text-3xl font-black tracking-tighter flex items-center gap-4"><Search className="text-cyan-400 w-8 h-8" /> Benchmark Seç</h2>
+                <h2 className="text-3xl font-black tracking-tighter flex items-center gap-4"><Search className="text-cyan-400 w-8 h-8" /> Turnusol Seç</h2>
                 <button onClick={() => setIsSearchingBenchmark(false)} className="text-gray-500 hover:text-white transition-all"><X size={32} /></button>
               </div>
 
@@ -482,10 +510,11 @@ export default function RealGetiriPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-6">
-                   <button onClick={() => { setBenchmarkTicker("USDTRY=X"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-6 rounded-3xl text-xs font-black hover:bg-cyan-500/10 transition-all flex flex-col items-center gap-3"><DollarSign className="text-cyan-400" /> DOLAR</button>
-                   <button onClick={() => { setBenchmarkTicker("EURTRY=X"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-6 rounded-3xl text-xs font-black hover:bg-blue-500/10 transition-all flex flex-col items-center gap-3"><span className="text-blue-400 text-2xl">€</span> EURO</button>
-                   <button onClick={() => { setBenchmarkTicker("BTC-USD"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-6 rounded-3xl text-xs font-black hover:bg-orange-500/10 transition-all flex flex-col items-center gap-3"><Activity className="text-orange-400" /> BITCOIN</button>
+                <div className="grid grid-cols-4 gap-3 pt-6">
+                   <button onClick={() => { setBenchmarkTicker("USDTRY=X"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-4 rounded-3xl text-[10px] font-black hover:bg-cyan-500/10 transition-all flex flex-col items-center gap-2"><DollarSign size={20} className="text-cyan-400" /> DOLAR</button>
+                   <button onClick={() => { setBenchmarkTicker("EURTRY=X"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-4 rounded-3xl text-[10px] font-black hover:bg-blue-500/10 transition-all flex flex-col items-center gap-2"><span className="text-blue-400 text-xl font-bold">€</span> EURO</button>
+                   <button onClick={() => { setBenchmarkTicker("GC=F"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-4 rounded-3xl text-[10px] font-black hover:bg-yellow-500/10 transition-all flex flex-col items-center gap-2"><div className="w-5 h-5 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/50"><div className="w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_8px_#facc15]" /></div> ALTIN</button>
+                   <button onClick={() => { setBenchmarkTicker("BTC-USD"); setIsSearchingBenchmark(false); }} className="bg-white/5 border border-white/10 p-4 rounded-3xl text-[10px] font-black hover:bg-orange-500/10 transition-all flex flex-col items-center gap-2"><Activity size={20} className="text-orange-400" /> BTC</button>
                 </div>
               </div>
             </motion.div>

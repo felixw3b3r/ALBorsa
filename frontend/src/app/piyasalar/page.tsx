@@ -2,8 +2,40 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
-import { TrendingUp, TrendingDown, RefreshCw, BarChart3, Globe, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, BarChart3, Globe, Zap, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+// Logo Bileşeni (Detay sayfasıyla aynı akıllı yapı)
+function SymbolLogo({ symbol, color }: { symbol: string, color: string }) {
+  const [error, setError] = useState(false);
+  const cleanSymbol = symbol.split('.')[0].split('-')[0].toUpperCase();
+  
+  const logoPath = error ? `/logos/${cleanSymbol}.png` : `/logos/${cleanSymbol}.svg`;
+
+  return (
+    <div 
+      className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden border border-white/10 shrink-0 transition-transform group-hover:scale-110 shadow-lg bg-black/20"
+      style={{ backgroundColor: `${color}10` }}
+    >
+      {!error || logoPath.endsWith('.png') ? (
+        <img 
+          src={logoPath} 
+          alt={symbol}
+          className="w-full h-full object-contain p-2"
+          onError={(e) => {
+            if (!error) setError(true);
+            else (e.target as any).style.display = 'none';
+          }}
+        />
+      ) : null}
+      {(error && logoPath.endsWith('.png')) && (
+        <span className="text-sm font-black" style={{ color }}>
+          {symbol[0]}
+        </span>
+      )}
+    </div>
+  );
+}
 
 const MARKET_TICKERS = [
   { symbol: "XU100.IS", name: "BIST 100", category: "Borsa İstanbul" },
@@ -92,9 +124,15 @@ function MarketCard({ item, idx }: { item: any, idx: number }) {
         
         <div className="relative z-10 flex-grow">
           <div className="flex justify-between items-start mb-6">
-            <div>
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">{item.symbol}</p>
-              <h3 className="text-xl font-bold text-white group-hover:text-neon-purple transition-colors">{item.name}</h3>
+            <div className="flex items-center gap-4">
+              <SymbolLogo 
+                symbol={item.symbol} 
+                color={item.changePercent >= 0 ? "#4ade80" : "#f87171"} 
+              />
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">{item.symbol}</p>
+                <h3 className="text-xl font-bold text-white group-hover:text-neon-purple transition-colors">{item.name}</h3>
+              </div>
             </div>
             <div className={`p-3 rounded-2xl ${item.changePercent >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
               {item.changePercent >= 0 ? <TrendingUp size={20} /> : <TrendingDown size={20} />}

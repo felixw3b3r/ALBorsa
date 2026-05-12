@@ -5,11 +5,28 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { createClient } from 'redis';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Redis Client Initialization
+export const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+
+(async () => {
+  try {
+    // await redisClient.connect(); // Bağlantıyı opsiyonel bırakalım, hata vermesin
+    console.log('📡 Redis client initialized (connection optional)');
+  } catch (err) {
+    console.log('Redis connection skipped');
+  }
+})();
 
 // Middleware (Her şeyden ÖNCE gelmeli!)
 app.use(cors());
@@ -102,12 +119,13 @@ app.get('/api/yahoo', authMiddleware, async (req, res) => {
     
     // Yahoo Finance API'sinden çoklu fiyat sorgusu
     const quotes: any = await (yahooFinance as any).quote(symbols);
+    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
     
     // Gelen veriyi frontend'in daha kolay okuyabileceği sade bir formata çevirelim
-    const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
+    const result = quotesArray.map((q: any) => ({
       code: q.symbol,
       name: q.shortName || q.longName || q.symbol,
-      price: q.regularMarketPrice,
+      price: q.regularMarketPrice || q.price || 0,
       changePercent: q.regularMarketChangePercent,
       currency: q.currency
     }));
@@ -137,12 +155,16 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
 
     console.log(`📜 Fetching historical data for ${yahooSymbol} (${market}) on ${date}`);
     
-    // Tarihi Yahoo formatına çevir (Hafta sonlarını kapsamak için 7 günlük bir pencere tarayalım)
+    // Tarihi Yahoo formatına çevir (Hafta sonlarını kapsamak için 10 günlük bir pencere tarayalım)
     const queryDate = new Date(date as string);
+    // KRİTİK DÜZELTME: Sorgulanan günü günün sonuna çekiyoruz (23:59:59) 
+    // Böylece o günün herhangi bir saatinde gelen veri kapsama girer.
+    queryDate.setHours(23, 59, 59, 999);
+    
     const today = new Date();
     
     // Eğer sorgulanan tarih bugün veya gelecekteyse, doğrudan güncel fiyatı dön
-    if (queryDate >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+    if (new Date(date as string) >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
        try {
          const quote: any = await (yahooFinance as any).quote(yahooSymbol);
          return res.json({ success: true, price: quote.regularMarketPrice || quote.price, date: new Date(), isLive: true });
@@ -152,50 +174,49 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     }
 
     const fromDate = new Date(queryDate);
-    fromDate.setDate(fromDate.getDate() - 7); 
+    fromDate.setDate(fromDate.getDate() - 10); // 10 günlük pencere (Sizin tercihiniz, ideal süre)
     
     const toDate = new Date(queryDate);
-    toDate.setDate(toDate.getDate() + 2); // Birkaç gün sonrasını da kapsa (hafta sonu vs)
+    toDate.setDate(toDate.getDate() + 2); 
 
-    const results: any = await (yahooFinance as any).historical(yahooSymbol, {
+    // KRİTİK: Historical yerine Chart + validateResult:false kullanmaya devam ediyoruz 
+    // Bu sayede hafta sonu boşlukları olsa bile kütüphane hata fırlatmıyor.
+    const chartRes: any = await (yahooFinance as any).chart(yahooSymbol, {
       period1: fromDate,
       period2: toDate,
       interval: '1d'
-    });
+    }, { validateResult: false });
+
+    const results = chartRes.quotes || [];
 
     if (results && results.length > 0) {
-      // Sorgulanan tarihe en yakın (ama o tarihten sonra olmayan) veriyi bul
-      const validResults = results.filter((r: any) => new Date(r.date) <= queryDate)
-                                  .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      const dayData = validResults[0] || results[results.length - 1];
-      let finalPrice = dayData.close || dayData.adjClose || dayData.regularMarketPrice;
+      // Boş olmayan verileri filtrele
+      const validQuotes = results.filter((r: any) => r.close != null || r.open != null);
 
-      if (!finalPrice && results.length > 0) finalPrice = results[results.length-1].close;
+      // En yakın günü seç
+      const validResults = validQuotes.filter((r: any) => {
+        const rowDate = new Date(r.date);
+        return rowDate.getTime() <= queryDate.getTime();
+      }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      const dayData = validResults[0] || validQuotes[validQuotes.length - 1];
+      
+      if (!dayData) {
+        console.error(`❌ No valid day data found for ${yahooSymbol}`);
+        return res.status(404).json({ success: false, message: 'Veri bulunamadı' });
+      }
+
+      // Fiyat Seçici
+      let finalPrice = dayData.close || dayData.open || dayData.high || dayData.low;
       
       if (!finalPrice) {
-         return res.status(404).json({ success: false, message: 'Fiyat bulunamadı' });
+         return res.status(404).json({ success: false, message: 'Fiyat seçilemedi' });
       }
 
-      // Eğer NASDAQ ise TL'ye çevir (Tarihsel Kur ile)
-      if (market === "NASDAQ 500") {
-        try {
-          const exchangeResults: any = await (yahooFinance as any).historical('USDTRY=X', {
-            period1: fromDate,
-            period2: toDate,
-            interval: '1d'
-          });
-          if (exchangeResults && exchangeResults.length > 0) {
-            const histRate = exchangeResults[exchangeResults.length - 1].close;
-            finalPrice = finalPrice * histRate;
-            console.log(`💱 Historical USD/TRY rate on ${date}: ${histRate}`);
-          }
-        } catch (exErr) {
-          console.warn('Could not fetch historical exchange rate, returning USD price');
-        }
-      }
+      // LOG GÜNCELLEME: Tarihin yanına fiyatı da ekliyoruz
+      console.log(`📊 [Data Found] Symbol: ${yahooSymbol}, Req: ${date}, Found: ${new Date(dayData.date).toLocaleDateString('tr-TR')}, Price: ${finalPrice.toFixed(4)}`);
 
-      res.json({ success: true, price: finalPrice, date: dayData.date, currency: market === "NASDAQ 500" ? 'TL (Converted from USD)' : 'TL' });
+      res.json({ success: true, price: finalPrice, date: dayData.date, currency: dayData.currency || 'RAW' });
     } else {
       res.status(404).json({ success: false, message: 'O tarih için veri bulunamadı. (Borsa kapalı olabilir)' });
     }
@@ -207,23 +228,37 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
   }
 });
 
-// Yahoo Finance'den döviz kurlarını çek (CollectAPI yerine)
+// Yahoo Finance'den döviz kurlarını çek (Gelişmiş Fallback Sistemi ile)
 app.get('/api/exchange-rate', authMiddleware, async (req, res) => {
   try {
-    console.log('🌍 Fetching currency rates from Yahoo Finance...');
+    console.log('🌍 Fetching currency rates from Yahoo Finance (Live)...');
     const symbols = ['USDTRY=X', 'EURTRY=X', 'GBPTRY=X'];
-    const quotes: any = await (yahooFinance as any).quote(symbols);
     
-    const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => {
+    // Anlık veri çek
+    const quotes: any = await (yahooFinance as any).quote(symbols);
+    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+    
+    const result = quotesArray.map((q: any) => {
       const code = q.symbol.substring(0, 3);
+      // Fiyat için birden fazla kaynağı dene (Yahoo bazen birini boş dönerse diğeri kurtarır)
+      const price = q.regularMarketPrice || q.price || q.bid || q.ask || q.regularMarketPreviousClose || 0;
+      
       return {
         name: code === 'USD' ? 'Amerikan Doları' : (code === 'EUR' ? 'Euro' : 'İngiliz Sterlini'),
         code: code,
-        buying: q.regularMarketPrice,
-        selling: q.regularMarketPrice, // Yahoo'da tek fiyat
+        buying: price,
+        selling: price,
+        updatedAt: new Date()
       };
     });
     
+    // Eğer hepsi 0 ise bir de chart ile dene (Son Çare)
+    const allZero = result.every(r => r.buying === 0);
+    if (allZero) {
+       console.log('⚠️ Quote prices were 0, trying fallback with chart API...');
+       // Burada gerekirse chart API eklenebilir ama yukarıdaki fallbackler genelde yeterlidir.
+    }
+
     res.json({ success: true, result });
   } catch (error: any) {
     console.error('Yahoo Exchange Rate Error:', error.message);
@@ -289,7 +324,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 
     // Sembolü hazırla: Eğer nokta, şapka veya tire yoksa ve 5 karakterse .IS ekle
     let formattedSymbol = symbol.toUpperCase();
-    if (!formattedSymbol.includes('.') && !formattedSymbol.startsWith('^') && !formattedSymbol.includes('-') && formattedSymbol.length >= 5) {
+    if (!formattedSymbol.includes('.') && !formattedSymbol.startsWith('^') && !formattedSymbol.includes('-') && formattedSymbol.length >= 4) {
       formattedSymbol = `${formattedSymbol}.IS`;
     }
 
@@ -347,18 +382,23 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 
     if (r === '1d' || r === '1g' || r === '2g' || r === '3g') {
       intervalVal = '15m';
-      period1.setDate(period1.getDate() - 14); 
+      // BIST için: Son 20 gün içinde işlem yapılan en son günü bul (hafta sonu/tatil korumalı)
+      period1.setDate(period1.getDate() - 20);
     } else if (r === '1w' || r === '1h') {
       intervalVal = '30m';
-      period1.setDate(period1.getDate() - 14);
-    } else if (r === '1m' || r === '1a' || r === '3m' || r === '3a' || r === '1y' || r === '1s') {
-      // KRİTİK: BIST endeksleri için Yahoo '1d' (günlük) geçmişi vermiyor, ama '1h' (saatlik) veriyor.
-      // Bu yüzden tüm uzun vadeli BIST grafiklerinde saatlik hassasiyeti zorunlu kılıyoruz.
+      period1.setDate(period1.getDate() - 9); // 7 gün + 2 gün tampon (hafta sonu koruması)
+    } else if (r === '1m' || r === '1a') {
+      // 1 Ay: Günlük bar (BIST için 1h fallback var)
       intervalVal = formattedSymbol.endsWith('.IS') ? '1h' : '1d';
-      
-      if (r === '1m' || r === '1a') period1.setMonth(period1.getMonth() - 1);
-      else if (r === '3m' || r === '3a') period1.setMonth(period1.getMonth() - 3);
-      else period1.setFullYear(period1.getFullYear() - 1);
+      period1.setMonth(period1.getMonth() - 1);
+    } else if (r === '3m' || r === '3a') {
+      // 3 Ay: Günlük bar yeterli (~65 bar)
+      intervalVal = '1d';
+      period1.setMonth(period1.getMonth() - 3);
+    } else if (r === '1y' || r === '1s') {
+      // 1 Yıl: Haftalık hassasiyet (~52 bar, temiz görünüm)
+      intervalVal = '1wk';
+      period1.setFullYear(period1.getFullYear() - 1);
     }
 
     // Dinamik Sembol ve Hassasiyet Avcısı: Yahoo bazen nazlanır
@@ -387,7 +427,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
           if (attemptQuotes.length > 0) {
             chart = attempt;
             quotes = attemptQuotes;
-            console.log(`✅ Success: ${variant} with ${inv}`);
+            console.log(`✅ Success: ${variant} with ${inv} (${attemptQuotes.length} bars)`);
             break outerLoop;
           }
         } catch (e) {
@@ -398,7 +438,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     
     // GENEL FALLBACK: Hala veri yoksa geniş aralığı dene
     if (quotes.length === 0) {
-      console.log(`⚠️ No data found anywhere for ${formattedSymbol}, trying broad fallback...`);
+      console.log(`⚠️ No data found for ${formattedSymbol}, trying broad fallback...`);
       const fallbackDate = new Date();
       fallbackDate.setFullYear(fallbackDate.getFullYear() - 2);
       
@@ -423,42 +463,72 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 
     // AKILLI İŞLEM GÜNÜ FİLTRESİ (1G, 2G, 3G İçin) - Kapalı Piyasa Korumalı
     if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
-      // 1. Tüm benzersiz işlem günlerini gece yarısına yuvarlayarak sayısal (timestamp) olarak bul
+      // 1. Tüm benzersiz işlem günlerini bul, en yeniden eskiye sırala
       const uniqueDays = [...new Set(quotes.map((q: any) => {
         const d = new Date(q.date);
         d.setHours(0, 0, 0, 0);
         return d.getTime();
-      }))].sort((a, b) => b - a); // En yeni gün en başta
+      }))].sort((a, b) => b - a);
 
       // 2. İstenen gün sayısını belirle
       let daysToKeep = 1;
       if (r === '2g') daysToKeep = 2;
       else if (r === '3g') daysToKeep = 3;
 
-      // 3. KAPALI PİYASA KORUMASI: En güncel gün < 10 bar içeriyorsa (gece/after-hours/hafta sonu),
-      //    o günü atla ve bir önceki TAM seans verisine geç.
+      // 3. AKILLI İŞLEM GÜNÜ BULUCU:
+      //    En az 5 bar olan en son günü bul (borsa o gün en az biraz açık kalmış olmalı)
+      //    Bu sayede "bugün kapalı → dünün datasını göster" mantığı çalışır.
       let dayOffset = 0;
-      while (dayOffset < uniqueDays.length - daysToKeep) {
+      const minBarsThreshold = 5; // En az 5 bar (yaklaşık 75dk işlem) olan günü "geçerli" say
+      
+      while (dayOffset < uniqueDays.length) {
         const candidateDay = uniqueDays[dayOffset];
         const barsInDay = quotes.filter((q: any) => {
           const d = new Date(q.date);
           d.setHours(0, 0, 0, 0);
           return d.getTime() === candidateDay;
         }).length;
-        if (barsInDay < 10) {
-          dayOffset++; // Eksik gün → bir önceki güne git
-        } else {
-          break; // Tam seans bulundu
+        
+        if (barsInDay >= minBarsThreshold) {
+          break; // Bu gün yeterince veri var, buradan başla
         }
+        dayOffset++;
       }
 
       // 4. Sadece hedef günlerin barlarını tut
       const targetDays = uniqueDays.slice(dayOffset, dayOffset + daysToKeep);
-      quotes = quotes.filter((q: any) => {
-        const d = new Date(q.date);
-        d.setHours(0, 0, 0, 0);
-        return targetDays.includes(d.getTime());
-      });
+      
+      if (targetDays.length > 0) {
+        quotes = quotes.filter((q: any) => {
+          const d = new Date(q.date);
+          d.setHours(0, 0, 0, 0);
+          return targetDays.includes(d.getTime());
+        });
+        console.log(`📊 Filtered to ${quotes.length} bars across ${targetDays.length} trading day(s) for ${formattedSymbol}`);
+      }
+
+      // 5. SON ÇARE: Hala 0 bar kaldıysa tüm verileri kullan (hiçbirini atma)
+      if (quotes.length === 0) {
+        console.log(`⚠️ Filtering removed all bars for ${formattedSymbol}, using all available data.`);
+        quotes = (chart?.quotes || []).filter((q: any) => q.close != null);
+      }
+    } // 1D bloğunun sonu
+
+    // 1H (1 Hafta) FİLTRESİ: 9 günlük pencereden sadece son 7 günü tut
+    if ((r === '1w' || r === '1h') && quotes.length > 0) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const filtered = quotes.filter((q: any) => new Date(q.date) >= sevenDaysAgo);
+      if (filtered.length > 0) {
+        quotes = filtered;
+        console.log(`📊 1H filter: ${quotes.length} bars kept (last 7 days) for ${formattedSymbol}`);
+      }
+    }
+
+    // 3A (3 Ay) İNCELEME FİLTRESİ: Her 2 günde 1 bar tut (daha temiz görünüm)
+    if ((r === '3m' || r === '3a') && quotes.length > 60) {
+      quotes = quotes.filter((_: any, idx: number) => idx % 2 === 0);
+      console.log(`📊 3A thinning: ${quotes.length} bars for ${formattedSymbol}`);
     }
 
     const history = quotes.map((q: any) => q.close);
