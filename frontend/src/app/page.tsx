@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import Navbar from "@/components/Navbar";
 import { ArrowRight, BarChart3, ShieldCheck, Zap, ArrowDown, Cpu, Globe2, FileText, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
