@@ -182,6 +182,9 @@ export default function Home() {
 function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
     <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
       whileHover={{ y: -10 }}
       className={`p-8 rounded-3xl border border-white/5 bg-black hover:border-neon-purple/50 transition-all group ${styles.featureCard}`}
     >
@@ -196,20 +199,27 @@ function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: stri
 
 function ServiceRow({ side, icon, title, desc }: { side: 'left' | 'right', icon: React.ReactNode, title: string, desc: string }) {
   return (
-    <div className={`flex items-center w-full ${side === 'left' ? 'md:flex-row-reverse' : ''} ${styles.serviceRow}`}>
+    <div className={`flex items-center w-full ${side === 'left' ? 'md:flex-row-reverse' : ''} ${styles.serviceRow} relative`}>
       <div className="hidden md:block w-1/2" />
       
       {/* Connector Dot */}
       <div className="absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-neon-purple rounded-full border-4 border-black z-10 hidden md:block" />
 
       <motion.div 
-        initial={{ x: side === 'right' ? 100 : -100, opacity: 0 }}
-        whileInView={{ x: 0, opacity: 1 }}
+        initial={{ 
+          x: typeof window !== 'undefined' && window.innerWidth < 768 ? 0 : (side === 'right' ? 100 : -100), 
+          y: typeof window !== 'undefined' && window.innerWidth < 768 ? 50 : 0,
+          opacity: 0 
+        }}
+        whileInView={{ x: 0, y: 0, opacity: 1 }}
         viewport={{ once: true, margin: "-100px" }}
-        transition={{ type: "spring", damping: 20, stiffness: 100 }}
+        transition={{ type: "spring", damping: 25, stiffness: 80 }}
         className={`w-full md:w-1/2 p-1 ${side === 'right' ? 'md:pl-12' : 'md:pr-12'}`}
       >
-        <div className={`bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/[0.08] transition-colors group ${styles.serviceCard}`}>
+        <div className={`bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/[0.08] transition-colors group ${styles.serviceCard} relative overflow-hidden`}>
+          {/* Subtle background glow for mobile */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-neon-purple/5 blur-3xl -mr-16 -mt-16 rounded-full group-hover:bg-neon-purple/10 transition-colors" />
+          
           <div className={`text-neon-purple mb-4 bg-neon-purple/10 w-fit p-3 rounded-2xl ${styles.serviceIcon}`}>
             {icon}
           </div>

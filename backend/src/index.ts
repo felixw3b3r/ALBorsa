@@ -322,18 +322,22 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     const { symbol } = req.params;
     let { range = '1d', interval = '15m' } = req.query as any;
 
-    // Sembolü hazırla: Eğer nokta, şapka veya tire yoksa ve 5 karakterse .IS ekle
+    // Sembolü hazırla: Eğer nokta, şapka veya tire yoksa ve 4+ karakterse .IS ekle (Altın sembolleri hariç)
     let formattedSymbol = symbol.toUpperCase();
-    if (!formattedSymbol.includes('.') && !formattedSymbol.startsWith('^') && !formattedSymbol.includes('-') && formattedSymbol.length >= 4) {
+    const isSpecialGold = ['GRAM_ALTIN', 'CEYREK_ALTIN'].includes(formattedSymbol);
+    
+    if (!isSpecialGold && !formattedSymbol.includes('.') && !formattedSymbol.startsWith('^') && !formattedSymbol.includes('-') && formattedSymbol.length >= 4) {
       formattedSymbol = `${formattedSymbol}.IS`;
     }
 
-    // Hassasiyet ayarları
-    // Hassasiyet ayarları (User Request) - Hem Türkçe hem İngilizce kısaltmaları destekle
+    const isGlobal = formattedSymbol.startsWith('^') || formattedSymbol.includes('-') || ['GC=F', 'USDTRY=X', 'CEYREK_ALTIN', 'GRAM_ALTIN'].includes(formattedSymbol);
     let intervalVal: any = '1d';
-    // Zaman aralığını hesapla (Kütüphane range desteklemiyor, period1 zorunlu) - Saatleri sıfırla (Garantici yöntem)
+
+    // Zaman aralığını hesapla (Kütüphane range desteklemiyor, period1 zorunlu)
     const period1 = new Date();
-    period1.setHours(0, 0, 0, 0);
+    if (!isGlobal) {
+      period1.setHours(0, 0, 0, 0); // BIST için gün başından başla
+    }
     
     // Küçük harfe çevirip kontrol et
     const r = range.toLowerCase();
@@ -352,7 +356,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
           '1g': { interval: '15m', limit: 96 },  '1d': { interval: '15m', limit: 96 },
           '2g': { interval: '30m', limit: 96 },  '3g': { interval: '1h',  limit: 72 },
           '1h': { interval: '1h',  limit: 168 }, '1w': { interval: '1h',  limit: 168 },
-          '1a': { interval: '4h',  limit: 180 }, '1m': { interval: '4h',  limit: 180 },
+          '1a': { interval: '2h',  limit: 360 }, '1m': { interval: '2h',  limit: 360 },
           '3a': { interval: '1d',  limit: 90 },  '3m': { interval: '1d',  limit: 90 },
           '1y': { interval: '1d',  limit: 365 }, '1s': { interval: '1d',  limit: 365 },
         };
@@ -377,28 +381,69 @@ app.get('/api/stocks/:symbol', async (req, res) => {
         console.warn(`⚠️ Binance fallback for ${binanceSymbol}:`, binanceErr.message?.slice(0, 60));
       }
     }
-    // ===== KRİPTO SONU =====
-
-
     if (r === '1d' || r === '1g' || r === '2g' || r === '3g') {
       intervalVal = '15m';
-      // BIST için: Son 20 gün içinde işlem yapılan en son günü bul (hafta sonu/tatil korumalı)
-      period1.setDate(period1.getDate() - 20);
+      if (isGlobal) {
+        // Global varlıklar için TAM 24/48/72 saat geriye git (Rolling window)
+        const hoursBack = r === '1g' || r === '1d' ? 24 : (r === '2g' ? 48 : 72);
+        period1.setHours(period1.getHours() - hoursBack);
+        console.log(`⏱️ Global Rolling Start: ${period1.toLocaleString()} for ${formattedSymbol}`);
+      } else {
+        // BIST için: Son 20 gün içinde işlem yapılan en son günü bul
+        period1.setDate(period1.getDate() - 20);
+      }
     } else if (r === '1w' || r === '1h') {
       intervalVal = '30m';
       period1.setDate(period1.getDate() - 9); // 7 gün + 2 gün tampon (hafta sonu koruması)
     } else if (r === '1m' || r === '1a') {
-      // 1 Ay: Günlük bar (BIST için 1h fallback var)
-      intervalVal = formattedSymbol.endsWith('.IS') ? '1h' : '1d';
+      // 1 Ay: Hassasiyeti 1d'den 1h'ye çıkararak çok daha akıcı bir grafik sağlıyoruz
+      intervalVal = '1h'; 
       period1.setMonth(period1.getMonth() - 1);
     } else if (r === '3m' || r === '3a') {
-      // 3 Ay: Günlük bar yeterli (~65 bar)
-      intervalVal = '1d';
+      // 3 Ay: Hassasiyeti 1d'den 1h'ye çıkararak 2 katından fazla detay sağlıyoruz
+      intervalVal = isGlobal ? '1h' : '1h'; // BIST için de 1h deniyoruz
       period1.setMonth(period1.getMonth() - 3);
     } else if (r === '1y' || r === '1s') {
-      // 1 Yıl: Haftalık hassasiyet (~52 bar, temiz görünüm)
-      intervalVal = '1wk';
+      // 1 Yıl: Hassasiyeti 1wk'dan 1d'ye çıkararak 7 kat detay sağlıyoruz
+      intervalVal = '1d';
       period1.setFullYear(period1.getFullYear() - 1);
+    }
+
+    // ===== ALTIN HESAPLAMALARI (GRAM/ÇEYREK) - Range ayarından sonra çalışmalı =====
+    if (formattedSymbol === 'GRAM_ALTIN' || formattedSymbol === 'CEYREK_ALTIN') {
+      try {
+        const usdData: any = await (yahooFinance as any).quote('USDTRY=X');
+        const onsData: any = await (yahooFinance as any).chart('GC=F', { period1, interval: intervalVal }, { validateResult: false });
+        
+        const usdPrice = usdData.regularMarketPrice || 32.5;
+        let onsQuotes = (onsData.quotes || []).filter((q: any) => q.close != null);
+        
+        // STRICT ROLLING FILTER (Gram/Çeyrek için de son 24/48/72 saat kesimi)
+        if (isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && onsQuotes.length > 0) {
+          const now = new Date();
+          const hoursBack = r === '1g' || r === '1d' ? 24 : (r === '2g' ? 48 : 72);
+          const startTime = now.getTime() - (hoursBack * 60 * 60 * 1000);
+          onsQuotes = onsQuotes.filter((q: any) => new Date(q.date).getTime() >= startTime);
+        }
+
+        const multiplier = formattedSymbol === 'GRAM_ALTIN' ? (1 / 31.1035) : (1 / 31.1035 * 1.6065);
+        const history = onsQuotes.map((q: any) => q.close * multiplier * usdPrice);
+        const timestamps = onsQuotes.map((q: any) => q.date);
+        const currentPrice = (usdData.regularMarketPrice * (onsQuotes[onsQuotes.length - 1]?.close || 0) * multiplier);
+
+        return res.json({
+          symbol: formattedSymbol,
+          name: formattedSymbol === 'GRAM_ALTIN' ? 'Gram Altın (TL)' : 'Çeyrek Altın (TL)',
+          price: currentPrice,
+          change: (currentPrice * (usdData.regularMarketChangePercent || 0)) / 100,
+          changePercent: usdData.regularMarketChangePercent || 0,
+          category: 'Altın Piyasaları',
+          history,
+          timestamps
+        });
+      } catch (err: any) {
+        console.error('Gold Calculation Error:', err.message);
+      }
     }
 
     // Dinamik Sembol ve Hassasiyet Avcısı: Yahoo bazen nazlanır
@@ -410,7 +455,10 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     if (!formattedSymbol.startsWith('^')) symbolVariants.push(`^${formattedSymbol.replace('.IS', '')}`);
     if (formattedSymbol.endsWith('.IS')) symbolVariants.push(formattedSymbol.replace('.IS', ''));
 
-    const intervalsToTry = [intervalVal, '1h', '1d'];
+    // ÖNCELİKLİ HASSASİYET: 1G, 2G veya 3G ise önce yüksek frekans dene
+    const intervalsToTry = (r === '1d' || r === '1g' || r === '2g' || r === '3g') 
+      ? ['15m', '5m', '2m', '1h', '1d'] 
+      : [intervalVal, '1h', '1d'];
 
     // Önce en iyi sembol ve en iyi hassasiyeti dene, olmazsa kademeli düşür
     outerLoop: for (const variant of symbolVariants) {
@@ -462,7 +510,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     }
 
     // AKILLI İŞLEM GÜNÜ FİLTRESİ (1G, 2G, 3G İçin) - Kapalı Piyasa Korumalı
-    if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
+    if (!isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
       // 1. Tüm benzersiz işlem günlerini bul, en yeniden eskiye sırala
       const uniqueDays = [...new Set(quotes.map((q: any) => {
         const d = new Date(q.date);
@@ -514,6 +562,19 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       }
     } // 1D bloğunun sonu
 
+    // GLOBAL ROLLING FILTER (Son 24/48/72 Saat Kesin Kesim)
+    if (isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
+      const now = new Date();
+      const hoursBack = r === '1g' || r === '1d' ? 24 : (r === '2g' ? 48 : 72);
+      const startTime = now.getTime() - (hoursBack * 60 * 60 * 1000);
+      
+      const filtered = quotes.filter((q: any) => new Date(q.date).getTime() >= startTime);
+      if (filtered.length > 0) {
+        quotes = filtered;
+        console.log(`📊 Global Rolling Filter: ${quotes.length} bars kept for last ${hoursBack}h`);
+      }
+    }
+
     // 1H (1 Hafta) FİLTRESİ: 9 günlük pencereden sadece son 7 günü tut
     if ((r === '1w' || r === '1h') && quotes.length > 0) {
       const sevenDaysAgo = new Date();
@@ -525,11 +586,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       }
     }
 
-    // 3A (3 Ay) İNCELEME FİLTRESİ: Her 2 günde 1 bar tut (daha temiz görünüm)
-    if ((r === '3m' || r === '3a') && quotes.length > 60) {
-      quotes = quotes.filter((_: any, idx: number) => idx % 2 === 0);
-      console.log(`📊 3A thinning: ${quotes.length} bars for ${formattedSymbol}`);
-    }
+    // 3A/1Y Seyreltme Filtresi kaldırıldı (User Request: 2 kat hassasiyet)
 
     const history = quotes.map((q: any) => q.close);
     const timestamps = quotes.map((q: any) => q.date);
@@ -544,13 +601,22 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       console.warn(`Quote fetch failed for ${activeSymbol}, using empty fallback.`);
     }
     
+    // Kullanıcı Dostu İsimlendirme (Süper Temiz Görünüm)
+    const nameMap: Record<string, string> = {
+      'GC=F': 'ONS Altın',
+      'USDTRY=X': 'Amerikan Doları',
+      'XU100.IS': 'BIST 100',
+      'XU050.IS': 'BIST 50',
+      'XU030.IS': 'BIST 30'
+    };
+
     res.json({
       symbol: activeSymbol,
-      name: liveQuote?.shortName || liveQuote?.longName || activeSymbol,
+      name: nameMap[activeSymbol] || liveQuote?.shortName || liveQuote?.longName || activeSymbol,
       price: liveQuote?.regularMarketPrice || liveQuote?.price || liveQuote?.bid || liveQuote?.regularMarketPreviousClose || (history.length > 0 ? history[history.length - 1] : 0),
       change: liveQuote?.regularMarketChange || 0,
       changePercent: liveQuote?.regularMarketChangePercent || 0,
-      category: activeSymbol.startsWith('^') ? 'Global Endeksler' : 'Borsa İstanbul',
+      category: activeSymbol.startsWith('^') ? 'Global Endeksler' : (['GC=F', 'USDTRY=X'].includes(activeSymbol) ? 'Altın & Döviz' : 'Borsa İstanbul'),
       history,
       timestamps
     });
@@ -735,7 +801,7 @@ app.get('/api/market-summary', async (req, res) => {
     const mainSymbols = [
       'XU100.IS', 'XU050.IS', 'XU030.IS', 'XBANK.IS', 'XUTEK.IS',
       '^GSPC', '^NDX', '^IXIC', '^SOX', '^NYFANG', '^NBI',
-      'BTC-USD', 'ETH-USD'
+      'BTC-USD', 'ETH-USD', 'GC=F', 'USDTRY=X'
     ];
 
     console.log(`📊 Batch processing market summary for ${mainSymbols.length} tickers`);

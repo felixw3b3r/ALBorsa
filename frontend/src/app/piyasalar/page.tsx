@@ -43,12 +43,12 @@ const MARKET_TICKERS = [
   { symbol: "XU030.IS", name: "BIST 30", category: "Borsa İstanbul" },
   { symbol: "XBANK.IS", name: "BIST Banka", category: "Borsa İstanbul" },
   { symbol: "XUTEK.IS", name: "BIST Teknoloji", category: "Borsa İstanbul" },
+  { symbol: "GC=F", name: "ONS Altın ($)", category: "Altın Piyasaları" },
+  { symbol: "GRAM_ALTIN", name: "Gram Altın (TL)", category: "Altın Piyasaları" },
+  { symbol: "CEYREK_ALTIN", name: "Çeyrek Altın (TL)", category: "Altın Piyasaları" },
   { symbol: "^GSPC", name: "S&P 500", category: "Global Endeksler" },
   { symbol: "^NDX", name: "Nasdaq 100", category: "Global Endeksler" },
   { symbol: "^IXIC", name: "Nasdaq", category: "Global Endeksler" },
-  { symbol: "^SOX", name: "Yarı İletkenler (AI)", category: "Global Endeksler" },
-  { symbol: "^NYFANG", name: "Mega Tech (FANG+)", category: "Global Endeksler" },
-  { symbol: "^NBI", name: "BioTech (AI Sağlık)", category: "Global Endeksler" },
   { symbol: "BTC-USD", name: "Bitcoin", category: "Kripto Paralar" },
   { symbol: "ETH-USD", name: "Ethereum", category: "Kripto Paralar" }
 ];
@@ -131,7 +131,7 @@ function MarketCard({ item, idx }: { item: any, idx: number }) {
               />
               <div>
                 <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">{item.symbol}</p>
-                <h3 className="text-xl font-bold text-white group-hover:text-neon-purple transition-colors">{item.name}</h3>
+                <h3 className="text-lg font-bold text-white group-hover:text-neon-purple transition-colors line-clamp-1">{item.name}</h3>
               </div>
             </div>
             <div className={`p-3 rounded-2xl ${item.changePercent >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
@@ -142,7 +142,7 @@ function MarketCard({ item, idx }: { item: any, idx: number }) {
           <div className="flex items-end justify-between">
             <div>
               <h4 className="text-3xl font-black tracking-tighter mb-1 text-white">
-                {item.category === "Kripto Paralar" ? "$" : ""}
+                {(item.category === "Kripto Paralar" || item.symbol === "GC=F") ? "$" : (item.category === "Altın Piyasaları" ? "₺" : "")}
                 {item.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h4>
               <div className={`text-sm font-bold flex items-center gap-1 ${item.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -178,8 +178,33 @@ export default function PiyasalarPage() {
       const res = await fetch(`${API_URL}/market-summary`);
       const summaryData = await res.json();
       
-      // MARKET_TICKERS ile gelen isimleri ve kategorileri eşleştir
+      const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 32.5 };
+      const onsData = summaryData.find((d: any) => d.symbol === "GC=F") || { price: 2350, changePercent: 0, history: [] };
+
+      // Altın Hesaplamaları
+      const gramPrice = (onsData.price / 31.1035) * usdData.price;
+      const ceyrekPrice = gramPrice * 1.6065; 
+
       const results = MARKET_TICKERS.map(ticker => {
+        if (ticker.symbol === "GRAM_ALTIN") {
+          return { 
+            ...ticker, 
+            price: gramPrice, 
+            changePercent: onsData.changePercent, 
+            change: (gramPrice * onsData.changePercent) / 100,
+            history: (onsData.history || []).map((p: number) => (p / 31.1035) * usdData.price) 
+          };
+        }
+        if (ticker.symbol === "CEYREK_ALTIN") {
+          return { 
+            ...ticker, 
+            price: ceyrekPrice, 
+            changePercent: onsData.changePercent,
+            change: (ceyrekPrice * onsData.changePercent) / 100,
+            history: (onsData.history || []).map((p: number) => (p / 31.1035) * usdData.price * 1.6065) 
+          };
+        }
+        
         const liveData = summaryData.find((d: any) => d.symbol === ticker.symbol);
         return { ...ticker, ...liveData };
       });
@@ -235,7 +260,7 @@ export default function PiyasalarPage() {
         </div>
 
         {/* Categories */}
-        {["Borsa İstanbul", "Global Endeksler", "Kripto Paralar"].map((category) => (
+        {["Borsa İstanbul", "Altın Piyasaları", "Global Endeksler", "Kripto Paralar"].map((category) => (
           <div key={category} className="mb-16">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-1.5 h-6 bg-neon-purple rounded-full shadow-[0_0_10px_rgba(139,0,232,0.5)]" />

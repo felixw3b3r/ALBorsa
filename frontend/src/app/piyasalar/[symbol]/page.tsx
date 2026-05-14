@@ -163,7 +163,11 @@ export default function IndexDetailsPage() {
             className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4"
           >
             <div>
-              <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-2">
+              <h1 className={`font-black tracking-tighter mb-2 ${
+                (indexData?.name || symbol).length > 12 
+                ? 'text-4xl md:text-6xl' 
+                : 'text-6xl md:text-8xl'
+              }`}>
                 {(indexData?.name || symbol).replace('.IS', '')}
               </h1>
               <div className="flex items-baseline gap-6">
@@ -363,7 +367,7 @@ function SparklineFull({ data, color, onHover }: { data: number[], color: string
       {ticks.map((tick, i) => (
         <g key={i}>
           <text x="-10" y={getY(tick)} className="fill-gray-600 text-[12px] font-bold" textAnchor="end" alignmentBaseline="middle">
-            {tick.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            {tick.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
           </text>
           <line x1="0" y1={getY(tick)} x2={width} y2={getY(tick)} className="stroke-white/5" strokeWidth="1" />
         </g>
