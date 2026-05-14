@@ -3,7 +3,9 @@
 import Navbar from "@/components/Navbar";
 import { ArrowRight, BarChart3, ShieldCheck, Zap, ArrowDown, Cpu, Globe2, FileText, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
-import HeroBackground from "@/components/HeroBackground";
+import dynamic from "next/dynamic";
+
+const HeroBackground = dynamic(() => import("@/components/HeroBackground"), { ssr: false });
 
 export default function Home() {
   return (
