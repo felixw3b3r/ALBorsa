@@ -1,5 +1,6 @@
 "use client";
 
+import styles from './page.module.css';
 import Navbar from "@/components/Navbar";
 import { ArrowRight, BarChart3, ShieldCheck, Zap, ArrowDown, Cpu, Globe2, FileText, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
@@ -11,19 +12,19 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white font-sans relative">
       {/* Full Screen Global Background Glow (Subtle Cyan) */}
-      <div className="global-glow" />
+      <div className={styles.globalGlow} />
       
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
+      <section className={`relative pt-32 pb-20 px-6 overflow-hidden ${styles.heroSection}`}>
         <HeroBackground />
         
         <div className="max-w-7xl mx-auto relative z-10 text-center">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-sm font-medium text-gray-300 mb-8"
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-sm font-medium text-gray-300 mb-8 ${styles.badge}`}
           >
             <TrendingUp size={14} className="text-neon-purple" />
             <span>Geleceğin Borsa Analiz Platformu</span>
@@ -33,7 +34,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-6xl md:text-8xl font-bold tracking-tighter mb-8 leading-[0.9]"
+            className={`text-6xl md:text-8xl font-bold tracking-tighter mb-8 leading-[0.9] ${styles.heroTitle}`}
           >
             BORSA İSTANBUL'U <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/50">
@@ -45,7 +46,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="max-w-2xl mx-auto text-xl text-gray-400 mb-10 leading-relaxed"
+            className={`max-w-2xl mx-auto text-xl text-gray-400 mb-10 leading-relaxed ${styles.heroSubtitle}`}
           >
             Karmaşık teknik analizleri saniyeler içinde tamamlayın. BIST hisselerini derinlemesine analiz edin ve akıllı yatırım kararları alın.
           </motion.p>
@@ -54,12 +55,12 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            className={`flex flex-col sm:flex-row items-center justify-center gap-4 ${styles.heroButtons}`}
           >
-            <button className="w-full sm:w-auto bg-neon-purple text-black px-8 py-4 rounded-xl font-bold text-lg hover:bg-neon-purple-hover hover:scale-105 transition-transform flex items-center justify-center gap-2">
+            <button className={`w-full sm:w-auto bg-neon-purple text-black px-8 py-4 rounded-xl font-bold text-lg hover:bg-neon-purple-hover hover:scale-105 transition-transform flex items-center justify-center gap-2 ${styles.heroButton}`}>
               Ücretsiz Başla <ArrowRight size={20} />
             </button>
-            <button className="w-full sm:w-auto bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-colors">
+            <button className={`w-full sm:w-auto bg-white/5 border border-white/10 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-colors ${styles.heroButton}`}>
               Nasıl Çalışır?
             </button>
           </motion.div>
@@ -68,7 +69,7 @@ export default function Home() {
 
       {/* Features Grid */}
       <section className="py-20 px-6 bg-white/[0.02] border-y border-white/5">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className={`max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 ${styles.featuresGrid}`}>
           <FeatureCard 
             icon={<BarChart3 />} 
             title="Portföy Takibi" 
@@ -88,7 +89,7 @@ export default function Home() {
       </section>
 
       {/* Services Section with Animations */}
-      <section className="py-32 px-6 relative overflow-hidden">
+      <section className={`py-32 px-6 relative overflow-hidden ${styles.servicesSection}`}>
         <div className="max-w-7xl mx-auto relative">
           
           {/* Continuous Vertical Line */}
@@ -100,12 +101,12 @@ export default function Home() {
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
               onClick={() => document.getElementById('services-list')?.scrollIntoView({ behavior: 'smooth' })}
-              className="cursor-pointer bg-neon-purple p-3 rounded-full hover:scale-110 transition-transform shadow-[0_0_20px_rgba(139,0,232,0.5)] mb-8"
+              className={`cursor-pointer bg-neon-purple p-3 rounded-full hover:scale-110 transition-transform shadow-[0_0_20px_rgba(139,0,232,0.5)] mb-8 ${styles.scrollArrow}`}
             >
               <ArrowDown size={20} className="text-black" />
             </motion.div>
 
-            <h2 className="text-4xl font-bold tracking-tight bg-black px-8 py-2 border border-white/10 rounded-full">
+            <h2 className={`text-4xl font-bold tracking-tight bg-black px-8 py-2 border border-white/10 rounded-full ${styles.servicesTitle}`}>
               Hizmetlerimiz
             </h2>
           </div>
@@ -171,7 +172,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6 border-t border-white/5 text-center text-gray-500 text-sm">
+      <footer className={`py-12 px-6 border-t border-white/5 text-center text-gray-500 text-sm ${styles.footer}`}>
         <p>&copy; 2026 ALBorsa. Tüm hakları saklıdır. Yatırım tavsiyesi değildir.</p>
       </footer>
     </div>
@@ -182,20 +183,20 @@ function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: stri
   return (
     <motion.div 
       whileHover={{ y: -10 }}
-      className="p-8 rounded-3xl border border-white/5 bg-black hover:border-neon-purple/50 transition-all group"
+      className={`p-8 rounded-3xl border border-white/5 bg-black hover:border-neon-purple/50 transition-all group ${styles.featureCard}`}
     >
-      <div className="text-white group-hover:text-neon-purple mb-6 w-10 h-10 transition-colors">
+      <div className={`text-white group-hover:text-neon-purple mb-6 w-10 h-10 transition-colors ${styles.featureIcon}`}>
         {icon}
       </div>
-      <h3 className="text-2xl font-bold mb-4">{title}</h3>
-      <p className="text-gray-400">{desc}</p>
+      <h3 className={`text-2xl font-bold mb-4 ${styles.featureTitle}`}>{title}</h3>
+      <p className={`text-gray-400 ${styles.featureDesc}`}>{desc}</p>
     </motion.div>
   );
 }
 
 function ServiceRow({ side, icon, title, desc }: { side: 'left' | 'right', icon: React.ReactNode, title: string, desc: string }) {
   return (
-    <div className={`flex items-center w-full ${side === 'left' ? 'md:flex-row-reverse' : ''}`}>
+    <div className={`flex items-center w-full ${side === 'left' ? 'md:flex-row-reverse' : ''} ${styles.serviceRow}`}>
       <div className="hidden md:block w-1/2" />
       
       {/* Connector Dot */}
@@ -208,12 +209,12 @@ function ServiceRow({ side, icon, title, desc }: { side: 'left' | 'right', icon:
         transition={{ type: "spring", damping: 20, stiffness: 100 }}
         className={`w-full md:w-1/2 p-1 ${side === 'right' ? 'md:pl-12' : 'md:pr-12'}`}
       >
-        <div className="bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/[0.08] transition-colors group">
-          <div className="text-neon-purple mb-4 bg-neon-purple/10 w-fit p-3 rounded-2xl">
+        <div className={`bg-white/5 border border-white/10 p-8 rounded-[2rem] hover:bg-white/[0.08] transition-colors group ${styles.serviceCard}`}>
+          <div className={`text-neon-purple mb-4 bg-neon-purple/10 w-fit p-3 rounded-2xl ${styles.serviceIcon}`}>
             {icon}
           </div>
-          <h3 className="text-2xl font-bold mb-3">{title}</h3>
-          <p className="text-gray-400 leading-relaxed">{desc}</p>
+          <h3 className={`text-2xl font-bold mb-3 ${styles.serviceTitle}`}>{title}</h3>
+          <p className={`text-gray-400 leading-relaxed ${styles.serviceDesc}`}>{desc}</p>
         </div>
       </motion.div>
     </div>
