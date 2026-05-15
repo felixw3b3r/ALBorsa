@@ -1,0 +1,25 @@
+﻿▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.7s
+  Running TypeScript ...
+node.exe : Failed to type check.
+At line:1 char:1
++ & "D:\node.js/node.exe" "D:\node.js/node_modules/npm/bin/npx-cli.js"  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to type check.:String) [], RemoteExce 
+   ption
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+../shared/types.ts:1:19
+Type error: Cannot find module 'zod' or its corresponding type declarations.
+
+[31m[1m>[0m [90m1 |[0m [36mimport[0m { z } [36mfrom[0m [32m'zod'[0m;
+  [90m  |[0m                   [31m[1m^[0m
+  [90m2 |[0m
+  [90m3 |[0m [90m// Technical Indicators Schema[0m
+  [90m4 |[0m [36mexport[0m [36mconst[0m [33mTechnicalIndicatorsSchema[0m = 
+z.object({
+Next.js build worker exited with code: 1 and signal: null

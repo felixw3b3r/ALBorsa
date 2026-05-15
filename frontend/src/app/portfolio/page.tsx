@@ -294,7 +294,8 @@ export default function PortfolioPage() {
     const liveStock = livePrices.find(s => {
       const search = (item.name || "").toString().trim().toUpperCase();
       const code = (s.code || "").toString().trim().toUpperCase();
-      return code === search;
+      // BIST hisselerinde backend'den .IS takısı gelebilir, her iki duruma da bak
+      return code === search || code === `${search}.IS`;
     });
     
     let currentPrice = item.cost;

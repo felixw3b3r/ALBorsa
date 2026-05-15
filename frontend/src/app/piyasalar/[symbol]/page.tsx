@@ -3,41 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink, Image as ImageIcon } from 'lucide-react';
-
-// Logo Bileşeni (Fallback destekli)
-function SymbolLogo({ symbol, color }: { symbol: string, color: string }) {
-  const [error, setError] = useState(false);
-  const cleanSymbol = symbol.split('.')[0].toUpperCase();
-  
-  // Önce SVG sonra PNG dene
-  const logoPath = error ? `/logos/${cleanSymbol}.png` : `/logos/${cleanSymbol}.svg`;
-
-  return (
-    <div 
-      className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 shrink-0 transition-transform group-hover:scale-110 shadow-lg"
-      style={{ backgroundColor: `${color}15` }}
-    >
-      {!error || logoPath.endsWith('.png') ? (
-        <img 
-          src={logoPath} 
-          alt={symbol}
-          className="w-full h-full object-contain p-1"
-          onError={(e) => {
-            if (!error) setError(true); // SVG hata verirse PNG'ye geç
-            else (e.target as any).style.display = 'none'; // İkisi de yoksa gizle
-          }}
-        />
-      ) : null}
-      {/* Eğer her iki format da hata verirse baş harfi göster */}
-      {(error && logoPath.endsWith('.png')) && (
-        <span className="text-xs font-black" style={{ color }}>
-          {symbol[0]}
-        </span>
-      )}
-    </div>
-  );
-}
+import SymbolLogo from "@/components/SymbolLogo";
+import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink, ArrowUpRight } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -46,6 +13,7 @@ export default function IndexDetailsPage() {
   const router = useRouter();
   const symbol = params.symbol as string;
   
+  const [mounted, setMounted] = useState(false);
   const [indexData, setIndexData] = useState<any>(null);
   const [components, setComponents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +25,11 @@ export default function IndexDetailsPage() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [visibleCount, setVisibleCount] = useState(20);
   const [timeRange, setTimeRange] = useState({ id: '1g', label: '1G', interval: '15m' });
+  const [kapDisclosures, setKapDisclosures] = useState<any[]>([]);
+  const [kapLoading, setKapLoading] = useState(false);
+  const [selectedKap, setSelectedKap] = useState<any | null>(null);
+  const [news, setNews] = useState<any[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   const ranges = [
     { id: '1g', label: '1G', interval: '15m' },
@@ -69,10 +42,46 @@ export default function IndexDetailsPage() {
   ];
 
   useEffect(() => {
+    setMounted(true);
     fetchData(true);
     const interval = setInterval(() => fetchData(false), 60000);
     return () => clearInterval(interval);
   }, [symbol, timeRange]);
+
+  // KAP Bildirimlerini Getir
+  useEffect(() => {
+    const fetchKap = async () => {
+      setKapLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+        const data = await res.json();
+        if (data.success) {
+          setKapDisclosures(data.data || []);
+        }
+      } catch (err) {
+        console.error('KAP fetch error:', err);
+      } finally {
+        setKapLoading(false);
+      }
+    };
+    fetchKap();
+
+    const fetchNews = async () => {
+      setNewsLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+        if (res.ok) {
+          const data = await res.json();
+          setNews(data || []);
+        }
+      } catch (err) {
+        console.error('News fetch error:', err);
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+    fetchNews();
+  }, [symbol]);
 
   // Otomatik Kademeli Yükleme (Progressive Loading)
   useEffect(() => {
@@ -117,6 +126,8 @@ export default function IndexDetailsPage() {
       setChartLoading(false);
     }
   };
+
+  if (!mounted) return null;
 
   if (!indexData && loading) {
     return (
@@ -268,7 +279,7 @@ export default function IndexDetailsPage() {
               </div>
 
               <div className="relative w-full md:w-96 group">
-                <input 
+                <input
                   type="text"
                   placeholder="Hisse ara..."
                   value={searchTerm}
@@ -296,9 +307,10 @@ export default function IndexDetailsPage() {
                     : 'border-white/5'
                   } hover:bg-white/10 hover:border-white/20`}
                 >
-                  <SymbolLogo 
-                    symbol={comp.symbol} 
-                    color={comp.changePercent >= 0 ? "#4ade80" : "#f87171"} 
+                  <SymbolLogo
+                    symbol={comp.symbol}
+                    color={comp.changePercent >= 0 ? "#4ade80" : "#f87171"}
+                    size="sm"
                   />
 
                   <div className="flex flex-col flex-grow">
@@ -310,7 +322,7 @@ export default function IndexDetailsPage() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="text-right flex flex-col items-end">
                     <div className={`font-black text-lg leading-none ${comp.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                        %{comp.changePercent?.toFixed(2)}
@@ -323,6 +335,190 @@ export default function IndexDetailsPage() {
               ))}
             </div>
           </>
+        )}
+
+        {/* KAP Bildirimleri Section */}
+        {(!kapLoading && kapDisclosures.length === 0) ? null : (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight uppercase text-gray-500 italic">KAP Bildirimleri</h2>
+                <span className="text-sm text-gray-600 font-bold">
+                  {kapLoading ? 'Yükleniyor...' : `${kapDisclosures.length} Bildirim`}
+                </span>
+              </div>
+              {kapDisclosures.length > 0 && (
+                <a
+                  href={`https://www.kap.org.tr/tr/bildirim-sorgu`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-cyan-400 transition-colors"
+                >
+                  KAP'ta Görüntüle <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
+
+            {kapLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="animate-spin text-neon-purple/50" size={32} />
+              </div>
+            ) : selectedKap ? (
+              /* Detail View */
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/5 border border-white/10 rounded-[2rem] p-8"
+              >
+                <button
+                  onClick={() => setSelectedKap(null)}
+                  className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-6 text-sm font-bold"
+                >
+                  <ChevronLeft size={16} /> Geri Dön
+                </button>
+
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex-1">
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">
+                      {selectedKap.date} • {selectedKap.type}
+                    </span>
+                    <h3 className="text-xl font-black text-white mt-2">{selectedKap.subject}</h3>
+                    <p className="text-gray-400 font-medium mt-2">{selectedKap.title}</p>
+                  </div>
+                  <a
+                    href={selectedKap.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-gray-400 hover:text-cyan-400 hover:border-cyan-400/50 transition-all shrink-0"
+                  >
+                    KAP'ta Aç <ExternalLink size={14} />
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-white/[0.02] rounded-2xl border border-white/5">
+                  <div>
+                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Şirket</span>
+                    <p className="text-sm font-bold text-white mt-1">{selectedKap.company}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Tür</span>
+                    <p className="text-sm font-bold text-white mt-1">{selectedKap.class}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Hisse Kodları</span>
+                    <p className="text-sm font-bold text-white mt-1">{selectedKap.stockCodes}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Ek</span>
+                    <p className="text-sm font-bold text-white mt-1">{selectedKap.hasAttachments ? 'Var' : 'Yok'}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              /* List View */
+              <div className="space-y-3">
+                {kapDisclosures.map((disclosure, idx) => (
+                  <motion.div
+                    key={disclosure.index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    onClick={() => setSelectedKap(disclosure)}
+                    className="bg-white/5 border border-white/5 rounded-2xl p-5 flex items-start gap-4 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer group"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                          {disclosure.date}
+                        </span>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          disclosure.type === 'ODA'
+                            ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        }`}>
+                          {disclosure.type}
+                        </span>
+                        {disclosure.hasAttachments && (
+                          <span className="text-[10px] font-bold text-cyan-500">📎</span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-white group-hover:text-neon-purple transition-colors truncate">
+                        {disclosure.subject}
+                      </h4>
+                      <p className="text-sm text-gray-500 font-medium mt-1 line-clamp-2">
+                        {disclosure.title}
+                      </p>
+                    </div>
+                    <ChevronLeft size={18} className="text-gray-600 rotate-180 mt-2 shrink-0 group-hover:text-cyan-400 transition-colors" />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Genel Haberler Section */}
+        {(!newsLoading && news.length === 0) ? null : (
+          <div className="mb-16">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight uppercase text-gray-500 italic">Haber Akışı</h2>
+                <span className="text-sm text-gray-600 font-bold">
+                  {newsLoading ? 'Yükleniyor...' : `${news.length} Güncel Haber`}
+                </span>
+              </div>
+            </div>
+
+            {newsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="animate-spin text-cyan-400/50" size={32} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {news.map((item, idx) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: idx * 0.1 }}
+                    viewport={{ once: true }}
+                    onClick={() => {
+                      // Haberi localStorage'a kaydet (Detay sayfasında kullanmak için)
+                      localStorage.setItem(`news_${item.id}`, JSON.stringify(item));
+                      router.push(`/haberler/${item.id}`);
+                    }}
+                    className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group cursor-pointer hover:border-neon-purple/50 transition-all flex flex-col md:flex-row"
+                  >
+                    <div className="w-full md:w-1/3 h-48 md:h-auto overflow-hidden">
+                      <img 
+                        src={item.thumbnail} 
+                        alt={item.title} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 grayscale group-hover:grayscale-0"
+                      />
+                    </div>
+                    <div className="p-6 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-[10px] font-black text-neon-purple uppercase tracking-widest bg-neon-purple/10 px-2 py-0.5 rounded">
+                            {item.publisher}
+                          </span>
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                            {new Date(item.providerPublishTime).toLocaleDateString('tr-TR')}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-white group-hover:text-neon-purple transition-colors line-clamp-3 mb-4">
+                          {item.title}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-gray-500 group-hover:text-white transition-colors">
+                        OKUMAYA DEVAM ET <ArrowUpRight size={14} />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

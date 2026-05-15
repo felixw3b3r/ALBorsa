@@ -1,0 +1,50 @@
+
+> backend@1.0.0 dev
+> cross-env NODE_OPTIONS="--max-old-space-size=1536 --max-semi-space-size=32" tsx watch src/index.ts
+
+◇ injected env (3) from .env // tip: ⌘ override existing { override: true }
+📡 Redis client initialized (connection optional)
+🚀 Server is running on http://localhost:5000
+⚠️  [MEM] Heap yüksek: 38/40 MB (94.6%) | RSS: 111 MB
+⚠️  [MEM] Heap yüksek: 38/41 MB (92.5%) | RSS: 112 MB
+❌ MongoDB connection error: MongooseServerSelectionError: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+    at _handleConnectionErrors (c:\Users\zoomy\Desktop\bistAL\backend\node_modules\mongoose\lib\connection.js:1180:11)
+    at NativeConnection.openUri (c:\Users\zoomy\Desktop\bistAL\backend\node_modules\mongoose\lib\connection.js:1111:11) {
+  errorLabelSet: Set(0) {},
+  reason: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  },
+  code: undefined,
+  cause: TopologyDescription {
+    type: 'Unknown',
+    servers: Map(1) { 'localhost:27017' => [ServerDescription] },
+    stale: false,
+    compatible: true,
+    heartbeatFrequencyMS: 10000,
+    localThresholdMS: 15,
+    setName: null,
+    maxElectionId: null,
+    maxSetVersion: null,
+    commonWireVersion: 0,
+    logicalSessionTimeoutMinutes: null
+  }
+}
+🕒 [Data Collector] Running at 11:22:25 AM
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/yahoo-finance2/issues/764#issuecomment-2056623851.  This will only be shown once, but you can suppress this message in future with `new YahooFinance({ suppressNotices: ['yahooSurvey'] })`.
+(node:21920) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
+(Use `node --trace-warnings ...` to show where the warning was created)
+11:22:27 AM [tsx] change in ./src\index.ts Restarting...
+c◇ injected env (3) from .env // tip: ⌘ suppress logs { quiet: true }
+📡 Redis client initialized (connection optional)
+🚀 Server is running on http://localhost:5000
+💾 [MEM] Heap: 38/1536 MB (2.5%) | RSS: 116 MB

@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* Diğer yapılandırma seçenekleri buraya eklenebilir */
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // 🛡️  FRONTEND KAYNAK LİMİTLERİ
+  // Not: Asıl bellek sınırı package.json'daki
+  // NODE_OPTIONS="--max-old-space-size=768" ile yapılıyor.
+  // ═══════════════════════════════════════════════════════════
+
+  // Production build'de source map üretme (build sırasında RAM tasarrufu)
+  productionBrowserSourceMaps: false,
+
+  // Turbopack — geçerli seçenekler (memoryLimit YOKTUR, gerçek değil)
+  turbopack: {},
 };
 
 export default nextConfig;

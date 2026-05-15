@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536 --max-semi-space-size=32\" tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/src/index.js"
+    "start": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536\" node dist/src/index.js"
   },
   "keywords": [],
   "author": "",

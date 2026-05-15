@@ -19,7 +19,12 @@ export default function NewsDetailPage() {
     if (storedNews) {
       const item = JSON.parse(storedNews);
       setNewsItem(item);
-      fetchContent(item.link);
+      if (item.content) {
+        setContent(item.content);
+        setLoadingContent(false);
+      } else {
+        fetchContent(item.link);
+      }
     }
   }, [params.id]);
 

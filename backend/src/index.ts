@@ -6,8 +6,104 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
+import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy' });
+
+async function translateToTurkish(text: string): Promise<string> {
+  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy') return text;
+  if (!text || text.length < 5) return text;
+  
+  try {
+    const prompt = `Aşağıdaki finans haberini profesyonel bir finans diliyle Türkçe'ye çevir. Sadece çeviriyi döndür: \n\n${text}`;
+    const result = await genAI.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: prompt
+    });
+    return result.text.trim();
+  } catch (error) {
+    console.warn('Translation failed, using original text');
+    return text;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🛡️  KAYNAK KORUMA KATMANI
+// Proje başlatılınca Node.js'in sistem kaynaklarını tüketmesini
+// önleyen güvenlik mekanizmaları.
+// ═══════════════════════════════════════════════════════════════
+
+// 1. Bellek Baskısı İzleyici — Heap %85'i aşınca uyar, %95'i aşınca çık
+function startMemoryWatchdog() {
+  const CHECK_INTERVAL = 15000; // 15 saniyede bir kontrol
+  setInterval(() => {
+    const used = process.memoryUsage();
+    const heapUsedMB  = Math.round(used.heapUsed  / 1024 / 1024);
+    const heapTotalMB = Math.round(used.heapTotal / 1024 / 1024);
+    const rssM        = Math.round(used.rss       / 1024 / 1024);
+    const MAX_HEAP_MB = 1536; // NODE_OPTIONS'daki max-old-space-size
+    const pct = (heapUsedMB / MAX_HEAP_MB) * 100;
+
+    if (pct > 95) {
+      console.error(`🚨 [MEM] Heap kritik seviyede: ${heapUsedMB}/${MAX_HEAP_MB} MB (${pct.toFixed(1)}%) — Güvenli çıkış yapılıyor...`);
+      process.exit(1); // Node.js temiz kapanır, masaüstü çökmez
+    } else if (pct > 85) {
+      console.warn(`⚠️  [MEM] Heap yüksek: ${heapUsedMB}/${MAX_HEAP_MB} MB (${pct.toFixed(1)}%) | RSS: ${rssM} MB`);
+    } else {
+      console.log(`💾 [MEM] Heap: ${heapUsedMB}/${MAX_HEAP_MB} MB (${pct.toFixed(1)}%) | RSS: ${rssM} MB`);
+    }
+  }, CHECK_INTERVAL);
+}
+startMemoryWatchdog();
+
+// 2. Yakalanmamış Hata / OOM Koruması
+process.on('uncaughtException', (err) => {
+  console.error('🔴 [UNCAUGHT]', err.message);
+  if (err.message?.includes('out of memory') || (err as any).code === 'ERR_OUT_OF_MEMORY') {
+    console.error('💥 OOM tespit edildi — güvenli çıkış');
+    process.exit(1);
+  }
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.error('🔴 [UNHANDLED REJECTION]', reason?.message || reason);
+});
+
+// 3. Yahoo Finance Eşzamanlılık Sınırı — Maksimum 3 paralel ağır çağrı
+// (Bu olmadan market-summary 14 eşzamanlı chart() çağrısı açabiliyordu)
+let _yahooActiveRequests = 0;
+const YAHOO_MAX_CONCURRENT = 1; // 1 yapılarak API işlemleri tamamen sıraya alındı (yavaşlatıldı)
+const _yahooQueue: Array<() => void> = [];
+
+function yahooSlot(): Promise<() => void> {
+  return new Promise((resolve) => {
+    const tryAcquire = () => {
+      if (_yahooActiveRequests < YAHOO_MAX_CONCURRENT) {
+        _yahooActiveRequests++;
+        resolve(() => {
+          _yahooActiveRequests--;
+          if (_yahooQueue.length > 0) _yahooQueue.shift()!();
+        });
+      } else {
+        _yahooQueue.push(tryAcquire);
+      }
+    };
+    tryAcquire();
+  });
+}
+
+// Wrapper: Tüm ağır Yahoo Finance çağrıları bu üzerinden geçmeli
+async function withYahooSlot<T>(fn: () => Promise<T>): Promise<T> {
+  const release = await yahooSlot();
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,7 +126,17 @@ redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
 // Middleware (Her şeyden ÖNCE gelmeli!)
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '512kb' })); // İstek boyutu sınırı
+
+// Global İstek Timeout Middleware (25 saniye — hung request birikmesini önler)
+app.use((req: any, res: any, next: any) => {
+  res.setTimeout(25000, () => {
+    console.warn(`⏱️ [TIMEOUT] ${req.method} ${req.path} — 25s aşıldı`);
+    if (!res.headersSent) res.status(503).json({ error: 'İstek zaman aşımına uğradı' });
+  });
+  next();
+});
+
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/bistai';
@@ -78,8 +184,8 @@ const authMiddleware = (req: any, res: any, next: any) => {
 
 // Portföydeki tüm varlıkların fiyatlarını Yahoo Finance'den çek (CollectAPI yerine)
 app.get('/api/stocks', authMiddleware, async (req, res) => {
+  const t0 = Date.now();
   try {
-    // Portföydeki tüm isimleri alıp Yahoo formatına çeviriyoruz
     const symbolsQuery = req.query.symbols as string;
     if (!symbolsQuery) {
       return res.json({ success: true, result: [] });
@@ -88,10 +194,9 @@ app.get('/api/stocks', authMiddleware, async (req, res) => {
     const rawSymbols = symbolsQuery.split(',');
     const yahooSymbols = rawSymbols.map(s => s.trim().toUpperCase());
 
-    console.log('📈 Batch fetching from Yahoo:', yahooSymbols);
     const quotes: any = await (yahooFinance as any).quote(yahooSymbols);
     const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
-      code: q.symbol.replace('.IS', ''),
+      code: q.symbol,
       name: q.shortName || q.longName || q.symbol,
       price: q.regularMarketPrice || q.price || q.bid || q.ask || 0,
       lastprice: q.regularMarketPrice || q.price || 0,
@@ -100,9 +205,24 @@ app.get('/api/stocks', authMiddleware, async (req, res) => {
       updatedAt: new Date()
     }));
 
+    const elapsed = Date.now() - t0;
+    console.log(`\n┌─────────────────────────────────────────────────┐`);
+    console.log(`│  📈  YAHOO FİNANCE — Batch Hisse Fiyatları      │`);
+    console.log(`│  ⏱️  ${elapsed}ms  |  ${result.length} sembol                       │`);
+    console.log(`├──────────────┬──────────────┬──────────────────────┤`);
+    console.log(`│ Sembol       │ Fiyat        │ Değişim              │`);
+    console.log(`├──────────────┼──────────────┼──────────────────────┤`);
+    result.forEach((r: any) => {
+      const sym = r.code.padEnd(12);
+      const price = (r.currency === 'USD' ? `$${r.price.toFixed(2)}` : `₺${r.price.toFixed(2)}`).padEnd(12);
+      const change = r.rate >= 0 ? `▲ +${r.rate.toFixed(2)}%` : `▼ ${r.rate.toFixed(2)}%`;
+      console.log(`│ ${sym} │ ${price} │ ${change.padEnd(20)} │`);
+    });
+    console.log(`└──────────────┴──────────────┴──────────────────────┘\n`);
+
     res.json({ success: true, result });
   } catch (error: any) {
-    console.error('Yahoo Stocks Error:', error.message);
+    console.error(`\n❌ [YAHOO/stocks] HATA: ${error.message}\n`);
     res.status(500).json({ success: false, message: 'Fiyatlar alınamadı' });
   }
 });
@@ -153,12 +273,14 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     }
     // NASDAQ ise olduğu gibi bırak (AAPL, NVDA vb.)
 
-    console.log(`📜 Fetching historical data for ${yahooSymbol} (${market}) on ${date}`);
-    
-    // Tarihi Yahoo formatına çevir (Hafta sonlarını kapsamak için 10 günlük bir pencere tarayalım)
+    console.log(`\n┌────────────────────────────────────────────────┐`);
+    console.log(`│  📜  GEÇMİŞ FİYAT SORGUSU                     │`);
+    console.log(`│  Sembol : ${yahooSymbol.padEnd(36)}│`);
+    console.log(`│  Tarih  : ${(date as string).padEnd(36)}│`);
+    console.log(`│  Market : ${((market as string) || '-').padEnd(36)}│`);
+    console.log(`└────────────────────────────────────────────────┘`);
+
     const queryDate = new Date(date as string);
-    // KRİTİK DÜZELTME: Sorgulanan günü günün sonuna çekiyoruz (23:59:59) 
-    // Böylece o günün herhangi bir saatinde gelen veri kapsama girer.
     queryDate.setHours(23, 59, 59, 999);
     
     const today = new Date();
@@ -213,9 +335,7 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
          return res.status(404).json({ success: false, message: 'Fiyat seçilemedi' });
       }
 
-      // LOG GÜNCELLEME: Tarihin yanına fiyatı da ekliyoruz
-      console.log(`📊 [Data Found] Symbol: ${yahooSymbol}, Req: ${date}, Found: ${new Date(dayData.date).toLocaleDateString('tr-TR')}, Price: ${finalPrice.toFixed(4)}`);
-
+      console.log(`  ✅ Bulunan Fiyat: ${finalPrice.toFixed(4)} (${new Date(dayData.date).toLocaleDateString('tr-TR')})\n`);
       res.json({ success: true, price: finalPrice, date: dayData.date, currency: dayData.currency || 'RAW' });
     } else {
       res.status(404).json({ success: false, message: 'O tarih için veri bulunamadı. (Borsa kapalı olabilir)' });
@@ -230,8 +350,8 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
 
 // Yahoo Finance'den döviz kurlarını çek (Gelişmiş Fallback Sistemi ile)
 app.get('/api/exchange-rate', authMiddleware, async (req, res) => {
+  const t0 = Date.now();
   try {
-    console.log('🌍 Fetching currency rates from Yahoo Finance (Live)...');
     const symbols = ['USDTRY=X', 'EURTRY=X', 'GBPTRY=X'];
     
     // Anlık veri çek
@@ -316,6 +436,20 @@ marketDataSchema.index({ symbol: 1, timestamp: 1 }, { unique: true });
 
 const MarketData = mongoose.model('MarketData', marketDataSchema);
 const Portfolio = mongoose.model('Portfolio', portfolioSchema);
+
+// News Article Schema (Haberlerin içeriğiyle kaydedilmesi için)
+const newsSchema = new mongoose.Schema({
+  uuid: { type: String, required: true, unique: true },
+  symbol: { type: String, required: true },
+  title: { type: String, required: true },
+  publisher: { type: String },
+  link: { type: String },
+  providerPublishTime: { type: Date },
+  thumbnail: { type: String },
+  content: { type: String }, // Tam metin
+}, { timestamps: true });
+newsSchema.index({ symbol: 1, providerPublishTime: -1 });
+const NewsArticle = mongoose.model('NewsArticle', newsSchema);
 
 app.get('/api/stocks/:symbol', async (req, res) => {
   try {
@@ -627,7 +761,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
   }
 });
 
-// Hisseye Özel Haberler (Yahoo Finance)
+// Hisseye Özel Haberler (Yahoo Finance & DB)
 app.get('/api/stocks/:symbol/news', async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -635,13 +769,32 @@ app.get('/api/stocks/:symbol/news', async (req, res) => {
       ? symbol.toUpperCase()
       : `${symbol.toUpperCase()}.IS`;
 
-    // Daha iyi sonuç için şirketin adını da alalım
+    // 1. Önce veritabanına bak (kayıtlı içerikli haberleri getir)
+    const dbNews = await NewsArticle.find({ symbol: formattedSymbol })
+      .sort({ providerPublishTime: -1 })
+      .limit(10);
+
+    if (dbNews.length > 0) {
+      console.log(`📰 Serving ${dbNews.length} news from DB for ${formattedSymbol}`);
+      const formattedNews = dbNews.map((n: any) => ({
+        id: n.uuid,
+        title: n.title,
+        publisher: n.publisher,
+        link: n.link,
+        providerPublishTime: n.providerPublishTime,
+        thumbnail: n.thumbnail,
+        content: n.content, // Önceden çekilmiş içerik
+        type: 'ARTICLE'
+      }));
+      return res.json(formattedNews);
+    }
+
+    // 2. Eğer veritabanında yoksa fallback (canlı çekim, ama içeriksiz)
     const liveQuote: any = await (yahooFinance as any).quote(formattedSymbol);
     const searchQuery = liveQuote.shortName || liveQuote.longName || formattedSymbol;
 
-    console.log(`📰 Fetching news for ${searchQuery} (${formattedSymbol})`);
+    console.log(`📰 Fetching LIVE news fallback for ${searchQuery} (${formattedSymbol})`);
     
-    // Sadece sembolle değil, isimle arama yapıyoruz (Daha alakalı sonuçlar için)
     const result: any = await (yahooFinance as any).search(searchQuery, { newsCount: 10 });
     
     const news = (result.news || []).map((item: any) => ({
@@ -683,41 +836,66 @@ app.get('/api/news/content', async (req, res) => {
   }
 });
 
-// KAP Bildirimlerini Arşivden Çek ve Analiz Et
-app.get('/api/stocks/:symbol/kap', async (req, res) => {
-  res.json([]); 
-});
+// KAP Bildirimlerini Playwright ile Çek
+import { ensureDisclosuresLoaded, getDisclosuresByStock, getCachedDisclosures, getLastFetchTime } from './services/kapService';
 
-// Endeks Bileşenlerini Getir (Batch Fetching)
-app.get('/api/stocks/:symbol/components', async (req, res) => {
+app.get('/api/stocks/:symbol/kap', async (req, res) => {
+  const start = Date.now();
   try {
     const { symbol } = req.params;
-    const formattedSymbol = symbol.includes('.') || symbol.startsWith('^') || symbol.includes('-')
-      ? symbol.toUpperCase()
-      : `${symbol.toUpperCase()}.IS`;
+    const upper = symbol.toUpperCase().replace('.IS', '');
+    console.log(`\n═══════════════════════════════════════════`);
+    console.log(`📡 [KAP] GET /api/stocks/${upper}/kap`);
+    console.log(`   Parametre: symbol="${symbol}" → normalized="${upper}"`);
 
-    const componentSymbols = INDEX_COMPONENTS[formattedSymbol] || [];
-    if (componentSymbols.length === 0) return res.json([]);
+    const loadStart = Date.now();
+    await ensureDisclosuresLoaded();
+    console.log(`   ensureDisclosuresLoaded: ${Date.now() - loadStart}ms`);
 
-    console.log(`🚀 Fetching ${componentSymbols.length} components for ${formattedSymbol}`);
-    
-    // Toplu veri çekme
-    const quotes: any = await (yahooFinance as any).quote(componentSymbols);
-    const data = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
-      symbol: q.symbol.replace('.IS', ''),
-      name: q.shortName || q.longName || q.symbol,
-      price: q.regularMarketPrice,
-      change: q.regularMarketChange,
-      changePercent: q.regularMarketChangePercent,
-      history: [] // Özet için history boş olabilir
-    }));
-    res.json(data);
+    const allDisclosures = getCachedDisclosures();
+    const disclosures = getDisclosuresByStock(upper);
+
+    const elapsed = Date.now() - start;
+    console.log(`   ✅ Yanit: ${disclosures.length} bildirim (toplam cache: ${allDisclosures.length})`);
+    console.log(`   ⏱  Toplam: ${elapsed}ms`);
+    console.log(`═══════════════════════════════════════════\n`);
+
+    res.json({
+      success: true,
+      symbol: upper,
+      totalCached: allDisclosures.length,
+      data: disclosures.map(d => ({
+        index: d.disclosureIndex,
+        title: d.summary,
+        subject: d.subject,
+        company: d.kapTitle,
+        date: d.publishDate,
+        type: d.disclosureType,
+        class: d.disclosureClass,
+        stockCodes: d.stockCodes,
+        hasAttachments: d.attachmentCount > 0,
+        url: `https://www.kap.org.tr/tr/bildirim/${d.disclosureIndex}`
+      })),
+      debug: {
+        elapsedMs: elapsed,
+        cacheAge: getLastFetchTime() > 0 ? Math.round((Date.now() - getLastFetchTime()) / 1000) + 's' : 'yok',
+        matchingCount: disclosures.length,
+        allStockCodes: [...new Set(allDisclosures.map(d => d.stockCodes).filter(Boolean))],
+        fetchedAt: new Date(getLastFetchTime()).toLocaleString('tr-TR')
+      }
+    });
   } catch (error: any) {
-    console.error('Components fetch error:', error.message);
-    res.status(500).json({ error: error.message });
+    const elapsed = Date.now() - start;
+    console.error(`❌ [KAP] Hata (${elapsed}ms): ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      debug: { elapsedMs: elapsed }
+    });
   }
 });
 
+// Endeks Bileşenlerini Getir (Batch Fetching)
 // Endeks Bileşenleri (BIST 100 - Tam Liste ve Sıralı)
 const INDEX_COMPONENTS: { [key: string]: string[] } = {
   'XU100.IS': [
@@ -791,9 +969,9 @@ let marketSummaryCache: { data: any, timestamp: number } | null = null;
 // Ana Piyasa Özeti (SÜPER HIZLI - NO INTERNAL FETCH)
 app.get('/api/market-summary', async (req, res) => {
   try {
-    // 1. Global Cache Kontrolü (5 dakika - Sequential fetch uzun sürdüğü için)
+    // 1. Global Cache Kontrolü (10 dakika - RAM tasarrufu için artırıldı)
     const forceRefresh = req.query.refresh === 'true';
-    if (!forceRefresh && marketSummaryCache && (Date.now() - marketSummaryCache.timestamp < 300000)) {
+    if (!forceRefresh && marketSummaryCache && (Date.now() - marketSummaryCache.timestamp < 600000)) {
       console.log("🚀 Serving Global Market Summary from Cache");
       return res.json(marketSummaryCache.data);
     }
@@ -806,8 +984,8 @@ app.get('/api/market-summary', async (req, res) => {
 
     console.log(`📊 Batch processing market summary for ${mainSymbols.length} tickers`);
 
-    // 2. Yahoo'dan toplu fiyatları çek
-    const quotes: any = await (yahooFinance as any).quote(mainSymbols);
+    // 2. Yahoo'dan toplu fiyatları çek (slot ile sınırlandırılmış)
+    const quotes: any = await withYahooSlot(() => (yahooFinance as any).quote(mainSymbols));
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
     // 3. Kripto için Binance Klines sparkline (24 saat × 15dk = 96 nokta, rate-limitsiz)
@@ -863,23 +1041,11 @@ app.get('/api/market-summary', async (req, res) => {
           changePercent = (change / startPrice) * 100;
         }
 
-        // Spark API boş döndürdüyse chart() fallback'ini kullan (BIST vb. için)
+        // KALDIRILAN: chart() fallback — eşzamanlı 14 ağır istek yaparak RAM/GPU crash'e yol açıyordu.
+        // Spark API boş döndürdüğünde sparkline yok gösteriyoruz (güvenli, hafif).
         if (history.length < 5 && !['BTC-USD', 'ETH-USD'].includes(symbol)) {
-          try {
-            const sparklineDate = new Date();
-            sparklineDate.setDate(sparklineDate.getDate() - 14);
-            const chart: any = await (yahooFinance as any).chart(symbol, { period1: sparklineDate, interval: '15m' }, { validateResult: false });
-            let sparkQuotes = (chart.quotes || []).filter((q: any) => q.close != null);
-            
-            if (sparkQuotes.length > 5) {
-              const lastDate = new Date(sparkQuotes[sparkQuotes.length - 1].date);
-              sparkQuotes = sparkQuotes.filter((q: any) => {
-                const d = new Date(q.date);
-                return d.getDate() === lastDate.getDate() && d.getMonth() === lastDate.getMonth();
-              });
-              history = sparkQuotes.map((q: any) => q.close);
-            }
-          } catch (e) { /* fallback fail */ }
+          // history boş kalabilir — frontend bunu gracefully handle eder
+          console.log(`ℹ️ [market-summary] ${symbol} için sparkline yok (Spark API boş döndü, fallback devre dışı)`);
         }
 
         return {
@@ -938,7 +1104,7 @@ async function collectMarketData() {
   console.log(`🕒 [Data Collector] Running at ${now.toLocaleTimeString()}`);
 
   try {
-    const quotes: any = await (yahooFinance as any).quote(mainTickers);
+    const quotes: any = await withYahooSlot(() => (yahooFinance as any).quote(mainTickers));
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
     const records = quotesArray.map((q: any) => ({
@@ -968,13 +1134,102 @@ async function collectMarketData() {
 // Her 15 dakikada bir çalıştır
 setInterval(collectMarketData, 15 * 60 * 1000);
 
-// İlk açılışta bir kez çalıştır
-setTimeout(collectMarketData, 5000);
+// İlk açılışta bir kez çalıştır (30sn gecikme — frontend başlangıç yüküyle çakışmasın)
+setTimeout(collectMarketData, 30000);
+
+// ===== 5'erli Haber Toplayıcı (Background Task) =====
+async function collectNewsData() {
+  console.log(`📰 [News Collector] Haber toplama başlatıldı...`);
+  // BIST 100 bileşenlerini al
+  const symbols = INDEX_COMPONENTS['XU100.IS'] || [];
+  
+  // 5'erli gruplar halinde işle
+  const chunkSize = 5;
+  for (let i = 0; i < symbols.length; i += chunkSize) {
+    const chunk = symbols.slice(i, i + chunkSize);
+    console.log(`[News Collector] Grup ${Math.floor(i / chunkSize) + 1}: ${chunk.join(', ')}`);
+    
+    for (const sym of chunk) {
+      try {
+        const liveQuote: any = await (yahooFinance as any).quote(sym);
+        const searchQuery = liveQuote.shortName || liveQuote.longName || sym;
+        const result: any = await (yahooFinance as any).search(searchQuery, { newsCount: 5 });
+        
+        for (const item of (result.news || [])) {
+          if (!item.uuid) continue;
+          
+          // Veritabanında zaten var mı?
+          const exists = await NewsArticle.exists({ uuid: item.uuid });
+          if (exists) continue;
+
+          // İçeriği çek (raw fetch ile)
+          let content = '';
+          try {
+             // AbortController ile 5 saniye timeout (sistemi kilitlememesi için)
+             const controller = new AbortController();
+             const timeoutId = setTimeout(() => controller.abort(), 5000);
+             const fetchRes = await fetch(item.link, { signal: controller.signal });
+             clearTimeout(timeoutId);
+             
+             const html = await fetchRes.text();
+             const paragraphs = html.match(/<p>(.*?)<\/p>/g) || [];
+             content = paragraphs
+               .map((p: string) => p.replace(/<[^>]*>/g, ''))
+               .filter((p: string) => p.length > 40)
+               .slice(0, 15)
+               .join('\n\n');
+          } catch (e) {
+             content = 'Haber içeriği çekilemedi veya zaman aşımı.';
+          }
+
+          // Çeviri İşlemi (Gemini AI)
+          let translatedTitle = item.title;
+          let translatedContent = content;
+
+          try {
+            console.log(`   [TR] Çevriliyor: ${item.title.substring(0, 30)}...`);
+            translatedTitle = await translateToTurkish(item.title);
+            if (content && content.length > 50 && !content.includes('çekilemedi')) {
+              translatedContent = await translateToTurkish(content);
+            }
+          } catch (trErr) {
+            console.warn('   [!] Çeviri hatası, orijinal metin kullanılacak.');
+          }
+
+          // Veritabanına kaydet
+          await NewsArticle.create({
+            uuid: item.uuid,
+            symbol: sym,
+            title: translatedTitle,
+            publisher: item.publisher,
+            link: item.link,
+            providerPublishTime: item.providerPublishTime,
+            thumbnail: item.thumbnail?.resolutions?.[0]?.url || 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
+            content: translatedContent || 'İçerik okunamadı.'
+          });
+          console.log(`   [+] Haber eklendi (TR): ${translatedTitle.substring(0,30)}...`);
+        }
+      } catch (err: any) {
+        console.warn(`[News Collector] ${sym} hatası:`, err.message);
+      }
+      // Her hisse arası 1 saniye dinlen
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    // Her 5'li grup arası 3 saniye dinlen
+    await new Promise(res => setTimeout(res, 3000));
+  }
+  console.log(`✅ [News Collector] Tur tamamlandı.`);
+}
+
+// Yarım saatte bir (30 * 60 * 1000) çalıştır
+setInterval(collectNewsData, 30 * 60 * 1000);
+// Başlangıçtan 1 dakika sonra ilk turu at
+setTimeout(collectNewsData, 60000);
 
 const componentsCache: { [key: string]: { data: any, timestamp: number } } = {};
-const CACHE_DURATION = 30 * 1000; // 30 saniye
+const CACHE_DURATION = 5 * 60 * 1000; // 5 Dakika (Performans için artırıldı)
 
-// Endeks bileşenlerini getir (SÜPER HIZLI - BATCH MODE)
+// Endeks bileşenlerini getir (SÜPER HIZLI - BATCH & CHUNK HYBRID)
 app.get('/api/stocks/:symbol/components', async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -993,18 +1248,27 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 
     console.log(`🚀 Batch fetching ${components.length} stocks for ${cacheKey}`);
 
-    // 2. TOPLU SORGU (Tüm hisseleri tek seferde iste)
-    // yahooFinance.quote bir array kabul eder ve tek bir HTTP isteği atar.
-    const quotes: any = await (yahooFinance as any).quote(components);
-    const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+    const results: any[] = [];
+    // Eğer liste 100'den küçükse tek seferde çek (BIST 100 için ideal), büyükse 100'erli grupla (S&P 500 için ideal)
+    const chunkSize = 100;
+    
+    for (let i = 0; i < components.length; i += chunkSize) {
+      const chunk = components.slice(i, i + chunkSize);
+      try {
+        const quotes: any = await (yahooFinance as any).quote(chunk);
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
-    const results = quotesArray.map((quote: any) => ({
-      symbol: quote.symbol,
-      name: quote.shortName || quote.symbol.split('.')[0],
-      price: quote.regularMarketPrice || quote.price || quote.bid || 0,
-      change: quote.regularMarketChange || 0,
-      changePercent: quote.regularMarketChangePercent || 0
-    }));
+        results.push(...quotesArray.map((quote: any) => ({
+          symbol: quote.symbol.replace('.IS', ''),
+          name: quote.shortName || quote.symbol.split('.')[0],
+          price: quote.regularMarketPrice || quote.price || quote.bid || 0,
+          change: quote.regularMarketChange || 0,
+          changePercent: quote.regularMarketChangePercent || 0
+        })));
+      } catch (chunkErr: any) {
+        console.error(`[CHUNK ERROR] ${cacheKey} group ${i}:`, chunkErr.message);
+      }
+    }
 
     // 3. Cache'e kaydet
     componentsCache[cacheKey] = {
@@ -1105,6 +1369,112 @@ app.delete('/api/portfolio/:name', authMiddleware, async (req: any, res: any) =>
     res.json({ message: 'Stock deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting stock', error });
+  }
+});
+
+// 4. Portfolio value history for charts
+app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => {
+  try {
+    const { range = '1d' } = req.query;
+    const items = await Portfolio.find({ userId: req.user.userId });
+
+    if (!items || items.length === 0) {
+      return res.json({
+        success: true,
+        items: [],
+        history: [],
+        timestamps: [],
+        currentValue: 0,
+        totalCost: 0,
+        dailyChange: 0,
+        dailyChangePercent: 0
+      });
+    }
+
+    // Prepare Yahoo symbols
+    const symbolMap = new Map<string, any>();
+    items.forEach((item: any) => {
+      const isBist = item.name && !item.name.includes('.') && !item.name.includes('-') && !item.name.startsWith('^') && item.name.length <= 5;
+      const yahooSymbol = isBist ? `${item.name}.IS` : item.name;
+      symbolMap.set(yahooSymbol, item);
+    });
+    const yahooSymbols = Array.from(symbolMap.keys());
+
+    // Set time range
+    const period1 = new Date();
+    let interval = '15m';
+    const rangeStr = (range as string).toLowerCase();
+    if (rangeStr === '1d' || rangeStr === '1g') { period1.setDate(period1.getDate() - 2); interval = '15m'; }
+    else if (rangeStr === '2g') { period1.setDate(period1.getDate() - 3); interval = '15m'; }
+    else if (rangeStr === '3g') { period1.setDate(period1.getDate() - 4); interval = '15m'; }
+    else if (rangeStr === '1w' || rangeStr === '1h') { period1.setDate(period1.getDate() - 9); interval = '1h'; }
+
+    // Fetch USDTRY rate
+    let usdRate = 0;
+    try {
+      const usdQuote: any = await (yahooFinance as any).quote('USDTRY=X');
+      usdRate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
+    } catch (e) { usdRate = 32.5; }
+
+    // Fetch chart data for all symbols SEQUENTIALLY (Sırayla)
+    const validCharts: any[] = [];
+    for (const sym of yahooSymbols) {
+      try {
+        console.log(`[PORTFOLIO] ${sym} geçmiş grafiği çekiliyor... (Sırayla)`);
+        const chart: any = await (yahooFinance as any).chart(sym, { period1, interval }, { validateResult: false });
+        validCharts.push({
+          symbol: sym,
+          quotes: (chart.quotes || []).filter((q: any) => q.close != null)
+        });
+        // Sistemi ve ağ kartını yormamak için her istek arasına 500ms bekleme ekle
+        await new Promise(res => setTimeout(res, 500));
+      } catch (err: any) {
+        console.warn(`[PORTFOLIO] ${sym} grafiği çekilemedi:`, err.message);
+      }
+    }
+
+    // Get all unique timestamps
+    const allTimestamps = new Set<number>();
+    validCharts.forEach(r => r.quotes.forEach((q: any) => allTimestamps.add(new Date(q.date).getTime())));
+    const sortedTimestamps = [...allTimestamps].sort((a, b) => a - b);
+
+    // Calculate portfolio value at each timestamp
+    const history = sortedTimestamps.map(ts => {
+      let totalValue = 0;
+      validCharts.forEach(r => {
+        const item = symbolMap.get(r.symbol);
+        if (!item || r.quotes.length === 0) return;
+
+        let closest = r.quotes[0];
+        let minDiff = Infinity;
+        for (const q of r.quotes) {
+          const diff = Math.abs(new Date(q.date).getTime() - ts);
+          if (diff < minDiff) { minDiff = diff; closest = q; }
+        }
+
+        totalValue += (item.amount || 0) * (closest.close || 0);
+      });
+      return Math.round(totalValue * 100) / 100;
+    });
+
+    const currentValue = history.length > 0 ? history[history.length - 1] : 0;
+    const totalCost = items.reduce((acc: number, item: any) => acc + (item.amount || 0) * (item.cost || 0), 0);
+    const previousValue = history.length > 1 ? history[history.length - 2] : totalCost;
+    const dailyChange = currentValue - previousValue;
+    const dailyChangePercent = previousValue > 0 ? (dailyChange / previousValue) * 100 : 0;
+
+    res.json({
+      success: true,
+      history,
+      timestamps: sortedTimestamps,
+      currentValue,
+      totalCost,
+      dailyChange: Math.round(dailyChange * 100) / 100,
+      dailyChangePercent: Math.round(dailyChangePercent * 100) / 100
+    });
+  } catch (error: any) {
+    console.error('Portfolio history error:', error.message);
+    res.json({ success: false, history: [], timestamps: [], currentValue: 0, totalCost: 0, dailyChange: 0, dailyChangePercent: 0 });
   }
 });
 

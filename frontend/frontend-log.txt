@@ -1,0 +1,1238 @@
+
+> frontend@0.1.0 dev
+> cross-env NODE_OPTIONS="--max-old-space-size=3072" next dev -H 0.0.0.0
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+- Environments: .env.local
+✓ Ready in 492ms
+
+ GET / 200 in 664ms (next.js: 313ms, application-code: 351ms)
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <RedirectErrorBoundary router={{...}}>
+      <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+        <SegmentViewNode type="page" pagePath="page.tsx">
+          <SegmentTrieNode>
+          <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+            <Home params={Promise} searchParams={Promise}>
+              <div className="min-h-scre...">
+                <div>
+                <Navbar>
+                  <nav className="fixed top-...">
+                    <div className="max-w-7xl ...">
+                      <div className="flex items..." onClick={function onClick}>
+                        <div className="bg-neon-pu...">
+                          <TrendingUp className="text-black...">
+                            <svg
+                              ref={null}
+                              xmlns="http://www.w3.org/2000/svg"
+                              width={24}
+                              height={24}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lucide lucide-trending-up text-black w-6 h-6"
+                              aria-hidden="true"
+-                             data-darkreader-inline-stroke=""
+-                             style={{--darkreader-inline-stroke:"currentColor"}}
+                            >
+                        ...
+                      <div>
+                      <div className="flex items...">
+                        <div className="flex items...">
+                          <Globe size={18}>
+                            <svg
+                              ref={null}
+                              xmlns="http://www.w3.org/2000/svg"
+                              width={18}
+                              height={18}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lucide lucide-globe"
+                              aria-hidden="true"
+-                             data-darkreader-inline-stroke=""
+-                             style={{--darkreader-inline-stroke:"currentColor"}}
+                            >
+                          ...
+                        <button onClick={function onClick} className="notranslat...">
+                          <User size={18}>
+                            <svg
+                              ref={null}
+                              xmlns="http://www.w3.org/2000/svg"
+                              width={18}
+                              height={18}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lucide lucide-user"
+                              aria-hidden="true"
+-                             data-darkreader-inline-stroke=""
+-                             style={{--darkreader-inline-stroke:"currentColor"}}
+                            >
+                          ...
+                <section className="relative p...">
+                  <LoadableComponent>
+                  <div className="max-w-7xl ...">
+                    <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} className="inline-fle...">
+                      <div className="inline-fle..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                        <TrendingUp size={14} className="text-neon-...">
+                          <svg
+                            ref={null}
+                            xmlns="http://www.w3.org/2000/svg"
+                            width={14}
+                            height={14}
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="lucide lucide-trending-up text-neon-purple"
+                            aria-hidden="true"
+-                           data-darkreader-inline-stroke=""
+-                           style={{--darkreader-inline-stroke:"currentColor"}}
+                          >
+                        ...
+                    <motion.h1>
+                    <motion.p>
+                    <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.3}} ...>
+                      <div className="flex flex-..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                        <button className="w-full sm:...">
+                          <ArrowRight size={20}>
+                            <svg
+                              ref={null}
+                              xmlns="http://www.w3.org/2000/svg"
+                              width={20}
+                              height={20}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lucide lucide-arrow-right"
+                              aria-hidden="true"
+-                             data-darkreader-inline-stroke=""
+-                             style={{--darkreader-inline-stroke:"currentColor"}}
+                            >
+                        ...
+                <section className="py-20 px-6...">
+                  <div className="max-w-7xl ...">
+                    <FeatureCard icon={<ChartColumn>} title="Portföy Ta..." desc="Tüm yatırı...">
+                      <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true, ...}} ...>
+                        <div className="p-8 rounde..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="text-white...">
+                            <ChartColumn>
+                              <svg
+                                ref={null}
+                                xmlns="http://www.w3.org/2000/svg"
+                                width={24}
+                                height={24}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lucide lucide-chart-column"
+                                aria-hidden="true"
+-                               data-darkreader-inline-stroke=""
+-                               style={{--darkreader-inline-stroke:"currentColor"}}
+                              >
+                          ...
+                    <FeatureCard icon={<Zap>} title="Reel Kar/Z..." desc="Enflasyond...">
+                      <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true, ...}} ...>
+                        <div className="p-8 rounde..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="text-white...">
+                            <Zap>
+                              <svg
+                                ref={null}
+                                xmlns="http://www.w3.org/2000/svg"
+                                width={24}
+                                height={24}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lucide lucide-zap"
+                                aria-hidden="true"
+-                               data-darkreader-inline-stroke=""
+-                               style={{--darkreader-inline-stroke:"currentColor"}}
+                              >
+                          ...
+                    <FeatureCard icon={<ShieldCheck>} title="AI Stratej..." desc={"Her hiss..."}>
+                      <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true, ...}} ...>
+                        <div className="p-8 rounde..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="text-white...">
+                            <ShieldCheck>
+                              <svg
+                                ref={null}
+                                xmlns="http://www.w3.org/2000/svg"
+                                width={24}
+                                height={24}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lucide lucide-shield-check"
+                                aria-hidden="true"
+-                               data-darkreader-inline-stroke=""
+-                               style={{--darkreader-inline-stroke:"currentColor"}}
+                              >
+                          ...
+                <section className="py-32 px-6...">
+                  <div className="max-w-7xl ...">
+                    <div>
+                    <div className="relative z...">
+                      <motion.div animate={{y:[...]}} transition={{duration:2, ...}} onClick={function onClick} ...>
+                        <div onClick={function onClick} className="cursor-poi..." style={{}} ...>
+                          <ArrowDown size={20} className="text-black">
+                            <svg
+                              ref={null}
+                              xmlns="http://www.w3.org/2000/svg"
+                              width={20}
+                              height={20}
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lucide lucide-arrow-down text-black"
+                              aria-hidden="true"
+-                             data-darkreader-inline-stroke=""
+-                             style={{--darkreader-inline-stroke:"currentColor"}}
+                            >
+                      ...
+                    <div id="services-list" className="space-y-32...">
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <ChartColumn size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-chart-column"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <TrendingUp size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-trending-up"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <Zap size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-zap"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <ShieldCheck size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-shield-check"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <Cpu size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-cpu"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <Earth size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-earth"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                      ...
+                        <div className="w-full md:..." style={{opacity:0, ...}} ref={function useMotionRef.useCallback}>
+                          <div className="bg-white/5...">
+                            <div>
+                            <div className="text-neon-...">
+                              <FileText size={32}>
+                                <svg
+                                  ref={null}
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width={32}
+                                  height={32}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="lucide lucide-file-text"
+                                  aria-hidden="true"
+-                                 data-darkreader-inline-stroke=""
+-                                 style={{--darkreader-inline-stroke:"currentColor"}}
+                                >
+                            ...
+                ...
+        ...
+      ...
+ 
+ GET /portfolio 200 in 161ms (next.js: 48ms, application-code: 113ms)
+ GET /portfolio 200 in 52ms (next.js: 4ms, application-code: 48ms)
+ GET /portfolio 200 in 45ms (next.js: 4ms, application-code: 40ms)
+ GET /portfolio 200 in 47ms (next.js: 5ms, application-code: 42ms)
+ GET /portfolio 200 in 58ms (next.js: 5ms, application-code: 54ms)
+ GET /portfolio 200 in 53ms (next.js: 4ms, application-code: 49ms)
+ GET /portfolio 200 in 52ms (next.js: 4ms, application-code: 49ms)
+ GET /portfolio 200 in 70ms (next.js: 6ms, application-code: 64ms)
+ GET /portfolio 200 in 46ms (next.js: 5ms, application-code: 41ms)
+ GET /piyasalar 200 in 176ms (next.js: 48ms, application-code: 128ms)
+ GET /piyasalar/XU100.IS 200 in 651ms (next.js: 608ms, application-code: 43ms)
+ GET /logos/THYAO.svg 404 in 330ms (next.js: 77ms, application-code: 253ms)
+ GET /logos/KCHOL.svg 404 in 326ms (next.js: 136ms, application-code: 190ms)
+ GET /logos/TUPRS.svg 404 in 329ms (next.js: 106ms, application-code: 223ms)
+ GET /logos/AKBNK.svg 404 in 327ms (next.js: 217ms, application-code: 111ms)
+ GET /logos/GARAN.svg 404 in 126ms (next.js: 13ms, application-code: 113ms)
+ GET /logos/BIMAS.svg 404 in 74ms (next.js: 14ms, application-code: 60ms)
+ GET /logos/EREGL.svg 404 in 55ms (next.js: 7ms, application-code: 48ms)
+ GET /logos/YKBNK.svg 404 in 174ms (next.js: 15ms, application-code: 159ms)
+ GET /logos/SISE.svg 404 in 189ms (next.js: 52ms, application-code: 137ms)
+ GET /logos/FROTO.svg 404 in 159ms (next.js: 35ms, application-code: 124ms)
+ GET /logos/ARCLK.svg 404 in 76ms (next.js: 22ms, application-code: 54ms)
+ GET /piyasalar/TKFEN 200 in 54ms (next.js: 17ms, application-code: 38ms)
+ GET /logos/BIMAS.svg 404 in 313ms (next.js: 54ms, application-code: 259ms)
+ GET /logos/EREGL.svg 404 in 316ms (next.js: 29ms, application-code: 287ms)
+ GET /logos/SISE.svg 404 in 309ms (next.js: 130ms, application-code: 179ms)
+ GET /logos/YKBNK.svg 404 in 313ms (next.js: 106ms, application-code: 207ms)
+ GET /logos/FROTO.svg 404 in 131ms (next.js: 43ms, application-code: 88ms)
+ GET /logos/ARCLK.svg 404 in 59ms (next.js: 11ms, application-code: 48ms)
+ GET /logos/TUPRS.svg 404 in 251ms (next.js: 48ms, application-code: 202ms)
+ GET /logos/THYAO.svg 404 in 253ms (next.js: 10ms, application-code: 243ms)
+ GET /logos/KCHOL.svg 404 in 160ms (next.js: 16ms, application-code: 144ms)
+ GET /logos/AKBNK.svg 404 in 159ms (next.js: 38ms, application-code: 122ms)
+ GET /logos/GARAN.svg 404 in 161ms (next.js: 61ms, application-code: 101ms)
+ GET /piyasalar/EREGL 200 in 40ms (next.js: 14ms, application-code: 26ms)
+ GET /piyasalar/EREGL 200 in 101ms (next.js: 13ms, application-code: 88ms)
+ GET /piyasalar/EREGL 200 in 66ms (next.js: 14ms, application-code: 52ms)
+ GET /piyasalar/EREGL 200 in 64ms (next.js: 13ms, application-code: 51ms)
+ GET /piyasalar/XU100.IS 200 in 48ms (next.js: 17ms, application-code: 31ms)
+ GET /piyasalar 200 in 33ms (next.js: 6ms, application-code: 27ms)
+ GET /portfolio 200 in 63ms (next.js: 5ms, application-code: 58ms)
+ GET /portfolio 200 in 56ms (next.js: 4ms, application-code: 52ms)
+ GET /portfolio 200 in 53ms (next.js: 5ms, application-code: 48ms)
+ GET /portfolio 200 in 52ms (next.js: 4ms, application-code: 48ms)
+ GET /portfolio 200 in 46ms (next.js: 4ms, application-code: 42ms)
+ GET /portfolio 200 in 50ms (next.js: 6ms, application-code: 44ms)
+ GET /portfolio 200 in 47ms (next.js: 7ms, application-code: 41ms)
+ GET /portfolio 200 in 52ms (next.js: 4ms, application-code: 48ms)
+ GET /portfolio 200 in 57ms (next.js: 4ms, application-code: 54ms)
+ GET /portfolio 200 in 48ms (next.js: 4ms, application-code: 43ms)
+ GET /portfolio 200 in 47ms (next.js: 4ms, application-code: 43ms)
+ GET /portfolio 200 in 46ms (next.js: 5ms, application-code: 41ms)
+ GET /portfolio 200 in 55ms (next.js: 4ms, application-code: 51ms)
+ GET /portfolio 200 in 46ms (next.js: 4ms, application-code: 42ms)
+ GET /portfolio 200 in 58ms (next.js: 4ms, application-code: 54ms)
+ GET /portfolio 200 in 48ms (next.js: 4ms, application-code: 44ms)
+ GET /portfolio 200 in 48ms (next.js: 5ms, application-code: 43ms)
+ GET /portfolio 200 in 49ms (next.js: 3ms, application-code: 45ms)
+ GET /portfolio 200 in 56ms (next.js: 4ms, application-code: 51ms)
+ GET /portfolio 200 in 48ms (next.js: 3ms, application-code: 44ms)
+ GET /portfolio 200 in 59ms (next.js: 4ms, application-code: 54ms)
+ GET /portfolio 200 in 49ms (next.js: 4ms, application-code: 45ms)
+ GET /portfolio 200 in 42ms (next.js: 2ms, application-code: 39ms)
+ GET /portfolio 200 in 79ms (next.js: 14ms, application-code: 65ms)
+ GET /portfolio 200 in 49ms (next.js: 4ms, application-code: 46ms)
+ GET /portfolio 200 in 50ms (next.js: 6ms, application-code: 44ms)
+ GET /portfolio 200 in 78ms (next.js: 6ms, application-code: 72ms)
+ GET /portfolio 200 in 49ms (next.js: 4ms, application-code: 45ms)
+ GET /portfolio 200 in 55ms (next.js: 4ms, application-code: 51ms)
+ GET /piyasalar 200 in 52ms (next.js: 4ms, application-code: 48ms)
+ GET /portfolio 200 in 59ms (next.js: 4ms, application-code: 55ms)
+ GET /portfolio 200 in 59ms (next.js: 4ms, application-code: 55ms)
+ GET /portfolio 200 in 48ms (next.js: 4ms, application-code: 45ms)
+ GET /portfolio 200 in 44ms (next.js: 4ms, application-code: 40ms)
+ GET /portfolio 200 in 58ms (next.js: 4ms, application-code: 54ms)
+ GET /portfolio 200 in 47ms (next.js: 2ms, application-code: 45ms)
+ GET /portfolio 200 in 56ms (next.js: 4ms, application-code: 51ms)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /piyasalar 200 in 58ms (next.js: 7ms, application-code: 52ms)
+ GET /piyasalar/XU100.IS 200 in 47ms (next.js: 18ms, application-code: 29ms)
+ GET /logos/GARAN.svg 404 in 364ms (next.js: 207ms, application-code: 157ms)
+ GET /logos/AKBNK.svg 404 in 379ms (next.js: 111ms, application-code: 268ms)
+ GET /logos/KCHOL.svg 404 in 381ms (next.js: 85ms, application-code: 296ms)
+ GET /logos/TUPRS.svg 404 in 384ms (next.js: 54ms, application-code: 330ms)
+ GET /logos/THYAO.svg 404 in 389ms (next.js: 27ms, application-code: 362ms)
+ GET /logos/BIMAS.svg 404 in 100ms (next.js: 24ms, application-code: 76ms)
+ GET /logos/YKBNK.svg 404 in 229ms (next.js: 40ms, application-code: 188ms)
+ GET /logos/EREGL.svg 404 in 233ms (next.js: 18ms, application-code: 215ms)
+ GET /logos/SISE.svg 404 in 198ms (next.js: 29ms, application-code: 169ms)
+ GET /logos/FROTO.svg 404 in 194ms (next.js: 67ms, application-code: 126ms)
+ GET /logos/ARCLK.svg 404 in 76ms (next.js: 18ms, application-code: 58ms)
+ GET /portfolio 200 in 69ms (next.js: 9ms, application-code: 61ms)
+ GET /portfolio 200 in 58ms (next.js: 4ms, application-code: 54ms)
+ GET /portfolio 200 in 53ms (next.js: 6ms, application-code: 47ms)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /portfolio 200 in 58ms (next.js: 6ms, application-code: 52ms)
+ GET /portfolio 200 in 62ms (next.js: 5ms, application-code: 57ms)
+ GET /portfolio 200 in 64ms (next.js: 6ms, application-code: 59ms)
+ GET /portfolio 200 in 50ms (next.js: 4ms, application-code: 47ms)
+ GET /portfolio 200 in 58ms (next.js: 5ms, application-code: 53ms)
+ GET /portfolio 200 in 52ms (next.js: 5ms, application-code: 47ms)
+ GET /portfolio 200 in 47ms (next.js: 4ms, application-code: 43ms)
+ GET /portfolio 200 in 62ms (next.js: 5ms, application-code: 57ms)
+ GET /portfolio 200 in 50ms (next.js: 4ms, application-code: 45ms)
+ GET /portfolio 200 in 49ms (next.js: 4ms, application-code: 44ms)
+ GET /portfolio 200 in 57ms (next.js: 10ms, application-code: 47ms)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /portfolio 200 in 37ms (next.js: 2ms, application-code: 34ms)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /portfolio 200 in 38ms (next.js: 3ms, application-code: 35ms)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /portfolio 200 in 47ms (next.js: 4ms, application-code: 43ms)
+ GET /portfolio 200 in 50ms (next.js: 3ms, application-code: 46ms)
+ GET /portfolio 200 in 49ms (next.js: 3ms, application-code: 46ms)
+ GET /portfolio 200 in 63ms (next.js: 4ms, application-code: 60ms)
+ GET /portfolio 200 in 48ms (next.js: 4ms, application-code: 43ms)
+ GET /portfolio 200 in 45ms (next.js: 3ms, application-code: 41ms)
+ GET /portfolio 200 in 50ms (next.js: 4ms, application-code: 46ms)
+ GET /portfolio 200 in 43ms (next.js: 3ms, application-code: 40ms)
+ GET /portfolio 200 in 51ms (next.js: 3ms, application-code: 48ms)
+ GET /real-getiri 200 in 171ms (next.js: 47ms, application-code: 124ms)
+ GET /piyasalar 200 in 60ms (next.js: 4ms, application-code: 56ms)
+ GET /piyasalar/XU100.IS 200 in 44ms (next.js: 15ms, application-code: 28ms)
+ GET /logos/KCHOL.svg 404 in 316ms (next.js: 69ms, application-code: 247ms)
+ GET /logos/TUPRS.svg 404 in 319ms (next.js: 51ms, application-code: 268ms)
+ GET /logos/THYAO.svg 404 in 322ms (next.js: 31ms, application-code: 291ms)
+ GET /logos/GARAN.svg 404 in 315ms (next.js: 157ms, application-code: 158ms)
+ GET /logos/AKBNK.svg 404 in 317ms (next.js: 134ms, application-code: 183ms)
+ GET /logos/BIMAS.svg 404 in 74ms (next.js: 19ms, application-code: 54ms)
+ GET /logos/EREGL.svg 404 in 46ms (next.js: 6ms, application-code: 40ms)
+ GET /logos/SISE.svg 404 in 155ms (next.js: 53ms, application-code: 102ms)
+ GET /logos/YKBNK.svg 404 in 158ms (next.js: 20ms, application-code: 138ms)
+ GET /logos/FROTO.svg 404 in 105ms (next.js: 12ms, application-code: 93ms)
+ GET /logos/ARCLK.svg 404 in 100ms (next.js: 46ms, application-code: 54ms)
+ GET /piyasalar/THYAO 200 in 36ms (next.js: 12ms, application-code: 24ms)
+ GET /logos/THYAO.svg 404 in 62ms (next.js: 7ms, application-code: 55ms)
+ GET /logos/GARAN.svg 404 in 47ms (next.js: 6ms, application-code: 41ms)
+ GET /logos/TUPRS.svg 404 in 49ms (next.js: 6ms, application-code: 43ms)
+ GET /logos/KCHOL.svg 404 in 56ms (next.js: 6ms, application-code: 50ms)
+ GET /logos/AKBNK.svg 404 in 203ms (next.js: 22ms, application-code: 181ms)
+ GET /logos/BIMAS.svg 404 in 205ms (next.js: 61ms, application-code: 144ms)
+ GET /logos/YKBNK.svg 404 in 240ms (next.js: 102ms, application-code: 138ms)
+ GET /logos/EREGL.svg 404 in 242ms (next.js: 83ms, application-code: 159ms)
+ GET /logos/SISE.svg 404 in 57ms (next.js: 9ms, application-code: 48ms)
+ GET /logos/ARCLK.svg 404 in 95ms (next.js: 17ms, application-code: 78ms)
+ GET /logos/FROTO.svg 404 in 46ms (next.js: 6ms, application-code: 40ms)
+ GET /piyasalar/TTKOM 200 in 35ms (next.js: 12ms, application-code: 24ms)
+ GET /logos/AKBNK.svg 404 in 254ms (next.js: 50ms, application-code: 204ms)
+ GET /logos/KCHOL.svg 404 in 257ms (next.js: 31ms, application-code: 226ms)
+ GET /logos/GARAN.svg 404 in 241ms (next.js: 124ms, application-code: 117ms)
+ GET /logos/TUPRS.svg 404 in 244ms (next.js: 100ms, application-code: 144ms)
+ GET /logos/THYAO.svg 404 in 246ms (next.js: 87ms, application-code: 159ms)
+ GET /logos/BIMAS.svg 404 in 253ms (next.js: 81ms, application-code: 172ms)
+ GET /logos/EREGL.svg 404 in 248ms (next.js: 13ms, application-code: 235ms)
+ GET /logos/YKBNK.svg 404 in 249ms (next.js: 44ms, application-code: 205ms)
+ GET /logos/ARCLK.svg 404 in 248ms (next.js: 112ms, application-code: 137ms)
+ GET /logos/FROTO.svg 404 in 250ms (next.js: 88ms, application-code: 162ms)
+ GET /logos/SISE.svg 404 in 251ms (next.js: 66ms, application-code: 184ms)
+ GET /portfolio 200 in 55ms (next.js: 3ms, application-code: 53ms)
+ GET /portfolio 200 in 51ms (next.js: 4ms, application-code: 46ms)
+ GET /portfolio 200 in 43ms (next.js: 3ms, application-code: 39ms)
+ GET /portfolio 200 in 42ms (next.js: 3ms, application-code: 39ms)
+ GET /portfolio 200 in 47ms (next.js: 3ms, application-code: 44ms)
+ GET /portfolio 200 in 43ms (next.js: 4ms, application-code: 39ms)
+✓ Compiled in 230ms
+ GET /portfolio 200 in 161ms (next.js: 99ms, application-code: 62ms)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /portfolio 200 in 146ms (next.js: 2ms, application-code: 144ms)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(310.9937331813749, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /portfolio 200 in 50ms (next.js: 4ms, application-code: 46ms)
+ GET /piyasalar 200 in 132ms (next.js: 18ms, application-code: 114ms)
+ GET /piyasalar/XU100.IS 200 in 164ms (next.js: 121ms, application-code: 43ms)
+ GET /logos/THYAO.svg 404 in 397ms (next.js: 42ms, application-code: 356ms)
+ GET /logos/GARAN.svg 404 in 390ms (next.js: 195ms, application-code: 195ms)
+ GET /logos/AKBNK.svg 404 in 393ms (next.js: 174ms, application-code: 219ms)
+ GET /logos/KCHOL.svg 404 in 395ms (next.js: 153ms, application-code: 243ms)
+ GET /logos/TUPRS.svg 404 in 399ms (next.js: 132ms, application-code: 266ms)
+ GET /logos/BIMAS.svg 404 in 84ms (next.js: 28ms, application-code: 56ms)
+ GET /logos/EREGL.svg 404 in 52ms (next.js: 6ms, application-code: 46ms)
+ GET /logos/YKBNK.svg 404 in 70ms (next.js: 6ms, application-code: 64ms)
+ GET /logos/SISE.svg 404 in 169ms (next.js: 13ms, application-code: 157ms)
+ GET /logos/FROTO.svg 404 in 170ms (next.js: 32ms, application-code: 138ms)
+ GET /logos/ARCLK.svg 404 in 128ms (next.js: 40ms, application-code: 88ms)
+ GET /piyasalar/THYAO 200 in 43ms (next.js: 13ms, application-code: 29ms)
+[browser] Uncaught ReferenceError: ArrowUpRight is not defined
+    at <unknown> (src/app/piyasalar/[symbol]/page.tsx:523:41)
+    at Array.map (<anonymous>)
+    at IndexDetailsPage (src/app/piyasalar/[symbol]/page.tsx:487:21)
+  521 |                     </div>
+  522 |                     <div className="flex items-center gap-2 text-xs font-bold text-gray-5...
+> 523 |                       OKUMAYA DEVAM ET <ArrowUpRight size={14} />
+      |                                         ^
+  524 |                     </div>
+  525 |                   </div>
+  526 |                 </motion.div>
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 272ms
+ GET /piyasalar/THYAO 200 in 370ms (next.js: 156ms, application-code: 215ms)
+ GET /piyasalar/THYAO 200 in 58ms (next.js: 12ms, application-code: 46ms)
+ GET /haberler/fee91e22-0789-38f2-99be-7f42e73f01c0 200 in 1390ms (next.js: 1355ms, application-code: 35ms)
+ GET /haberler/fee91e22-0789-38f2-99be-7f42e73f01c0 200 in 98ms (next.js: 8ms, application-code: 90ms)
+ GET /haberler/fee91e22-0789-38f2-99be-7f42e73f01c0 200 in 73ms (next.js: 17ms, application-code: 55ms)
+ GET /haberler/fee91e22-0789-38f2-99be-7f42e73f01c0 200 in 64ms (next.js: 11ms, application-code: 53ms)
+ GET /piyasalar/THYAO 200 in 43ms (next.js: 14ms, application-code: 29ms)
+ GET /piyasalar/XU100.IS 200 in 47ms (next.js: 16ms, application-code: 31ms)
+ GET /logos/THYAO.svg 404 in 75ms (next.js: 24ms, application-code: 51ms)
+ GET /logos/TUPRS.svg 404 in 48ms (next.js: 6ms, application-code: 42ms)
+ GET /logos/EREGL.svg 404 in 221ms (next.js: 42ms, application-code: 179ms)
+ GET /logos/KCHOL.svg 404 in 224ms (next.js: 21ms, application-code: 203ms)
+ GET /logos/YKBNK.svg 404 in 224ms (next.js: 122ms, application-code: 102ms)
+ GET /logos/SISE.svg 404 in 226ms (next.js: 98ms, application-code: 129ms)
+ GET /logos/FROTO.svg 404 in 96ms (next.js: 17ms, application-code: 80ms)
+ GET /logos/ARCLK.svg 404 in 53ms (next.js: 7ms, application-code: 46ms)
+ GET /logos/AKBNK.svg 404 in 54ms (next.js: 6ms, application-code: 48ms)
+ GET /logos/GARAN.svg 404 in 55ms (next.js: 6ms, application-code: 49ms)
+ GET /logos/BIMAS.svg 404 in 60ms (next.js: 6ms, application-code: 54ms)
+ GET /logos/GARAN.svg 404 in 49ms (next.js: 6ms, application-code: 42ms)
+ GET /logos/KCHOL.svg 404 in 54ms (next.js: 7ms, application-code: 47ms)
+ GET /logos/YKBNK.svg 404 in 49ms (next.js: 5ms, application-code: 44ms)
+ GET /logos/FROTO.svg 404 in 99ms (next.js: 6ms, application-code: 94ms)
+ GET /logos/AKBNK.svg 404 in 99ms (next.js: 41ms, application-code: 58ms)
+ GET /logos/AKBNK.svg 404 in 54ms (next.js: 7ms, application-code: 47ms)
+ GET /logos/GARAN.svg 404 in 48ms (next.js: 6ms, application-code: 42ms)
+ GET /logos/YKBNK.svg 404 in 46ms (next.js: 6ms, application-code: 40ms)
+ GET /logos/FROTO.svg 404 in 54ms (next.js: 6ms, application-code: 48ms)
+ GET /logos/KCHOL.svg 404 in 45ms (next.js: 6ms, application-code: 39ms)
+✓ Compiled in 91ms
+ GET /logos/ARCLK.svg 404 in 362ms (next.js: 140ms, application-code: 222ms)
+ GET /logos/TUPRS.svg 404 in 489ms (next.js: 35ms, application-code: 454ms)
+ GET /logos/EREGL.svg 404 in 484ms (next.js: 345ms, application-code: 138ms)
+ GET /logos/BIMAS.svg 404 in 486ms (next.js: 323ms, application-code: 163ms)
+ GET /logos/SISE.svg 404 in 478ms (next.js: 394ms, application-code: 84ms)
+ GET /piyasalar/XU100.IS 200 in 599ms (next.js: 265ms, application-code: 334ms)
+ GET /logos/THYAO.svg 404 in 131ms (next.js: 12ms, application-code: 119ms)
+ GET /logos/YKBNK.svg 404 in 211ms (next.js: 17ms, application-code: 194ms)
+ GET /logos/SISE.svg 404 in 209ms (next.js: 84ms, application-code: 124ms)
+ GET /logos/EREGL.svg 404 in 211ms (next.js: 53ms, application-code: 158ms)
+ GET /logos/ARCLK.svg 404 in 80ms (next.js: 21ms, application-code: 59ms)
+ GET /logos/KCHOL.svg 404 in 86ms (next.js: 10ms, application-code: 77ms)
+ GET /logos/TUPRS.svg 404 in 85ms (next.js: 30ms, application-code: 55ms)
+ GET /logos/THYAO.svg 404 in 55ms (next.js: 6ms, application-code: 49ms)
+ GET /logos/AKBNK.svg 404 in 90ms (next.js: 6ms, application-code: 83ms)
+ GET /logos/GARAN.svg 404 in 57ms (next.js: 8ms, application-code: 49ms)
+ GET /logos/BIMAS.svg 404 in 102ms (next.js: 11ms, application-code: 91ms)
+ GET /logos/FROTO.svg 404 in 101ms (next.js: 45ms, application-code: 56ms)
+ GET /piyasalar 200 in 54ms (next.js: 21ms, application-code: 33ms)
+ GET /piyasalar/XU100.IS 200 in 38ms (next.js: 11ms, application-code: 27ms)
+ GET /logos/GARAN.svg 404 in 198ms (next.js: 43ms, application-code: 155ms)
+ GET /logos/AKBNK.svg 404 in 200ms (next.js: 21ms, application-code: 179ms)
+ GET /logos/BIMAS.svg 404 in 196ms (next.js: 62ms, application-code: 135ms)
+ GET /logos/THYAO.svg 404 in 196ms (next.js: 132ms, application-code: 64ms)
+ GET /logos/TUPRS.svg 404 in 51ms (next.js: 6ms, application-code: 45ms)
+ GET /logos/KCHOL.svg 404 in 94ms (next.js: 10ms, application-code: 84ms)
+ GET /logos/EREGL.svg 404 in 93ms (next.js: 32ms, application-code: 61ms)
+ GET /logos/SISE.svg 404 in 154ms (next.js: 14ms, application-code: 140ms)
+ GET /logos/FROTO.svg 404 in 156ms (next.js: 79ms, application-code: 77ms)
+ GET /logos/YKBNK.svg 404 in 159ms (next.js: 51ms, application-code: 108ms)
+ GET /logos/ARCLK.svg 404 in 57ms (next.js: 8ms, application-code: 48ms)
+ GET /logos/EREGL.svg 404 in 126ms (next.js: 17ms, application-code: 110ms)
+ GET /logos/BIMAS.svg 404 in 132ms (next.js: 60ms, application-code: 73ms)
+ GET /logos/THYAO.svg 404 in 197ms (next.js: 87ms, application-code: 110ms)
+ GET /logos/ARCLK.svg 404 in 199ms (next.js: 67ms, application-code: 132ms)
+ GET /logos/FROTO.svg 404 in 202ms (next.js: 43ms, application-code: 158ms)
+ GET /logos/SISE.svg 404 in 204ms (next.js: 18ms, application-code: 186ms)
+ GET /logos/YKBNK.svg 404 in 100ms (next.js: 9ms, application-code: 91ms)
+ GET /logos/TUPRS.svg 404 in 99ms (next.js: 29ms, application-code: 70ms)
+ GET /logos/KCHOL.svg 404 in 160ms (next.js: 18ms, application-code: 141ms)
+ GET /logos/AKBNK.svg 404 in 160ms (next.js: 71ms, application-code: 89ms)
+ GET /logos/GARAN.svg 404 in 55ms (next.js: 7ms, application-code: 48ms)
+ GET /portfolio 200 in 155ms (next.js: 19ms, application-code: 136ms)
+ GET /portfolio 200 in 34ms (next.js: 3ms, application-code: 30ms)
+ GET /portfolio 200 in 47ms (next.js: 3ms, application-code: 44ms)
+ GET /portfolio 200 in 43ms (next.js: 3ms, application-code: 39ms)
+[browser] 'hsl(98.45413675922154, 70%, 60%)15' is not an animatable color. Use the equivalent color code instead.. For more information and steps for solving, visit https://motion.dev/troubleshooting/color-not-animatable (<anonymous>)
+ GET /piyasalar 200 in 81ms (next.js: 2ms, application-code: 79ms)
+ GET /piyasalar/XU100.IS 200 in 39ms (next.js: 13ms, application-code: 26ms)
+ GET /logos/TUPRS.svg 404 in 286ms (next.js: 60ms, application-code: 226ms)
+ GET /logos/KCHOL.svg 404 in 289ms (next.js: 41ms, application-code: 247ms)
+ GET /logos/THYAO.svg 404 in 291ms (next.js: 22ms, application-code: 269ms)
+ GET /logos/GARAN.svg 404 in 285ms (next.js: 138ms, application-code: 147ms)
+ GET /logos/AKBNK.svg 404 in 288ms (next.js: 117ms, application-code: 171ms)
+ GET /logos/BIMAS.svg 404 in 93ms (next.js: 29ms, application-code: 65ms)
+ GET /logos/EREGL.svg 404 in 72ms (next.js: 9ms, application-code: 63ms)
+ GET /logos/ARCLK.svg 404 in 49ms (next.js: 8ms, application-code: 41ms)
+ GET /logos/YKBNK.svg 404 in 49ms (next.js: 6ms, application-code: 43ms)
+ GET /logos/SISE.svg 404 in 124ms (next.js: 20ms, application-code: 104ms)
+ GET /logos/FROTO.svg 404 in 123ms (next.js: 42ms, application-code: 81ms)
+ GET /piyasalar/XU100.IS 200 in 113ms (next.js: 17ms, application-code: 96ms)
+ GET /logos/KCHOL.svg 404 in 290ms (next.js: 79ms, application-code: 211ms)
+ GET /logos/TUPRS.svg 404 in 292ms (next.js: 58ms, application-code: 234ms)
+ GET /logos/THYAO.svg 404 in 296ms (next.js: 31ms, application-code: 265ms)
+ GET /logos/AKBNK.svg 404 in 290ms (next.js: 142ms, application-code: 148ms)
+ GET /logos/BIMAS.svg 404 in 286ms (next.js: 188ms, application-code: 98ms)
+ GET /logos/GARAN.svg 404 in 289ms (next.js: 167ms, application-code: 122ms)
+ GET /logos/EREGL.svg 404 in 162ms (next.js: 10ms, application-code: 152ms)
+ GET /logos/SISE.svg 404 in 239ms (next.js: 68ms, application-code: 171ms)
+ GET /logos/YKBNK.svg 404 in 240ms (next.js: 46ms, application-code: 194ms)
+ GET /logos/FROTO.svg 404 in 119ms (next.js: 17ms, application-code: 102ms)
+ GET /logos/ARCLK.svg 404 in 117ms (next.js: 38ms, application-code: 79ms)
+ GET /piyasalar 200 in 26ms (next.js: 5ms, application-code: 22ms)
+ GET /piyasalar/XU100.IS 200 in 36ms (next.js: 12ms, application-code: 24ms)
+ GET /logos/KCHOL.svg 404 in 199ms (next.js: 64ms, application-code: 135ms)
+ GET /logos/TUPRS.svg 404 in 202ms (next.js: 43ms, application-code: 159ms)
+ GET /logos/THYAO.svg 404 in 205ms (next.js: 24ms, application-code: 181ms)
+ GET /logos/AKBNK.svg 404 in 198ms (next.js: 131ms, application-code: 67ms)
+ GET /logos/GARAN.svg 404 in 102ms (next.js: 8ms, application-code: 94ms)
+ GET /logos/BIMAS.svg 404 in 55ms (next.js: 9ms, application-code: 46ms)
+ GET /logos/EREGL.svg 404 in 169ms (next.js: 9ms, application-code: 161ms)
+ GET /logos/YKBNK.svg 404 in 170ms (next.js: 33ms, application-code: 137ms)
+ GET /logos/SISE.svg 404 in 151ms (next.js: 42ms, application-code: 109ms)
+ GET /logos/FROTO.svg 404 in 119ms (next.js: 59ms, application-code: 60ms)
+ GET /logos/ARCLK.svg 404 in 57ms (next.js: 7ms, application-code: 51ms)
+ GET /piyasalar/ENKAI 200 in 34ms (next.js: 11ms, application-code: 24ms)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchData (src/app/piyasalar/[symbol]/page.tsx:108:30)
+    at IndexDetailsPage.useEffect.interval (src/app/piyasalar/[symbol]/page.tsx:47:40)
+  106 |     else setLoading(true);
+  107 |     try {
+> 108 |       const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&int...
+      |                              ^
+  109 |       const indexInfo = await indexRes.json();
+  110 |       setIndexData(indexInfo);
+  111 | (src/app/piyasalar/[symbol]/page.tsx:123:15)
+ GET /haberler/9f780faf-a940-395f-9cf2-015c2dd1ca09 200 in 54ms (next.js: 25ms, application-code: 29ms)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchData (src/app/piyasalar/[symbol]/page.tsx:108:30)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:46:5)
+  106 |     else setLoading(true);
+  107 |     try {
+> 108 |       const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&int...
+      |                              ^
+  109 |       const indexInfo = await indexRes.json();
+  110 |       setIndexData(indexInfo);
+  111 | (src/app/piyasalar/[symbol]/page.tsx:123:15)
+[browser] KAP fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchKap (src/app/piyasalar/[symbol]/page.tsx:56:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:67:5)
+  54 |       setKapLoading(true);
+  55 |       try {
+> 56 |         const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+     |                           ^
+  57 |         const data = await res.json();
+  58 |         if (data.success) {
+  59 |           setKapDisclosures(data.data || []); (src/app/piyasalar/[symbol]/page.tsx:62:17)
+[browser] News fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchNews (src/app/piyasalar/[symbol]/page.tsx:72:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:83:5)
+  70 |       setNewsLoading(true);
+  71 |       try {
+> 72 |         const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+     |                           ^
+  73 |         if (res.ok) {
+  74 |           const data = await res.json();
+  75 |           setNews(data || []); (src/app/piyasalar/[symbol]/page.tsx:78:17)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchData (src/app/piyasalar/[symbol]/page.tsx:108:30)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:46:5)
+  106 |     else setLoading(true);
+  107 |     try {
+> 108 |       const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&int...
+      |                              ^
+  109 |       const indexInfo = await indexRes.json();
+  110 |       setIndexData(indexInfo);
+  111 | (src/app/piyasalar/[symbol]/page.tsx:123:15)
+[browser] KAP fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchKap (src/app/piyasalar/[symbol]/page.tsx:56:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:67:5)
+  54 |       setKapLoading(true);
+  55 |       try {
+> 56 |         const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+     |                           ^
+  57 |         const data = await res.json();
+  58 |         if (data.success) {
+  59 |           setKapDisclosures(data.data || []); (src/app/piyasalar/[symbol]/page.tsx:62:17)
+[browser] News fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchNews (src/app/piyasalar/[symbol]/page.tsx:72:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:83:5)
+  70 |       setNewsLoading(true);
+  71 |       try {
+> 72 |         const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+     |                           ^
+  73 |         if (res.ok) {
+  74 |           const data = await res.json();
+  75 |           setNews(data || []); (src/app/piyasalar/[symbol]/page.tsx:78:17)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchData (src/app/piyasalar/[symbol]/page.tsx:108:30)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:46:5)
+  106 |     else setLoading(true);
+  107 |     try {
+> 108 |       const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&int...
+      |                              ^
+  109 |       const indexInfo = await indexRes.json();
+  110 |       setIndexData(indexInfo);
+  111 | (src/app/piyasalar/[symbol]/page.tsx:123:15)
+[browser] KAP fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchKap (src/app/piyasalar/[symbol]/page.tsx:56:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:67:5)
+  54 |       setKapLoading(true);
+  55 |       try {
+> 56 |         const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+     |                           ^
+  57 |         const data = await res.json();
+  58 |         if (data.success) {
+  59 |           setKapDisclosures(data.data || []); (src/app/piyasalar/[symbol]/page.tsx:62:17)
+[browser] News fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchNews (src/app/piyasalar/[symbol]/page.tsx:72:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:83:5)
+  70 |       setNewsLoading(true);
+  71 |       try {
+> 72 |         const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+     |                           ^
+  73 |         if (res.ok) {
+  74 |           const data = await res.json();
+  75 |           setNews(data || []); (src/app/piyasalar/[symbol]/page.tsx:78:17)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchData (src/app/piyasalar/[symbol]/page.tsx:108:30)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:46:5)
+  106 |     else setLoading(true);
+  107 |     try {
+> 108 |       const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&int...
+      |                              ^
+  109 |       const indexInfo = await indexRes.json();
+  110 |       setIndexData(indexInfo);
+  111 | (src/app/piyasalar/[symbol]/page.tsx:123:15)
+[browser] KAP fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchKap (src/app/piyasalar/[symbol]/page.tsx:56:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:67:5)
+  54 |       setKapLoading(true);
+  55 |       try {
+> 56 |         const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+     |                           ^
+  57 |         const data = await res.json();
+  58 |         if (data.success) {
+  59 |           setKapDisclosures(data.data || []); (src/app/piyasalar/[symbol]/page.tsx:62:17)
+[browser] News fetch error: TypeError: Failed to fetch
+    at IndexDetailsPage.useEffect.fetchNews (src/app/piyasalar/[symbol]/page.tsx:72:27)
+    at IndexDetailsPage.useEffect (src/app/piyasalar/[symbol]/page.tsx:83:5)
+  70 |       setNewsLoading(true);
+  71 |       try {
+> 72 |         const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+     |                           ^
+  73 |         if (res.ok) {
+  74 |           const data = await res.json();
+  75 |           setNews(data || []); (src/app/piyasalar/[symbol]/page.tsx:78:17)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:527:5)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:378:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:527:5)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Portfolio index error: TypeError: Failed to fetch
+    at fetchPortfolioIndex (src/app/piyasalar/page.tsx:401:29)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:528:18)
+  399 |   const fetchPortfolioIndex = async (token: string) => {
+  400 |     try {
+> 401 |       const portRes = await fetch(`${API_URL}/portfolio`, {
+      |                             ^
+  402 |         headers: { Authorization: `Bearer ${token}` }
+  403 |       });
+  404 |       if (!portRes.ok) { setPortfolioIndex(null); return; } (src/app/piyasalar/page.tsx:465:15)
+[browser] Portfolio index error: TypeError: Failed to fetch
+    at fetchPortfolioIndex (src/app/piyasalar/page.tsx:401:29)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:528:18)
+  399 |   const fetchPortfolioIndex = async (token: string) => {
+  400 |     try {
+> 401 |       const portRes = await fetch(`${API_URL}/portfolio`, {
+      |                             ^
+  402 |         headers: { Authorization: `Bearer ${token}` }
+  403 |       });
+  404 |       if (!portRes.ok) { setPortfolioIndex(null); return; } (src/app/piyasalar/page.tsx:465:15)
+ GET /piyasalar 200 in 34ms (next.js: 3ms, application-code: 30ms)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:527:5)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:378:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio index error: TypeError: Failed to fetch
+    at fetchPortfolioIndex (src/app/piyasalar/page.tsx:401:29)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:528:18)
+  399 |   const fetchPortfolioIndex = async (token: string) => {
+  400 |     try {
+> 401 |       const portRes = await fetch(`${API_URL}/portfolio`, {
+      |                             ^
+  402 |         headers: { Authorization: `Bearer ${token}` }
+  403 |       });
+  404 |       if (!portRes.ok) { setPortfolioIndex(null); return; } (src/app/piyasalar/page.tsx:465:15)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+ GET /piyasalar 200 in 40ms (next.js: 3ms, application-code: 37ms)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:527:5)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:378:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio index error: TypeError: Failed to fetch
+    at fetchPortfolioIndex (src/app/piyasalar/page.tsx:401:29)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:528:18)
+  399 |   const fetchPortfolioIndex = async (token: string) => {
+  400 |     try {
+> 401 |       const portRes = await fetch(`${API_URL}/portfolio`, {
+      |                             ^
+  402 |         headers: { Authorization: `Bearer ${token}` }
+  403 |       });
+  404 |       if (!portRes.ok) { setPortfolioIndex(null); return; } (src/app/piyasalar/page.tsx:465:15)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+ GET /piyasalar 200 in 52ms (next.js: 5ms, application-code: 47ms)
+[browser] Data fetch error: TypeError: Failed to fetch
+    at fetchMarkets (src/app/piyasalar/page.tsx:474:25)
+    at PiyasalarPage.useEffect (src/app/piyasalar/page.tsx:527:5)
+  472 |     try {
+  473 |       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
+> 474 |       const res = await fetch(`${API_URL}/market-summary`);
+      |                         ^
+  475 |       const summaryData = await res.json();
+  476 |
+  477 |       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 3... (src/app/piyasalar/page.tsx:517:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/piyasalar/page.tsx:351:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:371:7)
+  349 |   const fetchPortfolio = async (t: string) => {
+  350 |     try {
+> 351 |       const res = await fetch(`${API_URL}/portfolio`, {
+      |                         ^
+  352 |         headers: { 'Authorization': `Bearer ${t}` }
+  353 |       });
+  354 |       if (res.ok) { (src/app/piyasalar/page.tsx:362:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:372:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+[browser] Portfolio history error: TypeError: Failed to fetch
+    at fetchPortfolioHistory (src/app/piyasalar/page.tsx:335:25)
+    at PortfolioSection.useEffect (src/app/piyasalar/page.tsx:378:7)
+  333 |     setLoading(true);
+  334 |     try {
+> 335 |       const res = await fetch(`${API_URL}/portfolio/history?range=${range}`, {
+      |                         ^
+  336 |         headers: { 'Authorization': `Bearer ${t}` }
+  337 |       });
+  338 |       const data = await res.json(); (src/app/piyasalar/page.tsx:343:15)
+ GET /real-getiri 200 in 132ms (next.js: 21ms, application-code: 111ms)
+ GET /portfolio 200 in 49ms (next.js: 4ms, application-code: 45ms)
+[browser] Fetch error: TypeError: Failed to fetch
+    at fetchPortfolio (src/app/portfolio/page.tsx:196:30)
+    at PortfolioPage.useEffect (src/app/portfolio/page.tsx:48:5)
+  194 |   const fetchPortfolio = async () => {
+  195 |     try {
+> 196 |       const response = await fetch(`${API_URL}/portfolio`, {
+      |                              ^
+  197 |         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+  198 |       });
+  199 |        (src/app/portfolio/page.tsx:217:15)
+[browser] USD Rate error: TypeError: Failed to fetch
+    at fetchUsdRate (src/app/portfolio/page.tsx:100:30)
+    at PortfolioPage.useEffect (src/app/portfolio/page.tsx:49:5)
+   98 |   const fetchUsdRate = async () => {
+   99 |     try {
+> 100 |       const response = await fetch(`${API_URL}/exchange-rate`, {
+      |                              ^
+  101 |         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+  102 |       });
+  103 |       const data = await response.json(); (src/app/portfolio/page.tsx:115:15)
+ GET /portfolio 200 in 60ms (next.js: 3ms, application-code: 57ms)
+ GET /piyasalar 200 in 50ms (next.js: 3ms, application-code: 46ms)
+ GET /piyasalar/XU100.IS 200 in 41ms (next.js: 14ms, application-code: 27ms)
+ GET /logos/TUPRS.svg 404 in 285ms (next.js: 49ms, application-code: 236ms)
+ GET /logos/THYAO.svg 404 in 289ms (next.js: 28ms, application-code: 260ms)
+ GET /logos/GARAN.svg 404 in 283ms (next.js: 143ms, application-code: 140ms)
+ GET /logos/AKBNK.svg 404 in 286ms (next.js: 121ms, application-code: 165ms)
+ GET /logos/KCHOL.svg 404 in 289ms (next.js: 100ms, application-code: 190ms)
+ GET /logos/BIMAS.svg 404 in 73ms (next.js: 24ms, application-code: 49ms)
+ GET /logos/EREGL.svg 404 in 48ms (next.js: 6ms, application-code: 42ms)
+ GET /logos/YKBNK.svg 404 in 118ms (next.js: 7ms, application-code: 111ms)
+ GET /logos/SISE.svg 404 in 157ms (next.js: 12ms, application-code: 145ms)
+ GET /logos/FROTO.svg 404 in 196ms (next.js: 25ms, application-code: 171ms)
+ GET /logos/ARCLK.svg 404 in 121ms (next.js: 22ms, application-code: 99ms)
+ GET /piyasalar/ASELS 200 in 37ms (next.js: 12ms, application-code: 25ms)
+ GET /haberler/4992412c-57fb-3f98-aa79-4371d896208a 200 in 38ms (next.js: 11ms, application-code: 27ms)
+ GET /haberler/4992412c-57fb-3f98-aa79-4371d896208a 200 in 91ms (next.js: 8ms, application-code: 83ms)
+ GET /piyasalar/ASELS 200 in 49ms (next.js: 14ms, application-code: 34ms)
+ GET /piyasalar/XU100.IS 200 in 38ms (next.js: 12ms, application-code: 25ms)
+ GET /logos/THYAO.svg 404 in 319ms (next.js: 35ms, application-code: 284ms)
+ GET /logos/GARAN.svg 404 in 312ms (next.js: 148ms, application-code: 164ms)
+ GET /logos/AKBNK.svg 404 in 315ms (next.js: 123ms, application-code: 193ms)
+ GET /logos/KCHOL.svg 404 in 318ms (next.js: 99ms, application-code: 219ms)
+ GET /logos/TUPRS.svg 404 in 320ms (next.js: 75ms, application-code: 246ms)
+ GET /logos/BIMAS.svg 404 in 78ms (next.js: 27ms, application-code: 52ms)
+ GET /logos/EREGL.svg 404 in 54ms (next.js: 6ms, application-code: 48ms)
+ GET /logos/YKBNK.svg 404 in 148ms (next.js: 6ms, application-code: 142ms)
+ GET /logos/FROTO.svg 404 in 199ms (next.js: 35ms, application-code: 164ms)
+ GET /logos/SISE.svg 404 in 202ms (next.js: 13ms, application-code: 189ms)
+ GET /logos/ARCLK.svg 404 in 113ms (next.js: 37ms, application-code: 75ms)
+ GET /piyasalar/YKBNK 200 in 37ms (next.js: 12ms, application-code: 25ms)
+^C^C

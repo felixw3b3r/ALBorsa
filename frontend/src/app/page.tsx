@@ -207,12 +207,12 @@ function ServiceRow({ side, icon, title, desc }: { side: 'left' | 'right', icon:
 
       <motion.div 
         initial={{ 
-          x: typeof window !== 'undefined' && window.innerWidth < 768 ? 0 : (side === 'right' ? 100 : -100), 
-          y: typeof window !== 'undefined' && window.innerWidth < 768 ? 50 : 0,
+          x: side === 'right' ? 50 : -50, 
+          y: 0,
           opacity: 0 
         }}
         whileInView={{ x: 0, y: 0, opacity: 1 }}
-        viewport={{ once: true, margin: "-100px" }}
+        viewport={{ once: true, margin: "-50px" }}
         transition={{ type: "spring", damping: 25, stiffness: 80 }}
         className={`w-full md:w-1/2 p-1 ${side === 'right' ? 'md:pl-12' : 'md:pr-12'}`}
       >
