@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536 --max-semi-space-size=32\" tsx watch src/index.ts",
+    "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536 --max-semi-space-size=32 --max-http-header-size=65536\" tsx watch src/index.ts",
     "build": "tsc",
     "start": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536\" node dist/src/index.js"
   },

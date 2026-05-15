@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   const navLinks = [
@@ -14,16 +15,19 @@ export default function Navbar() {
     { name: "Portfolyo", href: "/portfolio" },
     { name: "Turnusol Kağıdı", href: "/real-getiri" },
     { name: "Piyasalar", href: "/piyasalar" },
+    { name: "Halka Arz", href: "/halka-arz" },
     { name: "AI Analiz", href: "/ai-analiz" },
-    { name: "Eğitim", href: "/egitim" },
   ];
 
   useEffect(() => {
+    setMounted(true);
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
   }, []);
+
+  if (!mounted) return <nav className="fixed top-0 w-full z-50 bg-black/50 backdrop-blur-xl border-b border-white/10 px-6 py-4 h-[73px]" />;
 
   const handleLogout = () => {
     localStorage.removeItem('token');

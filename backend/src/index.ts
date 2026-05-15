@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
 import { GoogleGenAI } from '@google/genai';
+import { ensureDisclosuresLoaded, getCachedDisclosures, getDisclosuresByStock, getLastFetchTime } from './services/kapService';
 
 dotenv.config();
 
@@ -17,14 +18,18 @@ async function translateToTurkish(text: string): Promise<string> {
   if (!text || text.length < 5) return text;
   
   try {
-    const prompt = `Aşağıdaki finans haberini profesyonel bir finans diliyle Türkçe'ye çevir. Sadece çeviriyi döndür: \n\n${text}`;
+    const prompt = `Sen profesyonel bir finans ve borsa editörüsün. Aşağıdaki İngilizce finans haberini borsa terminolojisine uygun, akıcı bir Türkçeye yerelleştir. Sadece çeviriyi döndür, yorum yapma:\n\n${text}`;
+    
+    // Projedeki mevcut SDK kullanımına sadık kalıyoruz
     const result = await genAI.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: prompt
+      model: 'gemini-3.1-flash-lite',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
-    return result.text.trim();
-  } catch (error) {
-    console.warn('Translation failed, using original text');
+    
+    const resultText = (result.text as any) || '';
+    return resultText.trim();
+  } catch (error: any) {
+    console.warn(`   [!] Çeviri başarısız (${error.message?.slice(0, 100)}), orijinal metin döndürülüyor...`);
     return text;
   }
 }
@@ -819,25 +824,36 @@ app.get('/api/news/content', async (req, res) => {
     const { url } = req.query as { url: string };
     if (!url) return res.status(400).json({ error: 'URL gerekli' });
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
     const html = await response.text();
     
-    // Basit metin ayıklama: Paragrafları yakala ve temizle
-    const paragraphs = html.match(/<p>(.*?)<\/p>/g) || [];
+    // Improved Article Extraction
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/);
+    const targetHtml = articleMatch ? articleMatch[1] : html;
+    
+    const paragraphs = targetHtml.match(/<p[^>]*>(.*?)<\/p>/g) || [];
     const content = paragraphs
-      .map(p => p.replace(/<[^>]*>/g, ''))
-      .filter(p => p.length > 40)
-      .slice(0, 15)
+      .map(p => p.replace(/<[^>]*>/g, '')
+                 .replace(/&quot;/g, '"')
+                 .replace(/&#39;/g, "'")
+                 .replace(/&amp;/g, '&')
+                 .replace(/&lt;/g, '<')
+                 .replace(/&gt;/g, '>')
+                 .trim())
+      .filter(p => p.length > 50 && !p.includes('Oops, something went wrong'))
+      .slice(0, 20)
       .join('\n\n');
 
-    res.json({ content: content || 'Haber içeriği şu an çekilemiyor. Lütfen orijinal kaynağı ziyaret edin.' });
+    res.json({ content: content || 'Haber içeriği şu an çekilemiyor veya uygun formatta değil.' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// KAP Bildirimlerini Playwright ile Çek
-import { ensureDisclosuresLoaded, getDisclosuresByStock, getCachedDisclosures, getLastFetchTime } from './services/kapService';
+
+// KAP Bildirimlerini Çek
 
 app.get('/api/stocks/:symbol/kap', async (req, res) => {
   const start = Date.now();
@@ -901,7 +917,7 @@ const INDEX_COMPONENTS: { [key: string]: string[] } = {
   'XU100.IS': [
     'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
     'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
-    'EFORC.IS', 'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TKFEN.IS', 'ODAS.IS', 'AKSEN.IS', 'AEFES.IS', 'MGROS.IS',
+    'EFOR.IS', 'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TKFEN.IS', 'ODAS.IS', 'AKSEN.IS', 'AEFES.IS', 'MGROS.IS',
     'TTKOM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'KOZAL.IS', 'KOZAA.IS', 'IPEKE.IS', 'OTKAR.IS',
     'ALARK.IS', 'MAVI.IS', 'CCOLA.IS', 'ULKER.IS', 'GUBRF.IS', 'AGHOL.IS', 'DOAS.IS', 'ZOREN.IS', 'BERA.IS', 'TURSG.IS',
     'SKBNK.IS', 'TSKB.IS', 'VESTL.IS', 'KARSN.IS', 'EGEEN.IS', 'OYAKC.IS', 'KORDS.IS', 'ALBRK.IS', 'BRISA.IS', 'LOGO.IS',
@@ -1004,6 +1020,7 @@ app.get('/api/market-summary', async (req, res) => {
 
     // Yahoo Spark API ile diğer sembollerin (BIST + Global endeksler) sparkline'ını TEK SEFERDE çek
     try {
+      const allBistSymbols = [...INDEX_COMPONENTS['XU100.IS'], ...mainSymbols].sort();
       const nonCryptoSymbols = mainSymbols.filter(s => !sparkData[s]);
       const sparkSymbols = nonCryptoSymbols.join('%2C');
       const sparkUrl = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${sparkSymbols}&range=1d&interval=15m`;
@@ -1042,7 +1059,7 @@ app.get('/api/market-summary', async (req, res) => {
         }
 
         // KALDIRILAN: chart() fallback — eşzamanlı 14 ağır istek yaparak RAM/GPU crash'e yol açıyordu.
-        // Spark API boş döndürdüğünde sparkline yok gösteriyoruz (güvenli, hafif).
+        // Spark API boş döndüğünde sparkline yok gösteriyoruz (güvenli, hafif).
         if (history.length < 5 && !['BTC-USD', 'ETH-USD'].includes(symbol)) {
           // history boş kalabilir — frontend bunu gracefully handle eder
           console.log(`ℹ️ [market-summary] ${symbol} için sparkline yok (Spark API boş döndü, fallback devre dışı)`);
@@ -1137,94 +1154,93 @@ setInterval(collectMarketData, 15 * 60 * 1000);
 // İlk açılışta bir kez çalıştır (30sn gecikme — frontend başlangıç yüküyle çakışmasın)
 setTimeout(collectMarketData, 30000);
 
-// ===== 5'erli Haber Toplayıcı (Background Task) =====
-async function collectNewsData() {
-  console.log(`📰 [News Collector] Haber toplama başlatıldı...`);
-  // BIST 100 bileşenlerini al
-  const symbols = INDEX_COMPONENTS['XU100.IS'] || [];
-  
-  // 5'erli gruplar halinde işle
-  const chunkSize = 5;
-  for (let i = 0; i < symbols.length; i += chunkSize) {
-    const chunk = symbols.slice(i, i + chunkSize);
-    console.log(`[News Collector] Grup ${Math.floor(i / chunkSize) + 1}: ${chunk.join(', ')}`);
+// ═══════════════════════════════════════════════════════════════
+// 🆕 AKILLI KAP VE HABER SENKRONİZASYONU (15 DK)
+// ═══════════════════════════════════════════════════════════════
+
+async function syncKapNews() {
+  console.log('🚀 [KAP-SYNC] Yeni bildirimler kontrol ediliyor...');
+  try {
+    await ensureDisclosuresLoaded();
+    const disclosures = getCachedDisclosures();
     
-    for (const sym of chunk) {
-      try {
-        const liveQuote: any = await (yahooFinance as any).quote(sym);
-        const searchQuery = liveQuote.shortName || liveQuote.longName || sym;
-        const result: any = await (yahooFinance as any).search(searchQuery, { newsCount: 5 });
-        
-        for (const item of (result.news || [])) {
-          if (!item.uuid) continue;
-          
-          // Veritabanında zaten var mı?
-          const exists = await NewsArticle.exists({ uuid: item.uuid });
-          if (exists) continue;
-
-          // İçeriği çek (raw fetch ile)
-          let content = '';
-          try {
-             // AbortController ile 5 saniye timeout (sistemi kilitlememesi için)
-             const controller = new AbortController();
-             const timeoutId = setTimeout(() => controller.abort(), 5000);
-             const fetchRes = await fetch(item.link, { signal: controller.signal });
-             clearTimeout(timeoutId);
-             
-             const html = await fetchRes.text();
-             const paragraphs = html.match(/<p>(.*?)<\/p>/g) || [];
-             content = paragraphs
-               .map((p: string) => p.replace(/<[^>]*>/g, ''))
-               .filter((p: string) => p.length > 40)
-               .slice(0, 15)
-               .join('\n\n');
-          } catch (e) {
-             content = 'Haber içeriği çekilemedi veya zaman aşımı.';
-          }
-
-          // Çeviri İşlemi (Gemini AI)
-          let translatedTitle = item.title;
-          let translatedContent = content;
-
-          try {
-            console.log(`   [TR] Çevriliyor: ${item.title.substring(0, 30)}...`);
-            translatedTitle = await translateToTurkish(item.title);
-            if (content && content.length > 50 && !content.includes('çekilemedi')) {
-              translatedContent = await translateToTurkish(content);
-            }
-          } catch (trErr) {
-            console.warn('   [!] Çeviri hatası, orijinal metin kullanılacak.');
-          }
-
-          // Veritabanına kaydet
-          await NewsArticle.create({
-            uuid: item.uuid,
-            symbol: sym,
-            title: translatedTitle,
-            publisher: item.publisher,
-            link: item.link,
-            providerPublishTime: item.providerPublishTime,
-            thumbnail: item.thumbnail?.resolutions?.[0]?.url || 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
-            content: translatedContent || 'İçerik okunamadı.'
-          });
-          console.log(`   [+] Haber eklendi (TR): ${translatedTitle.substring(0,30)}...`);
-        }
-      } catch (err: any) {
-        console.warn(`[News Collector] ${sym} hatası:`, err.message);
-      }
-      // Her hisse arası 1 saniye dinlen
-      await new Promise(res => setTimeout(res, 1000));
+    if (!disclosures || disclosures.length === 0) {
+      console.log('   [KAP-SYNC] Yeni bildirim bulunamadı.');
+      return;
     }
-    // Her 5'li grup arası 3 saniye dinlen
-    await new Promise(res => setTimeout(res, 3000));
+
+    // Sadece son 50 bildirimi kontrol edelim (Performans için)
+    const recentDisclosures = disclosures.slice(0, 50);
+    let processedCount = 0;
+
+    for (let i = 0; i < recentDisclosures.length; i += 5) {
+      const chunk = recentDisclosures.slice(i, i + 5);
+      
+      for (const item of chunk) {
+        // Zaten var mı kontrolü
+        const exists = await NewsArticle.findOne({ uuid: item.disclosureIndex.toString() });
+        if (exists) continue;
+
+        const sym = item.stockCodes ? item.stockCodes.split(',')[0].trim() : 'BIST';
+        const rawTitle = `${item.kapTitle} - ${item.subject}`;
+        const rawContent = item.summary || item.subject;
+
+        console.log(`   [TR] [${sym}] Yeni KAP Haberi Çevriliyor: ${item.kapTitle.substring(0, 40)}...`);
+
+        try {
+          const translatedTitle = await translateToTurkish(rawTitle);
+          let translatedContent = '';
+          
+          if (rawContent && rawContent.length > 5) {
+            translatedContent = await translateToTurkish(rawContent);
+          }
+
+          if (translatedTitle === rawTitle) {
+            console.warn(`   [!] [${sym}] Çeviri yapılamadı, atlanıyor...`);
+            continue;
+          }
+
+          await NewsArticle.findOneAndUpdate(
+            { uuid: item.disclosureIndex.toString() },
+            {
+              symbol: sym,
+              title: translatedTitle,
+              publisher: "KAP",
+              link: `https://www.kap.org.tr/tr/Bildirim/${item.disclosureIndex}`,
+              providerPublishTime: Math.floor(new Date(item.publishDate).getTime() / 1000),
+              thumbnail: 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
+              content: translatedContent
+            },
+            { upsert: true, new: true }
+          );
+
+          processedCount++;
+          console.log(`   [+] [${sym}] KAP Haberi Eklendi: ${translatedTitle.substring(0, 45)}...`);
+          
+          // Gemini RPM limit koruması
+          await new Promise(res => setTimeout(res, 5000));
+        } catch (trErr: any) {
+          console.error(`   [!] [${sym}] Çeviri hatası:`, trErr.message);
+        }
+      }
+
+      if (processedCount >= 5) {
+        console.log('   [💤] 5 haber işlendi, Gemini limitleri için 30 saniye mola...');
+        await new Promise(res => setTimeout(res, 30000));
+        processedCount = 0;
+      }
+    }
+    
+    console.log('✅ [KAP-SYNC] Senkronizasyon tamamlandı.');
+  } catch (err: any) {
+    console.error('❌ [KAP-SYNC] Kritik Hata:', err.message);
   }
-  console.log(`✅ [News Collector] Tur tamamlandı.`);
 }
 
-// Yarım saatte bir (30 * 60 * 1000) çalıştır
-setInterval(collectNewsData, 30 * 60 * 1000);
-// Başlangıçtan 1 dakika sonra ilk turu at
-setTimeout(collectNewsData, 60000);
+// 15 dakikada bir çalıştır
+setInterval(syncKapNews, 15 * 60 * 1000);
+setTimeout(syncKapNews, 5000); // Başlangıçta 5 sn sonra ilk tur
+
 
 const componentsCache: { [key: string]: { data: any, timestamp: number } } = {};
 const CACHE_DURATION = 5 * 60 * 1000; // 5 Dakika (Performans için artırıldı)
@@ -1281,6 +1297,138 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
     console.error('Batch Fetch Error:', error.message);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Halka Arz Verileri (2026 Detaylı Liste)
+app.get('/api/halkaarz', (req, res) => {
+  const ipoData = [
+    { 
+      name: "Ekinciler Demir ve Çelik Sanayi A.Ş.", 
+      symbol: "EKDMR", 
+      status: "active",
+      date: "13-14-15 Mayıs 2026", 
+      logo: "https://halkarz.com/wp-content/uploads/2023/12/ekindemir.png",
+      details: { price: "45,00 TL", distribution: "Eşit Dağıtım", lots: "52.000.000 Lot", manager: "A1 Capital Yatırım", market: "Yıldız Pazar" }
+    },
+    { 
+      name: "Enpara Bank A.Ş.", 
+      symbol: "ENPRA", 
+      date: "7 Nisan 2026", 
+      logo: "https://halkarz.com/wp-content/uploads/2024/01/enpara.png",
+      details: { price: "Açıklanmadı", distribution: "Açıklanmadı", lots: "Açıklanmadı", manager: "Açıklanmadı", market: "Piyasa Öncesi Platform" }
+    },
+    { 
+      name: "Ağaoğlu Avrasya GYO A.Ş.", 
+      symbol: "AAGYO", 
+      date: "1-2-3 Nisan 2026", 
+      logo: "https://halkarz.com/wp-content/uploads/2023/12/agaoglu.png",
+      details: { price: "21,10 TL", distribution: "Eşit Dağıtım", lots: "176.000.000 Lot", manager: "İnfo & Vakıf Yatırım", market: "Yıldız Pazar" }
+    },
+    { 
+      name: "Metropal Kurumsal (MetropolCard)", 
+      symbol: "MCARD", 
+      date: "2026 (Taslak)", 
+      logo: "https://halkarz.com/wp-content/uploads/2023/12/metropolcard.png",
+      details: { price: "80,00 TL", distribution: "Eşit Dağıtım", lots: "18.900.000 Lot", manager: "Tera Yatırım", market: "Ana Pazar" }
+    },
+    { 
+      name: "Luxera GYO A.Ş.", 
+      symbol: "LXGYO", 
+      date: "2026 (Taslak)", 
+      logo: "https://halkarz.com/wp-content/uploads/2023/12/luxera.png",
+      details: { price: "12,05 TL", distribution: "Eşit Dağıtım", lots: "120.000.000 Lot", manager: "Tera Yatırım", market: "Ana Pazar" }
+    },
+    { 
+      name: "Gentaş Kimya A.Ş.", 
+      symbol: "GENKM", 
+      date: "2026 (Taslak)", 
+      logo: "https://halkarz.com/wp-content/uploads/2023/12/gentas.png",
+      details: { price: "11,00 TL", distribution: "Eşit Dağıtım", lots: "124.845.000 Lot", manager: "Deniz Yatırım", market: "Ana Pazar", listingDate: "10 Mart 2026" }
+    },
+    { 
+      name: "Akhan Un Fabrikası A.Ş.", 
+      symbol: "AKHAN", 
+      date: "28-30 Ocak 2026", 
+      logo: "https://halkarz.com/wp-content/uploads/2023/12/akhanun.png",
+      details: { price: "21,50 TL", distribution: "Eşit Dağıtım", lots: "54.700.000 Lot", manager: "Halk Yatırım", market: "Ana Pazar", listingDate: "5 Şubat 2026", participants: "2.840.000 Kişi", perPerson: "19 Lot" }
+    }
+  ];
+  res.json(ipoData);
+});
+
+// Halka Arz Detay Verisi (Sembol Bazlı)
+app.get('/api/halkaarz/:symbol', (req, res) => {
+  const { symbol } = req.params;
+  const sym = symbol.toUpperCase();
+  
+  if (sym === 'EKDMR') {
+    return res.json({
+      title: "Ekinciler Demir ve Çelik Sanayi A.Ş.",
+      symbol: "EKDMR",
+      status: "active",
+      logo: "https://halkarz.com/wp-content/uploads/2024/09/EKINCILER.jpg",
+      date: "13-14-15 Mayıs 2026",
+      price: "45,00 TL",
+      distribution: "Bireysele Eşit Dağıtım",
+      lots: "52.000.000 Lot",
+      manager: "A1 Capital Yatırım Menkul Değerler A.Ş.",
+      market: "Yıldız Pazar",
+      size: "2.340.000.000 TL",
+      method: {
+        capitalIncrease: "40.000.000 Lot",
+        partnerSale: "12.000.000 Lot",
+        total: "52.000.000 Lot",
+        partners: [
+          { name: "Ekinciler Holding A.Ş.", lot: "3.339.977" },
+          { name: "Faruk Ekinci", lot: "1.236.793" },
+          { name: "Namık Kemal Ekinci", lot: "1.236.793" }
+        ]
+      },
+      balanceSheet: [
+        { year: "2025", revenue: "20,8 Milyar TL", profit: "1,5 Milyar TL" },
+        { year: "2024", revenue: "16,8 Milyar TL", profit: "1,4 Milyar TL" },
+        { year: "2023", revenue: "11,0 Milyar TL", profit: "754,9 Milyon TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "138 Lot", amount: "6.210 TL" },
+        { participants: "350 Bin", lots: "59 Lot", amount: "2.655 TL" },
+        { participants: "700 Bin", lots: "30 Lot", amount: "1.350 TL" },
+        { participants: "1,1 Milyon", lots: "19 Lot", amount: "855 TL" },
+        { participants: "1,6 Milyon", lots: "13 Lot", amount: "585 TL" },
+        { participants: "2,2 Milyon", lots: "9 Lot", amount: "405 TL" }
+      ],
+      fundUsage: [
+        { area: "Yenilenebilir enerji yatırımları", ratio: 25 },
+        { area: "Hammadde tedariki ve işletme sermayesi", ratio: 40 },
+        { area: "Haddehane modernizasyonu ve kapasite artışı", ratio: 25 },
+        { area: "Kütük kaynatma sistemi yatırımı", ratio: 10 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel", ratio: 40, lot: "20.800.000" },
+        { group: "Yüksek Başvurulu", ratio: 10, lot: "5.200.000" },
+        { group: "Yurt İçi Kurumsal", ratio: 30, lot: "15.600.000" },
+        { group: "Yurt Dışı Kurumsal", ratio: 20, lot: "10.400.000" }
+      ],
+      t1t2: "Kullanılamaz",
+      stability: "Planlanmamaktadır",
+      index: "Uygun Değildir",
+      extra: {
+        float: "%16,25",
+        discount: "%37,72",
+        salesMethod: "Sabit Fiyatla Talep Toplama",
+        highThreshold: "450.045 TL (10.001 Lot ve üzeri)"
+      }
+    });
+  }
+
+  // Varsayılan/Boş detay (Veri yoksa)
+  res.json({ 
+    title: symbol, 
+    symbol: sym, 
+    error: "Bu hisse için henüz detaylı veri işlenmedi.",
+    fundUsage: [],
+    allocation: []
+  });
 });
 
 // Auth Routes

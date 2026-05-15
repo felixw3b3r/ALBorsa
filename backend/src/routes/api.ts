@@ -41,11 +41,11 @@ router.get('/analyze/:symbol', async (req, res) => {
         throw new Error('No API key');
       }
       const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-pro',
           contents: prompt,
       });
       
-      const text = response.text;
+      const text = (response.text as any) || '';
       // Strip markdown code block if present
       const jsonStr = text?.replace(/```json\n?|\n?```/g, '').trim() || '{}';
       analysisResult = JSON.parse(jsonStr);
