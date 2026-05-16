@@ -8,6 +8,20 @@ export const TechnicalIndicatorsSchema = z.object({
     signal: z.number(),
     histogram: z.number(),
   }).nullable(),
+  bollinger: z.object({
+    upper: z.number(),
+    middle: z.number(),
+    lower: z.number(),
+    pb: z.number(),
+  }).nullable().optional(),
+  ema: z.object({
+    ema20: z.number().nullable(),
+    ema50: z.number().nullable(),
+  }).nullable().optional(),
+  signals: z.object({
+    rsiStatus: z.string(),
+    trend: z.string(),
+  }).optional(),
 });
 
 // Stock Data Schema

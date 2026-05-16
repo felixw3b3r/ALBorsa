@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
 import { GoogleGenAI } from '@google/genai';
 import { ensureDisclosuresLoaded, getCachedDisclosures, getDisclosuresByStock, getLastFetchTime } from './services/kapService';
+import apiRouter from './routes/api';
 
 dotenv.config();
 
@@ -132,6 +133,8 @@ redisClient.on('error', (err) => console.log('Redis Client Error', err));
 // Middleware (Her şeyden ÖNCE gelmeli!)
 app.use(cors());
 app.use(express.json({ limit: '512kb' })); // İstek boyutu sınırı
+
+app.use('/api', apiRouter); // Yeni eklenen teknik analiz rotası
 
 // Global İstek Timeout Middleware (25 saniye — hung request birikmesini önler)
 app.use((req: any, res: any, next: any) => {
@@ -1303,13 +1306,12 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 app.get('/api/halkaarz', (req, res) => {
   const ipoData = [
     { 
-      name: "Ekinciler Demir ve Çelik Sanayi A.Ş.", 
-      symbol: "EKDMR", 
+      name: "Ekinciler Demir ve Çelik Sanayi A.Ş.",
+      symbol: "EKDMR",
       status: "active",
-      date: "13-14-15 Mayıs 2026", 
-      logo: "https://halkarz.com/wp-content/uploads/2023/12/ekindemir.png",
-      details: { price: "45,00 TL", distribution: "Eşit Dağıtım", lots: "52.000.000 Lot", manager: "A1 Capital Yatırım", market: "Yıldız Pazar" }
-    },
+      date: "13-14-15 Mayıs 2026",
+      logo: "https://halkarz.com/wp-content/uploads/2024/09/EKINCILER.jpg",
+      details: { price: "45,00 TL", distribution: "Eşit Dağıtım", lots: "52.000.000 Lot", manager: "A1 Capital Yatırım", market: "Yıldız Pazar" }    },
     { 
       name: "Enpara Bank A.Ş.", 
       symbol: "ENPRA", 
@@ -1498,7 +1500,7 @@ app.post('/api/portfolio', authMiddleware, async (req: any, res: any) => {
     const item = await Portfolio.findOneAndUpdate(
       { userId: req.user.userId, name },
       { userId: req.user.userId, name, amount, cost, color, purchaseDate },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: 'after', runValidators: true }
     );
     console.log(`✅ MongoDB: Updated/Inserted stock: ${name}`);
     res.json(item);

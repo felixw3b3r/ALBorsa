@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536 --max-semi-space-size=32 --max-http-header-size=65536\" tsx watch src/index.ts",
     "build": "tsc",
-    "start": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536\" node dist/src/index.js"
+    "start": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536\" node dist/backend/src/index.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +21,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.1",
     "redis": "^5.12.1",
+    "technicalindicators": "^3.1.0",
     "yahoo-finance2": "^3.14.0",
     "zod": "^4.4.3"
   },
@@ -31,6 +32,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^25.6.1",
+    "cross-env": "^10.1.0",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { fetchStockData } from '../services/yahooFinance';
-import { calculateRSI, calculateMACD } from '../utils/technicalAnalysis';
+import { getTechnicalSummary } from '../utils/technicalAnalysis';
 import { GoogleGenAI } from '@google/genai';
 import { redisClient } from '../index';
 
@@ -28,12 +28,24 @@ router.get('/analyze/:symbol', async (req, res) => {
     // 2. Fetch Data
     const stockData = await fetchStockData(formattedSymbol);
     
-    // 3. Technical Analysis
-    const rsi = calculateRSI(stockData.closePrices);
-    const macd = calculateMACD(stockData.closePrices);
+    // 3. Professional Technical Analysis
+    const technicals = getTechnicalSummary(stockData.closePrices);
 
-    // 4. AI Analysis via Gemini 1.5 Flash
-    const prompt = `Analyze the stock ${formattedSymbol}. Current Price: ${stockData.price}. RSI: ${rsi}. MACD: ${JSON.stringify(macd)}. Give a recommendation (BUY, SELL, HOLD, STRONG_BUY, STRONG_SELL) and reasoning. Return as JSON with keys "recommendation", "confidence" (0-100), and "reasoning".`;
+    // 4. AI Analysis via Gemini 1.5 Flash (Enhanced with more data)
+    const prompt = `
+    Analyze the stock ${formattedSymbol}. 
+    Current Price: ${stockData.price} TL
+    Change: ${stockData.changePercent.toFixed(2)}%
+
+    Technical Indicators:
+    - RSI: ${technicals.rsi?.toFixed(2)} (${technicals.signals.rsiStatus})
+    - MACD: Value ${technicals.macd?.value.toFixed(2)}, Signal ${technicals.macd?.signal.toFixed(2)}, Hist ${technicals.macd?.histogram.toFixed(2)}
+    - Bollinger Bands: Upper ${technicals.bollinger?.upper.toFixed(2)}, Lower ${technicals.bollinger?.lower.toFixed(2)}
+    - EMA Trend: EMA20: ${technicals.ema.ema20?.toFixed(2)}, EMA50: ${technicals.ema.ema50?.toFixed(2)} (Trend: ${technicals.signals.trend})
+
+    Provide a professional stock analysis recommendation (BUY, SELL, HOLD, STRONG_BUY, STRONG_SELL) and detailed reasoning in Turkish.
+    Return only as JSON with keys "recommendation", "confidence" (0-100), and "reasoning".
+    `;
     
     let analysisResult;
     try {
@@ -41,20 +53,19 @@ router.get('/analyze/:symbol', async (req, res) => {
         throw new Error('No API key');
       }
       const response = await ai.models.generateContent({
-          model: 'gemini-2.5-pro',
-          contents: prompt,
+          model: 'gemini-1.5-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
       
       const text = (response.text as any) || '';
-      // Strip markdown code block if present
       const jsonStr = text?.replace(/```json\n?|\n?```/g, '').trim() || '{}';
       analysisResult = JSON.parse(jsonStr);
     } catch (aiError) {
-      console.error('AI Analysis failed or no API key:', aiError);
+      console.error('AI Analysis failed:', aiError);
       analysisResult = {
         recommendation: "HOLD",
         confidence: 50,
-        reasoning: "AI analysis temporarily unavailable or API key missing."
+        reasoning: "AI analizi şu an yapılamıyor. Teknik verileri manuel inceleyin."
       };
     }
 
@@ -62,7 +73,7 @@ router.get('/analyze/:symbol', async (req, res) => {
       symbol: formattedSymbol,
       price: stockData.price,
       changePercent: stockData.changePercent,
-      indicators: { rsi, macd },
+      indicators: technicals,
       analysis: analysisResult,
       timestamp: new Date()
     };
@@ -78,17 +89,6 @@ router.get('/analyze/:symbol', async (req, res) => {
 
     res.json(finalResponse);
 
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Basit stok verisi çekme rotası
-router.get('/stocks/:symbol', async (req, res) => {
-  try {
-    const { symbol } = req.params;
-    const data = await fetchStockData(symbol);
-    res.json(data);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
