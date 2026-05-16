@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Calendar, Calculator } from 'lucide-react';
@@ -8,6 +8,12 @@ import { motion } from 'framer-motion';
 
 export default function IPONavbar() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  // Hydration mismatch'i önlemek için component'in client'da mount olmasını bekliyoruz
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navItems = [
     { label: 'Halka Arz Takvimi', href: '/halka-arz/takvim', icon: Calendar },
@@ -15,11 +21,12 @@ export default function IPONavbar() {
   ];
 
   return (
-    <div className="flex items-center justify-center mb-12">
+    <div className="flex items-center justify-center mb-12" suppressHydrationWarning>
       <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
         {navItems.map((item) => {
           // Handle both /halka-arz and /halka-arz/takvim as active for Takvim
-          const isActive = pathname === item.href || (item.href === '/halka-arz/takvim' && pathname === '/halka-arz');
+          // Client mount olana kadar hiçbirini aktif göstermiyoruz (SSR tutarlılığı için)
+          const isActive = mounted && (pathname === item.href || (item.href === '/halka-arz/takvim' && pathname === '/halka-arz'));
           
           return (
             <Link key={item.href} href={item.href}>

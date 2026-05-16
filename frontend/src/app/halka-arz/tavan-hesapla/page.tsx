@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
-import { Calculator, TrendingUp, Wallet, ArrowUpRight, Info, CalendarRange } from 'lucide-react';
+import { Calculator, TrendingUp, Wallet, Info, CalendarRange } from 'lucide-react';
 
 interface CeilingDay {
   day: number;
@@ -134,7 +134,7 @@ export default function IPOTavanHesaplaPage() {
 
             <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-3xl p-6">
               <div className="flex items-center gap-3 text-cyan-400 mb-2">
-                <ArrowUpRight size={16} />
+                <TrendingUp size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">Toplam Kar (%)</span>
               </div>
               <div className="text-2xl font-bold text-cyan-400">%{results[results.length - 1].totalReturnPercent.toLocaleString()}</div>

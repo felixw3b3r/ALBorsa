@@ -51,7 +51,7 @@ function Apply-Limits {
         if ($proc.HasExited) { return $false }
         $proc.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal
         $proc.ProcessorAffinity = $CPU_AFFINITY
-        $proc.MaxWorkingSet = [IntPtr]([long]$maxWorkingMB * 1024 * 1024)
+        # $proc.MaxWorkingSet = [IntPtr]([long]$maxWorkingMB * 1024 * 1024) # KALDIRILDI: Windows hard limit sistemi dondurabiliyor
         return $true
     } catch {
         return $false

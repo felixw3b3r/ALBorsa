@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
 import SymbolLogo from "@/components/SymbolLogo";
-import { TrendingUp, TrendingDown, RefreshCw, Activity, ArrowUpRight, Search, ExternalLink } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw, Activity, Search, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const MARKET_TICKERS = [
@@ -508,11 +508,7 @@ export default function PiyasalarPage() {
       setMarketData(results);
       setLastUpdate(new Date());
 
-      // Portföy endeksini de güncelle
-      const token = userToken || localStorage.getItem('token');
-      if (token) {
-        await fetchPortfolioIndex(token);
-      }
+      // Portföy endeksini sadece ilk yüklemede veya manuel yenilemede güncelle (Artık her dakika güncellenmeyecek)
     } catch (error) {
       console.error('Data fetch error:', error);
     } finally {

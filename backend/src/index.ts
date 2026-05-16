@@ -23,7 +23,7 @@ async function translateToTurkish(text: string): Promise<string> {
     
     // Projedeki mevcut SDK kullanımına sadık kalıyoruz
     const result = await genAI.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-2.0-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
     
@@ -52,10 +52,10 @@ function startMemoryWatchdog() {
     const MAX_HEAP_MB = 1536; // NODE_OPTIONS'daki max-old-space-size
     const pct = (heapUsedMB / MAX_HEAP_MB) * 100;
 
-    if (pct > 95) {
+    if (pct > 90) {
       console.error(`🚨 [MEM] Heap kritik seviyede: ${heapUsedMB}/${MAX_HEAP_MB} MB (${pct.toFixed(1)}%) — Güvenli çıkış yapılıyor...`);
       process.exit(1); // Node.js temiz kapanır, masaüstü çökmez
-    } else if (pct > 85) {
+    } else if (pct > 80) {
       console.warn(`⚠️  [MEM] Heap yüksek: ${heapUsedMB}/${MAX_HEAP_MB} MB (${pct.toFixed(1)}%) | RSS: ${rssM} MB`);
     } else {
       console.log(`💾 [MEM] Heap: ${heapUsedMB}/${MAX_HEAP_MB} MB (${pct.toFixed(1)}%) | RSS: ${rssM} MB`);

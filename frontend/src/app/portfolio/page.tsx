@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, Wallet, PieChart, Activity, ArrowUpRight, MoreVertical, Plus, Edit2, Check, X, Trash2, RefreshCw, Search } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PieChart, Activity, MoreVertical, Plus, Edit2, Check, X, Trash2, RefreshCw, Search } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 
@@ -47,6 +47,13 @@ export default function PortfolioPage() {
     setMounted(true);
     fetchPortfolio();
     fetchUsdRate();
+
+    // 15 saniyede bir verileri tazele
+    const interval = setInterval(() => {
+      fetchPortfolio();
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
 

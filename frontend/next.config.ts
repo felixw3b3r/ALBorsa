@@ -13,9 +13,6 @@ const nextConfig: NextConfig = {
 
   // Production build'de source map üretme (build sırasında RAM tasarrufu)
   productionBrowserSourceMaps: false,
-
-  // Turbopack — geçerli seçenekler (memoryLimit YOKTUR, gerçek değil)
-  turbopack: {},
 };
 
 export default nextConfig;

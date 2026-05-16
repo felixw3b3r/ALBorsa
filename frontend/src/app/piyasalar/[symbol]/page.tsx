@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import SymbolLogo from "@/components/SymbolLogo";
-import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink, ArrowUpRight } from 'lucide-react';
+import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink } from 'lucide-react';
 // import { BrainCircuit, Activity, BarChart3, Waves, Info } from 'lucide-react'; // New icons commented out
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
