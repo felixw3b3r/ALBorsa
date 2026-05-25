@@ -1,5 +1,5 @@
-const { YahooFinance } = require('yahoo-finance2');
-const yahooFinance = new YahooFinance();
+const YahooFinance = require('yahoo-finance2').default;
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 async function testAkbank() {
     try {

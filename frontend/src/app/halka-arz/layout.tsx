@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import Navbar from "@/components/Navbar";
 import IPONavbar from "@/components/IPONavbar";
 import { motion } from "framer-motion";
@@ -10,6 +11,17 @@ export default function IPOLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
+  // Detay sayfasında mıyız kontrol edelim
+  const isDetailPage = pathname !== '/halka-arz' && 
+                       pathname !== '/halka-arz/takvim' && 
+                       pathname !== '/halka-arz/tavan-hesapla';
+
+  if (isDetailPage) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30 overflow-x-hidden">
       <Navbar />

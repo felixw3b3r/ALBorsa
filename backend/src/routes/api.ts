@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { fetchStockData } from '../services/yahooFinance';
 import { getTechnicalSummary } from '../utils/technicalAnalysis';
 import { GoogleGenAI } from '@google/genai';
-import { redisClient } from '../index';
+import { redisClient, withYahooSlot } from '../index';
 
 const router = Router();
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy' });
@@ -26,7 +26,7 @@ router.get('/analyze/:symbol', async (req, res) => {
     }
 
     // 2. Fetch Data
-    const stockData = await fetchStockData(formattedSymbol);
+    const stockData = await withYahooSlot(() => fetchStockData(formattedSymbol));
     
     // 3. Professional Technical Analysis
     const technicals = getTechnicalSummary(stockData.closePrices);
@@ -53,7 +53,7 @@ router.get('/analyze/:symbol', async (req, res) => {
         throw new Error('No API key');
       }
       const response = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-pro',
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
       

@@ -5,7 +5,7 @@ async function testGemini() {
     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
         const result = await genAI.models.generateContent({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.5-pro',
             contents: 'Hello, respond with one word: "Success"'
         });
         console.log('Result structure:', Object.keys(result));

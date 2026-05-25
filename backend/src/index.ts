@@ -23,7 +23,7 @@ async function translateToTurkish(text: string): Promise<string> {
     
     // Projedeki mevcut SDK kullanımına sadık kalıyoruz
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-pro',
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
     
@@ -100,7 +100,7 @@ function yahooSlot(): Promise<() => void> {
 }
 
 // Wrapper: Tüm ağır Yahoo Finance çağrıları bu üzerinden geçmeli
-async function withYahooSlot<T>(fn: () => Promise<T>): Promise<T> {
+export async function withYahooSlot<T>(fn: () => Promise<T>): Promise<T> {
   const release = await yahooSlot();
   try {
     return await fn();
@@ -164,8 +164,9 @@ mongoose.connect(MONGODB_URI)
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-import YahooFinanceModule from 'yahoo-finance2';
-const yahooFinance = new (YahooFinanceModule as any)();
+import yahooFinance from 'yahoo-finance2';
+// yahoo-finance2 v3 requires initialization with `new YahooFinance()`
+const yf = new (yahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
 
 // User Schema & Model
 const userSchema = new mongoose.Schema({
@@ -190,7 +191,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
   }
 };
 
-// Portföydeki tüm varlıkların fiyatlarını Yahoo Finance'den çek (CollectAPI yerine)
+// Portföydeki tüm varlıkların fiyatlarını Yahoo Finance'den çek
 app.get('/api/stocks', authMiddleware, async (req, res) => {
   const t0 = Date.now();
   try {
@@ -202,7 +203,7 @@ app.get('/api/stocks', authMiddleware, async (req, res) => {
     const rawSymbols = symbolsQuery.split(',');
     const yahooSymbols = rawSymbols.map(s => s.trim().toUpperCase());
 
-    const quotes: any = await (yahooFinance as any).quote(yahooSymbols);
+    const quotes: any = await (yf as any).quote(yahooSymbols);
     const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
       code: q.symbol,
       name: q.shortName || q.longName || q.symbol,
@@ -246,7 +247,7 @@ app.get('/api/yahoo', authMiddleware, async (req, res) => {
     console.log(`📈 Fetching Yahoo Finance data for: ${symbols.join(', ')}`);
     
     // Yahoo Finance API'sinden çoklu fiyat sorgusu
-    const quotes: any = await (yahooFinance as any).quote(symbols);
+    const quotes: any = await (yf as any).quote(symbols);
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
     
     // Gelen veriyi frontend'in daha kolay okuyabileceği sade bir formata çevirelim
@@ -292,12 +293,22 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     queryDate.setHours(23, 59, 59, 999);
     
     const today = new Date();
+    const isUsdStock = !yahooSymbol.endsWith('.IS') && !yahooSymbol.endsWith('TRY=X');
     
     // Eğer sorgulanan tarih bugün veya gelecekteyse, doğrudan güncel fiyatı dön
     if (new Date(date as string) >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
        try {
-         const quote: any = await (yahooFinance as any).quote(yahooSymbol);
-         return res.json({ success: true, price: quote.regularMarketPrice || quote.price, date: new Date(), isLive: true });
+         const quote: any = await (yf as any).quote(yahooSymbol);
+         let price = quote.regularMarketPrice || quote.price;
+         if (isUsdStock && price) {
+           let usdRate = 32.5;
+           try {
+             const usdQuote: any = await (yf as any).quote('USDTRY=X');
+             usdRate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
+           } catch (e) { usdRate = 32.5; }
+           price = price * usdRate;
+         }
+         return res.json({ success: true, price: price, date: new Date(), isLive: true });
        } catch (e) {
          // Quote başarısız olursa historical'a devam et
        }
@@ -309,9 +320,41 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     const toDate = new Date(queryDate);
     toDate.setDate(toDate.getDate() + 2); 
 
+    // Fetch USDTRY rate for historical date if it is USD stock
+    let usdRateOnDate = 32.5;
+    if (isUsdStock) {
+      try {
+        const usdChartRes: any = await (yf as any).chart('USDTRY=X', {
+          period1: fromDate,
+          period2: toDate,
+          interval: '1d'
+        }, { validateResult: false });
+        const usdResults = usdChartRes.quotes || [];
+        if (usdResults.length > 0) {
+          const validUsdQuotes = usdResults.filter((r: any) => r.close != null || r.open != null);
+          const validUsdResults = validUsdQuotes.filter((r: any) => {
+            const rowDate = new Date(r.date);
+            return rowDate.getTime() <= queryDate.getTime();
+          }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const usdDayData = validUsdResults[0] || validUsdQuotes[validUsdQuotes.length - 1];
+          if (usdDayData) {
+            usdRateOnDate = usdDayData.close || usdDayData.open || usdDayData.high || usdDayData.low || 32.5;
+          }
+        }
+      } catch (usdErr: any) {
+        console.error('USDTRY historical fetch error inside historical endpoint:', usdErr.message);
+        try {
+          const usdQuote: any = await (yf as any).quote('USDTRY=X');
+          usdRateOnDate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
+        } catch (e) {
+          usdRateOnDate = 32.5;
+        }
+      }
+    }
+
     // KRİTİK: Historical yerine Chart + validateResult:false kullanmaya devam ediyoruz 
     // Bu sayede hafta sonu boşlukları olsa bile kütüphane hata fırlatmıyor.
-    const chartRes: any = await (yahooFinance as any).chart(yahooSymbol, {
+    const chartRes: any = await (yf as any).chart(yahooSymbol, {
       period1: fromDate,
       period2: toDate,
       interval: '1d'
@@ -343,15 +386,17 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
          return res.status(404).json({ success: false, message: 'Fiyat seçilemedi' });
       }
 
-      console.log(`  ✅ Bulunan Fiyat: ${finalPrice.toFixed(4)} (${new Date(dayData.date).toLocaleDateString('tr-TR')})\n`);
-      res.json({ success: true, price: finalPrice, date: dayData.date, currency: dayData.currency || 'RAW' });
+      if (isUsdStock) {
+        finalPrice = finalPrice * usdRateOnDate;
+      }
+
+      console.log(`  ✅ Bulunan Fiyat (TL): ${finalPrice.toFixed(4)} (${new Date(dayData.date).toLocaleDateString('tr-TR')} - Kur: ${usdRateOnDate})\n`);
+      res.json({ success: true, price: finalPrice, date: dayData.date, currency: 'TRY' });
     } else {
       res.status(404).json({ success: false, message: 'O tarih için veri bulunamadı. (Borsa kapalı olabilir)' });
     }
   } catch (error: any) {
     console.error('Historical Data Error:', error.message);
-    
-    // Crypto fallbacks or better retry logic could go here
     res.status(500).json({ success: false, message: 'Geçmiş veri alınamadı', error: error.message });
   }
 });
@@ -363,7 +408,7 @@ app.get('/api/exchange-rate', authMiddleware, async (req, res) => {
     const symbols = ['USDTRY=X', 'EURTRY=X', 'GBPTRY=X'];
     
     // Anlık veri çek
-    const quotes: any = await (yahooFinance as any).quote(symbols);
+    const quotes: any = await (yf as any).quote(symbols);
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
     
     const result = quotesArray.map((q: any) => {
@@ -403,7 +448,7 @@ app.get('/api/crypto', authMiddleware, async (req, res) => {
     });
     
     if (response.data && response.data.price) {
-      // Frontend'in beklediği CollectAPI yapısını taklit ediyoruz (kod değişikliği gerekmesin diye)
+      // Frontend'in beklediği veri yapısını taklit ediyoruz (kod değişikliği gerekmesin diye)
       res.json({
         success: true,
         result: [
@@ -554,8 +599,8 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     // ===== ALTIN HESAPLAMALARI (GRAM/ÇEYREK) - Range ayarından sonra çalışmalı =====
     if (formattedSymbol === 'GRAM_ALTIN' || formattedSymbol === 'CEYREK_ALTIN') {
       try {
-        const usdData: any = await (yahooFinance as any).quote('USDTRY=X');
-        const onsData: any = await (yahooFinance as any).chart('GC=F', { period1, interval: intervalVal }, { validateResult: false });
+        const usdData: any = await (yf as any).quote('USDTRY=X');
+        const onsData: any = await (yf as any).chart('GC=F', { period1, interval: intervalVal }, { validateResult: false });
         
         const usdPrice = usdData.regularMarketPrice || 32.5;
         let onsQuotes = (onsData.quotes || []).filter((q: any) => q.close != null);
@@ -607,7 +652,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       for (const inv of intervalsToTry) {
         try {
           // KRİTİK: v3'te doğrulamayı kapatmak için 'validateResult: false' kullanılır.
-          const attempt: any = await (yahooFinance as any).chart(variant, { 
+          const attempt: any = await (yf as any).chart(variant, { 
             period1: period1,
             interval: inv
           }, { validateResult: false }); 
@@ -638,7 +683,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       outerFallback: for (const variant of symbolVariants) {
         for (const fallbackInterval of fallbackIntervals) {
           try {
-            const attempt = await (yahooFinance as any).chart(variant, { period1: fallbackDate, interval: fallbackInterval }, { validateResult: false });
+            const attempt = await (yf as any).chart(variant, { period1: fallbackDate, interval: fallbackInterval }, { validateResult: false });
             const attemptQuotes = (attempt.quotes || []).filter((q: any) => q.close != null);
             if (attemptQuotes.length > 0) {
               chart = attempt;
@@ -738,7 +783,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     
     let liveQuote: any = {};
     try {
-      liveQuote = await (yahooFinance as any).quote(activeSymbol);
+      liveQuote = await (yf as any).quote(activeSymbol);
     } catch (e) {
       console.warn(`Quote fetch failed for ${activeSymbol}, using empty fallback.`);
     }
@@ -777,8 +822,9 @@ app.get('/api/stocks/:symbol/news', async (req, res) => {
       ? symbol.toUpperCase()
       : `${symbol.toUpperCase()}.IS`;
 
-    // 1. Önce veritabanına bak (kayıtlı içerikli haberleri getir)
-    const dbNews = await NewsArticle.find({ symbol: formattedSymbol })
+    // 1. Önce veritabanına bak (Hem .IS'li hem .IS'siz ara)
+    const searchSymbols = [formattedSymbol, formattedSymbol.replace('.IS', '')];
+    const dbNews = await NewsArticle.find({ symbol: { $in: searchSymbols } })
       .sort({ providerPublishTime: -1 })
       .limit(10);
 
@@ -798,12 +844,12 @@ app.get('/api/stocks/:symbol/news', async (req, res) => {
     }
 
     // 2. Eğer veritabanında yoksa fallback (canlı çekim, ama içeriksiz)
-    const liveQuote: any = await (yahooFinance as any).quote(formattedSymbol);
+    const liveQuote: any = await (yf as any).quote(formattedSymbol);
     const searchQuery = liveQuote.shortName || liveQuote.longName || formattedSymbol;
 
     console.log(`📰 Fetching LIVE news fallback for ${searchQuery} (${formattedSymbol})`);
     
-    const result: any = await (yahooFinance as any).search(searchQuery, { newsCount: 10 });
+    const result: any = await (yf as any).search(searchQuery, { newsCount: 10 });
     
     const news = (result.news || []).map((item: any) => ({
       id: item.uuid,
@@ -1004,7 +1050,7 @@ app.get('/api/market-summary', async (req, res) => {
     console.log(`📊 Batch processing market summary for ${mainSymbols.length} tickers`);
 
     // 2. Yahoo'dan toplu fiyatları çek (slot ile sınırlandırılmış)
-    const quotes: any = await withYahooSlot(() => (yahooFinance as any).quote(mainSymbols));
+    const quotes: any = await withYahooSlot(() => (yf as any).quote(mainSymbols));
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
     // 3. Kripto için Binance Klines sparkline (24 saat × 15dk = 96 nokta, rate-limitsiz)
@@ -1052,12 +1098,13 @@ app.get('/api/market-summary', async (req, res) => {
         let change = quote.regularMarketChange || 0;
         let changePercent = quote.regularMarketChangePercent || 0;
 
-        // KRİPTO: 24 saatlik rolling pencere (Binance standardı)
+        // KRİPTO: 24 saatlik rolling pencere (Binance standardı) - Anlık Fiyat Entegrasyonu
         if ((symbol === 'BTC-USD' || symbol === 'ETH-USD') && history.length > 0) {
+          // Mini grafiğin son noktasını anlık canlı fiyatla güncelleyelim ki grafik ve fiyat tam uyuşsun
+          history[history.length - 1] = price;
+          
           const startPrice = history[0];
-          const currentPrice = history[history.length - 1];
-          price = currentPrice;
-          change = currentPrice - startPrice;
+          change = price - startPrice;
           changePercent = (change / startPrice) * 100;
         }
 
@@ -1124,7 +1171,7 @@ async function collectMarketData() {
   console.log(`🕒 [Data Collector] Running at ${now.toLocaleTimeString()}`);
 
   try {
-    const quotes: any = await withYahooSlot(() => (yahooFinance as any).quote(mainTickers));
+    const quotes: any = await withYahooSlot(() => (yf as any).quote(mainTickers));
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
     const records = quotesArray.map((q: any) => ({
@@ -1184,7 +1231,13 @@ async function syncKapNews() {
         const exists = await NewsArticle.findOne({ uuid: item.disclosureIndex.toString() });
         if (exists) continue;
 
-        const sym = item.stockCodes ? item.stockCodes.split(',')[0].trim() : 'BIST';
+        let sym = item.stockCodes ? item.stockCodes.split(',')[0].trim() : 'BIST';
+        
+        // BIST sembollerine .IS ekle (eşleşme için kritik)
+        if (sym !== 'BIST' && !sym.includes('.') && !sym.includes('-') && !sym.startsWith('^')) {
+          sym = `${sym}.IS`;
+        }
+
         const rawTitle = `${item.kapTitle} - ${item.subject}`;
         const rawContent = item.summary || item.subject;
 
@@ -1198,11 +1251,7 @@ async function syncKapNews() {
             translatedContent = await translateToTurkish(rawContent);
           }
 
-          if (translatedTitle === rawTitle) {
-            console.warn(`   [!] [${sym}] Çeviri yapılamadı, atlanıyor...`);
-            continue;
-          }
-
+          // Çeviri başarısız olsa bile (zaten Türkçe ise) kaydet
           await NewsArticle.findOneAndUpdate(
             { uuid: item.disclosureIndex.toString() },
             {
@@ -1210,7 +1259,7 @@ async function syncKapNews() {
               title: translatedTitle,
               publisher: "KAP",
               link: `https://www.kap.org.tr/tr/Bildirim/${item.disclosureIndex}`,
-              providerPublishTime: Math.floor(new Date(item.publishDate).getTime() / 1000),
+              providerPublishTime: new Date(item.publishDate),
               thumbnail: 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
               content: translatedContent
             },
@@ -1274,7 +1323,7 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
     for (let i = 0; i < components.length; i += chunkSize) {
       const chunk = components.slice(i, i + chunkSize);
       try {
-        const quotes: any = await (yahooFinance as any).quote(chunk);
+        const quotes: any = await (yf as any).quote(chunk);
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
 
         results.push(...quotesArray.map((quote: any) => ({
@@ -1549,6 +1598,11 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
       symbolMap.set(yahooSymbol, item);
     });
     const yahooSymbols = Array.from(symbolMap.keys());
+    const hasForeign = yahooSymbols.some(sym => !sym.endsWith('.IS') && sym !== 'USDTRY=X');
+    let fetchSymbols = [...yahooSymbols];
+    if (hasForeign && !fetchSymbols.includes('USDTRY=X')) {
+      fetchSymbols.push('USDTRY=X');
+    }
 
     // Set time range
     const period1 = new Date();
@@ -1562,16 +1616,16 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
     // Fetch USDTRY rate
     let usdRate = 0;
     try {
-      const usdQuote: any = await (yahooFinance as any).quote('USDTRY=X');
+      const usdQuote: any = await (yf as any).quote('USDTRY=X');
       usdRate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
     } catch (e) { usdRate = 32.5; }
 
     // Fetch chart data for all symbols SEQUENTIALLY (Sırayla)
     const validCharts: any[] = [];
-    for (const sym of yahooSymbols) {
+    for (const sym of fetchSymbols) {
       try {
         console.log(`[PORTFOLIO] ${sym} geçmiş grafiği çekiliyor... (Sırayla)`);
-        const chart: any = await (yahooFinance as any).chart(sym, { period1, interval }, { validateResult: false });
+        const chart: any = await (yf as any).chart(sym, { period1, interval }, { validateResult: false });
         validCharts.push({
           symbol: sym,
           quotes: (chart.quotes || []).filter((q: any) => q.close != null)
@@ -1583,15 +1637,38 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
       }
     }
 
-    // Get all unique timestamps
+    // Get all unique timestamps (excluding USDTRY=X)
     const allTimestamps = new Set<number>();
-    validCharts.forEach(r => r.quotes.forEach((q: any) => allTimestamps.add(new Date(q.date).getTime())));
+    validCharts.forEach(r => {
+      if (r.symbol !== 'USDTRY=X') {
+        r.quotes.forEach((q: any) => allTimestamps.add(new Date(q.date).getTime()));
+      }
+    });
     const sortedTimestamps = [...allTimestamps].sort((a, b) => a - b);
+
+    const usdQuotes = validCharts.find(r => r.symbol === 'USDTRY=X')?.quotes || [];
 
     // Calculate portfolio value at each timestamp
     const history = sortedTimestamps.map(ts => {
       let totalValue = 0;
+
+      // Find the closest USDTRY rate at this timestamp
+      let usdRateAtTs = usdRate || 32.5;
+      if (usdQuotes.length > 0) {
+        let closestUsd = usdQuotes[0];
+        let minUsdDiff = Infinity;
+        for (const q of usdQuotes) {
+          const diff = Math.abs(new Date(q.date).getTime() - ts);
+          if (diff < minUsdDiff) {
+            minUsdDiff = diff;
+            closestUsd = q;
+          }
+        }
+        usdRateAtTs = closestUsd.close || usdRateAtTs;
+      }
+
       validCharts.forEach(r => {
+        if (r.symbol === 'USDTRY=X') return;
         const item = symbolMap.get(r.symbol);
         if (!item || r.quotes.length === 0) return;
 
@@ -1602,13 +1679,26 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
           if (diff < minDiff) { minDiff = diff; closest = q; }
         }
 
-        totalValue += (item.amount || 0) * (closest.close || 0);
+        let stockPrice = closest.close || 0;
+        const isBist = r.symbol.endsWith('.IS');
+        if (!isBist) {
+          stockPrice = stockPrice * usdRateAtTs;
+        }
+
+        totalValue += (item.amount || 0) * stockPrice;
       });
       return Math.round(totalValue * 100) / 100;
     });
 
     const currentValue = history.length > 0 ? history[history.length - 1] : 0;
-    const totalCost = items.reduce((acc: number, item: any) => acc + (item.amount || 0) * (item.cost || 0), 0);
+    const totalCost = items.reduce((acc: number, item: any) => {
+      const isBist = item.name && !item.name.includes('.') && !item.name.includes('-') && !item.name.startsWith('^') && item.name.length <= 5;
+      let costTL = item.cost || 0;
+      if (!isBist && costTL < 1500) {
+        costTL = costTL * usdRate;
+      }
+      return acc + (item.amount || 0) * costTL;
+    }, 0);
     const previousValue = history.length > 1 ? history[history.length - 2] : totalCost;
     const dailyChange = currentValue - previousValue;
     const dailyChangePercent = previousValue > 0 ? (dailyChange / previousValue) * 100 : 0;

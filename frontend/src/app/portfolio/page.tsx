@@ -295,8 +295,6 @@ export default function PortfolioPage() {
 
   // Verileri güncel değerlerle (Adet * Maliyet) hazırla
   const processedData = portfolio.map((item, index) => {
-    const costValue = (item.amount || 0) * (item.cost || 0);
-    
     // Canlı fiyatı bul
     const liveStock = livePrices.find(s => {
       const search = (item.name || "").toString().trim().toUpperCase();
@@ -305,7 +303,11 @@ export default function PortfolioPage() {
       return code === search || code === `${search}.IS`;
     });
     
-    let currentPrice = item.cost;
+    const isUsdStock = item.name && !item.name.toUpperCase().endsWith('.IS') && !BIST100_STOCKS.includes(item.name.toUpperCase());
+    const isCostInUSD = isUsdStock && item.cost < 1500;
+    const itemCostTL = isCostInUSD ? item.cost * usdRate : item.cost;
+
+    let currentPrice = itemCostTL;
     
     if (liveStock) {
       let price = liveStock.price;
@@ -315,18 +317,20 @@ export default function PortfolioPage() {
       }
       currentPrice = price;
     }
-    
+
+    const costValue = (item.amount || 0) * itemCostTL;
     const currentValue = (item.amount || 0) * currentPrice;
     const plValue = currentValue - costValue;
     
     return {
       ...item,
+      cost: itemCostTL,
       color: item.color && item.color !== "#00f2ff" ? item.color : getStockColor(item.name, index),
       value: currentValue,
       costValue,
       currentPrice,
       plValue,
-      plPercentage: item.cost > 0 ? ((currentPrice - item.cost) / item.cost) * 100 : 0,
+      plPercentage: itemCostTL > 0 ? ((currentPrice - itemCostTL) / itemCostTL) * 100 : 0,
       dailyRate: liveStock ? liveStock.rate : 0,
       updatedAt: liveStock ? liveStock.updatedAt : null
     };

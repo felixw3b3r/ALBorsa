@@ -26,7 +26,7 @@ export const TechnicalIndicatorsSchema = z.object({
 
 // Stock Data Schema
 export const StockDataSchema = z.object({
-  symbol: z.string().regex(/^[A-Z0-9]+\.IS$/, "Symbol must end with .IS"),
+  symbol: z.string().regex(/^[a-zA-Z0-9^.=-]+$/, "Invalid symbol format"),
   price: z.number(),
   change: z.number(),
   changePercent: z.number(),
@@ -38,7 +38,7 @@ export const StockDataSchema = z.object({
 // BoFA Report Schema (Example structure)
 export const BofaReportSchema = z.object({
   date: z.date(),
-  symbol: z.string().regex(/^[A-Z0-9]+\.IS$/, "Symbol must end with .IS"),
+  symbol: z.string().regex(/^[a-zA-Z0-9^.=-]+$/, "Invalid symbol format"),
   action: z.enum(['BUY', 'SELL', 'HOLD']),
   targetPrice: z.number().nullable(),
   summary: z.string(),
@@ -46,7 +46,7 @@ export const BofaReportSchema = z.object({
 
 // AI Analysis Report Schema
 export const AiAnalysisReportSchema = z.object({
-  symbol: z.string().regex(/^[A-Z0-9]+\.IS$/, "Symbol must end with .IS"),
+  symbol: z.string().regex(/^[a-zA-Z0-9^.=-]+$/, "Invalid symbol format"),
   recommendation: z.enum(['BUY', 'SELL', 'HOLD', 'STRONG_BUY', 'STRONG_SELL']),
   confidence: z.number().min(0).max(100),
   reasoning: z.string(),
