@@ -8,6 +8,10 @@ import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
 import { GoogleGenAI } from '@google/genai';
 import { ensureDisclosuresLoaded, getCachedDisclosures, getDisclosuresByStock, getLastFetchTime } from './services/kapService';
+import { INDEX_COMPONENTS } from './utils/constants';
+import { updateBist100Analysis, getBist100Analysis } from './services/analysisService';
+
+// ... rest of imports
 import apiRouter from './routes/api';
 
 dotenv.config();
@@ -134,6 +138,10 @@ redisClient.on('error', (err) => console.log('Redis Client Error', err));
 app.use(cors());
 app.use(express.json({ limit: '512kb' })); // İstek boyutu sınırı
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
 app.use('/api', apiRouter); // Yeni eklenen teknik analiz rotası
 
 // Global İstek Timeout Middleware (25 saniye — hung request birikmesini önler)
@@ -166,7 +174,7 @@ mongoose.connect(MONGODB_URI)
 
 import yahooFinance from 'yahoo-finance2';
 // yahoo-finance2 v3 requires initialization with `new YahooFinance()`
-const yf = new (yahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
+export const yf = new (yahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
 
 // User Schema & Model
 const userSchema = new mongoose.Schema({
@@ -484,6 +492,39 @@ const marketDataSchema = new mongoose.Schema({
   timestamp: { type: Date, required: true },
 }, { timestamps: true });
 
+// Günlük Teknik Analiz Şeması
+const dailyAnalysisSchema = new mongoose.Schema({
+  date: { type: String, required: true, unique: true }, // YYYY-MM-DD formatında
+  results: { type: Array, required: true },
+  timestamp: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+// DeepSeek Analiz Şeması (Kalıcı ve Tarihsel)
+const deepseekResultSchema = new mongoose.Schema({
+  symbol: { type: String, required: true }, // Artık unique değil, her analiz kaydedilecek
+  price: { type: Number, required: true },
+  karar: { type: String, required: true },
+  olasilik_yuzdesi: { type: Number, required: true },
+  neden: { type: String, required: true },
+  stop_loss: { type: Number, required: true },
+  take_profit: { type: Number, required: true },
+  indicators: {
+    adx: Number,
+    vwap_sapma: Number,
+    hacim_orani: Number,
+    rsi_anlik: Number,
+    rsi_onceki: Number,
+    atr: Number
+  },
+  timestamp: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+// Sorgu performansını artırmak için index'ler
+deepseekResultSchema.index({ symbol: 1, timestamp: -1 });
+
+const DailyAnalysis = mongoose.model('DailyAnalysis', dailyAnalysisSchema);
+const DeepSeekResult = mongoose.model('DeepSeekResult', deepseekResultSchema);
+
 // Aynı sembol için aynı dakikada mükerrer kayıt olmasın
 marketDataSchema.index({ symbol: 1, timestamp: 1 }, { unique: true });
 
@@ -570,15 +611,9 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     }
     if (r === '1d' || r === '1g' || r === '2g' || r === '3g') {
       intervalVal = '15m';
-      if (isGlobal) {
-        // Global varlıklar için TAM 24/48/72 saat geriye git (Rolling window)
-        const hoursBack = r === '1g' || r === '1d' ? 24 : (r === '2g' ? 48 : 72);
-        period1.setHours(period1.getHours() - hoursBack);
-        console.log(`⏱️ Global Rolling Start: ${period1.toLocaleString()} for ${formattedSymbol}`);
-      } else {
-        // BIST için: Son 20 gün içinde işlem yapılan en son günü bul
-        period1.setDate(period1.getDate() - 20);
-      }
+      // Tüm varlıklar için (BIST, Global, Altın): Son 10 gün içindeki işlem yapılan günleri bulmak için geniş bir pencere açalım.
+      period1.setDate(period1.getDate() - 10);
+      console.log(`⏱️ Chart Range Start: ${period1.toLocaleString()} for ${formattedSymbol} (${r})`);
     } else if (r === '1w' || r === '1h') {
       intervalVal = '30m';
       period1.setDate(period1.getDate() - 9); // 7 gün + 2 gün tampon (hafta sonu koruması)
@@ -697,7 +732,8 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     }
 
     // AKILLI İŞLEM GÜNÜ FİLTRESİ (1G, 2G, 3G İçin) - Kapalı Piyasa Korumalı
-    if (!isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
+    // Hem BIST hem Global varlıklar için en son aktif işlem günlerini bulur.
+    if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
       // 1. Tüm benzersiz işlem günlerini bul, en yeniden eskiye sırala
       const uniqueDays = [...new Set(quotes.map((q: any) => {
         const d = new Date(q.date);
@@ -749,18 +785,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       }
     } // 1D bloğunun sonu
 
-    // GLOBAL ROLLING FILTER (Son 24/48/72 Saat Kesin Kesim)
-    if (isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
-      const now = new Date();
-      const hoursBack = r === '1g' || r === '1d' ? 24 : (r === '2g' ? 48 : 72);
-      const startTime = now.getTime() - (hoursBack * 60 * 60 * 1000);
-      
-      const filtered = quotes.filter((q: any) => new Date(q.date).getTime() >= startTime);
-      if (filtered.length > 0) {
-        quotes = filtered;
-        console.log(`📊 Global Rolling Filter: ${quotes.length} bars kept for last ${hoursBack}h`);
-      }
-    }
+    // (Eski kısıtlayıcı Global Rolling Filter kaldırıldı, Akıllı İşlem Günü filtresi artık Global'i de kapsıyor)
 
     // 1H (1 Hafta) FİLTRESİ: 9 günlük pencereden sadece son 7 günü tut
     if ((r === '1w' || r === '1h') && quotes.length > 0) {
@@ -1357,10 +1382,20 @@ app.get('/api/halkaarz', (req, res) => {
     { 
       name: "Ekinciler Demir ve Çelik Sanayi A.Ş.",
       symbol: "EKDMR",
-      status: "active",
+      status: "completed",
       date: "13-14-15 Mayıs 2026",
       logo: "https://halkarz.com/wp-content/uploads/2024/09/EKINCILER.jpg",
-      details: { price: "45,00 TL", distribution: "Eşit Dağıtım", lots: "52.000.000 Lot", manager: "A1 Capital Yatırım", market: "Yıldız Pazar" }    },
+      details: { 
+        price: "45,00 TL", 
+        distribution: "Eşit Dağıtım", 
+        lots: "52.000.000 Lot", 
+        manager: "A1 Capital Yatırım", 
+        market: "Yıldız Pazar",
+        listingDate: "22 Mayıs 2026",
+        participants: "770.000 Kişi",
+        perPerson: "27 Lot"
+      }
+    },
     { 
       name: "Enpara Bank A.Ş.", 
       symbol: "ENPRA", 
@@ -1534,9 +1569,16 @@ app.get('/api/auth/me', authMiddleware, async (req: any, res: any) => {
 // 1. Get all portfolio items (User specific)
 app.get('/api/portfolio', authMiddleware, async (req: any, res: any) => {
   try {
+    const totalGlobal = await Portfolio.countDocuments();
+    const sample = await Portfolio.findOne();
+    console.log(`🔍 [PORTFOLIO] DB Total: ${totalGlobal}, User in Token: ${req.user.userId}`);
+    if (sample) console.log(`🔍 [PORTFOLIO] Sample User in DB: ${sample.userId}`);
+    
     const items = await Portfolio.find({ userId: req.user.userId }).sort({ createdAt: 1 });
+    console.log(`✅ [PORTFOLIO] Found ${items.length} items for this user`);
     res.json(items);
   } catch (error) {
+    console.error('❌ [PORTFOLIO] DB Error:', error);
     res.status(500).json({ message: 'Error fetching portfolio', error });
   }
 });
@@ -1717,6 +1759,15 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
     res.json({ success: false, history: [], timestamps: [], currentValue: 0, totalCost: 0, dailyChange: 0, dailyChangePercent: 0 });
   }
 });
+
+// Analiz Endpoint'i
+app.get('/api/analysis/bist100', (req, res) => {
+  res.json(getBist100Analysis());
+});
+
+// Arka Plan Analiz Görevi (30 dakikada bir)
+setInterval(updateBist100Analysis, 30 * 60 * 1000);
+setTimeout(updateBist100Analysis, 10000); // Başlangıçta 10sn sonra çalıştır
 
 // Start Server
 app.listen(PORT, () => {

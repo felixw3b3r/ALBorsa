@@ -14,7 +14,7 @@ export default function IPOTakvimPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/halkaarz')
+    fetch('http://127.0.0.1:5000/api/halkaarz')
       .then(res => res.json())
       .then(data => {
         setIpoList(data);
@@ -61,6 +61,8 @@ export default function IPOTakvimPage() {
 
 function IPOListItem({ ipo, idx, isExpanded, onToggle }: { ipo: any, idx: number, isExpanded: boolean, onToggle: () => void }) {
   const isActive = ipo.status === 'active';
+  // EKDMR özel durum: Aktif olsa bile (kodu kalsın diye) özet gösterilecek
+  const showSummary = !isActive || ipo.symbol === 'EKDMR';
 
   return (
     <motion.div
@@ -68,33 +70,33 @@ function IPOListItem({ ipo, idx, isExpanded, onToggle }: { ipo: any, idx: number
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: idx * 0.05 }}
       className={`group relative flex flex-col p-[1.5px] rounded-[2.5rem] transition-all overflow-hidden mb-4 ${
-        isActive ? "shadow-[0_0_50px_rgba(64,224,208,0.2)]" : ""
+        isActive && ipo.symbol !== 'EKDMR' ? "shadow-[0_0_50px_rgba(64,224,208,0.2)]" : ""
       }`}
     >
-      {isActive && (
+      {isActive && ipo.symbol !== 'EKDMR' && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] aspect-square animate-border-rotate opacity-100">
           <div className="w-full h-full bg-[conic-gradient(from_0deg,transparent_0deg,transparent_170deg,#40E0D0_180deg,transparent_190deg,transparent_350deg,#40E0D0_360deg)]"></div>
         </div>
       )}
 
       <div className={`relative z-10 flex flex-col bg-black/95 rounded-[2.4rem] backdrop-blur-3xl h-full ${
-        isActive ? "" : "border border-white/10 hover:border-white/20"
+        isActive && ipo.symbol !== 'EKDMR' ? "" : "border border-white/10 hover:border-white/20"
       }`}>
         <div className="flex flex-col md:flex-row items-center gap-6 p-6">
           <div className="flex items-center gap-6 w-full md:w-2/5">
             <div className={`w-16 h-16 bg-white rounded-2xl p-2 flex items-center justify-center overflow-hidden shrink-0 transition-transform ${
-              isActive ? "border-2 border-turquoise shadow-[0_0_15px_rgba(64,224,208,0.3)]" : "group-hover:scale-105"
+              isActive && ipo.symbol !== 'EKDMR' ? "border-2 border-turquoise shadow-[0_0_15px_rgba(64,224,208,0.3)]" : "group-hover:scale-105"
             }`}>
               <img src={ipo.logo} alt={ipo.name} className="w-full h-full object-contain" />
             </div>
             <div className="min-w-0">
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider mb-1 inline-block ${
-                isActive ? "bg-turquoise text-black" : "bg-neon-purple text-white"
+                isActive && ipo.symbol !== 'EKDMR' ? "bg-turquoise text-black" : "bg-neon-purple text-white"
               }`}>
                 {ipo.symbol}
               </span>
               <h3 className={`font-bold text-xl leading-tight truncate ${
-                isActive ? "text-white" : "text-white group-hover:text-neon-purple transition-colors"
+                isActive && ipo.symbol !== 'EKDMR' ? "text-white" : "text-white group-hover:text-neon-purple transition-colors"
               }`}>
                 {ipo.name}
               </h3>
@@ -103,13 +105,13 @@ function IPOListItem({ ipo, idx, isExpanded, onToggle }: { ipo: any, idx: number
 
           <div className="flex items-center gap-8 w-full md:w-1/4 text-gray-400">
             <div className="flex items-center gap-3">
-              <Calendar size={18} className={isActive ? "text-turquoise" : "text-neon-purple"} />
+              <Calendar size={18} className={isActive && ipo.symbol !== 'EKDMR' ? "text-turquoise" : "text-neon-purple"} />
               <span className="text-sm font-bold text-gray-300">{ipo.date}</span>
             </div>
           </div>
 
           <div className="flex items-center justify-end w-full md:w-1/3">
-            {isActive ? (
+            {isActive && ipo.symbol !== 'EKDMR' ? (
               <Link 
                 href={`/halka-arz/${ipo.symbol}`}
                 className="w-full md:w-auto px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 bg-white text-black hover:bg-turquoise hover:scale-105 shadow-[0_0_30px_rgba(255,255,255,0.15)] relative overflow-hidden group/btn"
@@ -132,7 +134,7 @@ function IPOListItem({ ipo, idx, isExpanded, onToggle }: { ipo: any, idx: number
         </div>
 
         <AnimatePresence>
-          {isExpanded && !isActive && (
+          {isExpanded && showSummary && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}

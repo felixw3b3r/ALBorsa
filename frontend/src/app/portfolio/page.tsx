@@ -65,7 +65,7 @@ export default function PortfolioPage() {
     color: "#00f2ff" 
   });
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
   const handleDeleteStock = async (name: string) => {
     if (!confirm(`${name || 'İsimsiz varlık'} silinsin mi?`)) return;
@@ -129,6 +129,13 @@ export default function PortfolioPage() {
 
   const fetchHistoricalPrice = async () => {
     const symbol = newStock.name || searchTerm;
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      alert("Oturum süreniz dolmuş, lütfen tekrar giriş yapın.");
+      return;
+    }
+
     if (!symbol || !newStock.purchaseDate) {
       alert("Lütfen önce hisse seçin ve tarih belirleyin.");
       return;
@@ -137,8 +144,14 @@ export default function PortfolioPage() {
     try {
       setFetchingHistorical(true);
       const response = await fetch(`${API_URL}/historical?symbol=${symbol}&date=${newStock.purchaseDate}&market=${selectedMarket}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      if (response.status === 401) {
+        alert("Geçersiz token. Lütfen tekrar giriş yapın.");
+        return;
+      }
+
       const data = await response.json();
       
       if (data.success && data.price) {
@@ -158,6 +171,13 @@ export default function PortfolioPage() {
   // (Buradaki useEffect kaldırıldı çünkü yukarıdaki mount useEffect içinde hallediliyor)
 
   const fetchHistoricalPriceForEdit = async () => {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      alert("Oturum süreniz dolmuş, lütfen tekrar giriş yapın.");
+      return;
+    }
+
     if (!editingStock.name || !editingStock.purchaseDate) {
       alert("Lütfen tarih belirleyin.");
       return;
@@ -168,8 +188,14 @@ export default function PortfolioPage() {
       // Piyasayı belirle (NASDAQ listesindeyse ona göre gönder)
       const market = NASDAQ500_STOCKS.includes(editingStock.name) ? "NASDAQ 500" : "BIST 100";
       const response = await fetch(`${API_URL}/historical?symbol=${editingStock.name}&date=${editingStock.purchaseDate}&market=${market}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (response.status === 401) {
+        alert("Geçersiz token. Lütfen tekrar giriş yapın.");
+        return;
+      }
+
       const data = await response.json();
       
       if (data.success && data.price) {

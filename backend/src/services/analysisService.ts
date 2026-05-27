@@ -1,0 +1,308 @@
+import { withYahooSlot, yf } from '../index';
+import { INDEX_COMPONENTS } from '../utils/constants';
+import { calculateSMA } from '../utils/indicators/sma';
+import { calculateEMA } from '../utils/indicators/ema';
+import { calculateMACD } from '../utils/indicators/macd';
+import { calculateRSI } from '../utils/indicators/rsi';
+import { calculateMOM } from '../utils/indicators/mom';
+import { calculateATR } from '../utils/indicators/atr';
+import { calculateADX } from '../utils/indicators/adx';
+import { calculateVWAP } from '../utils/indicators/vwap';
+import { calculateOBV } from '../utils/indicators/obv';
+import { calculateCMF } from '../utils/indicators/cmf';
+import { scoreADX, scoreVWAP, scoreVolume, scoreRSI, calculateTotalScore } from '../utils/indicators/score';
+import { fetchDeepSeekAnalysis, DeepSeekAnalysis } from './deepseekService';
+
+export interface AnalysisResult {
+  symbol: string;
+  price: number;
+  changePercent: number;
+  indicators: {
+    sma20: number | null;
+    ema50: number | null;
+    rsi: number | null;
+    macd: any;
+    mom: number | null;
+    atr: number | null;
+    adx: number | null;
+    vwap: number | null;
+    obv: number | null;
+    cmf: number | null;
+  };
+  scores: {
+    adx: number;
+    vwap: number;
+    volume: number;
+    rsi: number;
+    total: number;
+  };
+  deepseek?: DeepSeekAnalysis | null;
+}
+
+let bist100Cache: AnalysisResult[] = [];
+let lastBatchUpdateTime = 0;
+let isUpdating = false;
+
+// DeepSeek Analiz Kuyruğu ve Cache'i
+let deepseekResults: Record<string, DeepSeekAnalysis> = {};
+let isDeepSeekRunning = false;
+
+// Veritabanından her sembolün en son DeepSeek sonucunu yükle
+async function loadDeepSeekResultsFromDB() {
+  try {
+    const mongoose = require('mongoose');
+    const DeepSeekResult = mongoose.model('DeepSeekResult');
+    
+    // Her sembol için en son kaydı getir (Aggreggation)
+    const latestResults = await DeepSeekResult.aggregate([
+      { $sort: { timestamp: -1 } },
+      { $group: {
+          _id: "$symbol",
+          latest: { $first: "$$ROOT" }
+      }}
+    ]);
+
+    latestResults.forEach((item: any) => {
+      const r = item.latest;
+      deepseekResults[r.symbol] = {
+        karar: r.karar,
+        olasilik_yuzdesi: r.olasilik_yuzdesi,
+        neden: r.neden,
+        stop_loss: r.stop_loss,
+        take_profit: r.take_profit,
+        timestamp: r.timestamp.getTime()
+      };
+    });
+    console.log(`📥 [DEEPSEEK] Loaded ${latestResults.length} latest results from historical DB.`);
+  } catch (err) {
+    console.error('❌ [DEEPSEEK] DB Load Error:', err.message);
+  }
+}
+
+export async function startDeepSeekSequentialAnalysis() {
+  if (isDeepSeekRunning) return;
+  
+  // Döngü başında en güncel verileri yükle
+  await loadDeepSeekResultsFromDB();
+
+  isDeepSeekRunning = true;
+  console.log(`🔵 [DEEPSEEK] Sequential historical analysis cycle started...`);
+  const symbols = INDEX_COMPONENTS['XU100.IS'];
+  
+  for (const symbol of symbols) {
+    const symClean = symbol.replace('.IS', '');
+    const existing = deepseekResults[symClean];
+    
+    if (existing && (Date.now() - existing.timestamp < 60 * 60 * 1000)) {
+      continue;
+    }
+
+    try {
+      const period1 = new Date();
+      period1.setMonth(period1.getMonth() - 1);
+
+      const data: any = await withYahooSlot(() => yf.chart(symbol, { period1, interval: '15m' }, { validateResult: false }));
+      if (!data || !data.quotes || data.quotes.length < 10) continue;
+
+      const quotes = data.quotes.filter((q: any) => q.close != null);
+      const highs = quotes.map((q: any) => q.high);
+      const lows = quotes.map((q: any) => q.low);
+      const closes = quotes.map((q: any) => q.close);
+      const volumes = quotes.map((q: any) => q.volume);
+      const lastQuote = quotes[quotes.length - 1];
+      
+      const rsi = calculateRSI(closes, 14);
+      const rsi_onceki = calculateRSI(closes.slice(0, -1), 14);
+      const adx = calculateADX(highs, lows, closes, 14);
+      const vwap = calculateVWAP(highs, lows, closes, volumes);
+      const atr = calculateATR(highs, lows, closes, 14);
+      const avgVol = volumes.slice(-10).reduce((a: number, b: number) => a + b, 0) / 10;
+
+      const indicators = {
+        adx: Math.round(adx || 0),
+        vwap_sapma: vwap ? Number((((lastQuote.close - vwap) / vwap) * 100).toFixed(2)) : 0,
+        hacim_orani: Number((lastQuote.volume / (avgVol || 1)).toFixed(2)),
+        rsi_anlik: Math.round(rsi || 0),
+        rsi_onceki: Math.round(rsi_onceki || 0),
+        atr: Number((atr || 0).toFixed(2))
+      };
+
+      const result = await fetchDeepSeekAnalysis({
+        hisse_adi: symClean,
+        anlik_fiyat: lastQuote.close,
+        indikatorler: indicators
+      });
+
+      if (result) {
+        // BELLEKTEKİ CACHE'İ GÜNCELLE
+        deepseekResults[symClean] = result;
+        
+        // MONGODB'YE YENİ KAYIT OLARAK EKLE (Silme yok, tarihsel takip var)
+        try {
+          const mongoose = require('mongoose');
+          const DeepSeekResult = mongoose.model('DeepSeekResult');
+          const newHistoryRecord = new DeepSeekResult({
+            symbol: symClean,
+            price: lastQuote.close,
+            karar: result.karar,
+            olasilik_yuzdesi: result.olasilik_yuzdesi,
+            neden: result.neden,
+            stop_loss: result.stop_loss,
+            take_profit: result.take_profit,
+            indicators: indicators,
+            timestamp: new Date()
+          });
+          await newHistoryRecord.save();
+          console.log(`💾 [DEEPSEEK] New historical record saved for ${symClean}`);
+        } catch (dbErr: any) {
+          console.error(`❌ [DEEPSEEK] DB Save Error:`, dbErr.message);
+        }
+        
+        const cacheIndex = bist100Cache.findIndex(i => i.symbol === symClean);
+        if (cacheIndex > -1) {
+          bist100Cache[cacheIndex].deepseek = result;
+        }
+      }
+      
+      await new Promise(res => setTimeout(res, 2000));
+    } catch (err: any) {
+      console.error(`❌ [DEEPSEEK] Error analyzing ${symbol}:`, err.message);
+    }
+  }
+  
+  isDeepSeekRunning = false;
+  console.log(`🔵 [DEEPSEEK] Cycle complete.`);
+}
+
+setInterval(startDeepSeekSequentialAnalysis, 60 * 60 * 1000);
+setTimeout(startDeepSeekSequentialAnalysis, 15000);
+
+export async function updateBist100Analysis() {
+  if (isUpdating) {
+    console.log(`⚠️ [BATCH ANALYSIS] Already in progress, skipping...`);
+    return;
+  }
+
+  const symbols = INDEX_COMPONENTS['XU100.IS'];
+  if (!symbols || symbols.length === 0) return;
+
+  isUpdating = true;
+  console.log(`🚀 [BATCH ANALYSIS] Starting incremental update...`);
+  
+  const results: AnalysisResult[] = [];
+  const startTime = Date.now();
+  
+  // Önce DeepSeek sonuçlarını yükle (Eğer cache boşsa)
+  if (Object.keys(deepseekResults).length === 0) {
+    await loadDeepSeekResultsFromDB();
+  }
+
+  try {
+    const chunkSize = 5;
+    for (let i = 0; i < symbols.length; i += chunkSize) {
+      const chunk = symbols.slice(i, i + chunkSize);
+      const chunkResults: AnalysisResult[] = [];
+
+      await Promise.all(chunk.map(async (symbol) => {
+        try {
+          const period1 = new Date();
+          period1.setMonth(period1.getMonth() - 6);
+          const data: any = await withYahooSlot(() => yf.chart(symbol, { period1, interval: '1d' }, { validateResult: false }));
+          
+          if (!data || !data.quotes || data.quotes.length < 20) return;
+          const quotes = data.quotes.filter((q: any) => q.close != null);
+          if (quotes.length < 20) return;
+
+          const highs = quotes.map((q: any) => q.high);
+          const lows = quotes.map((q: any) => q.low);
+          const closes = quotes.map((q: any) => q.close);
+          const volumes = quotes.map((q: any) => q.volume);
+          const lastQuote = quotes[quotes.length - 1];
+          const prevQuote = quotes[quotes.length - 2];
+          const currentPrice = lastQuote.close;
+          const changePercent = prevQuote ? ((currentPrice - prevQuote.close) / prevQuote.close) * 100 : 0;
+
+          const sma20 = calculateSMA(closes, 20);
+          const ema50 = calculateEMA(closes, 50);
+          const rsi = calculateRSI(closes, 14);
+          const macd = calculateMACD(closes);
+          const mom = calculateMOM(closes, 10);
+          const atr = calculateATR(highs, lows, closes, 14);
+          const adx = calculateADX(highs, lows, closes, 14);
+          const vwap = calculateVWAP(highs, lows, closes, volumes); 
+          const obv = calculateOBV(closes, volumes);
+          const cmf = calculateCMF(highs, lows, closes, volumes, 20);
+          const avgVolume = volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20;
+
+          const sADX = scoreADX(adx || 0);
+          const sVWAP = scoreVWAP(currentPrice, vwap || currentPrice);
+          const sVol = scoreVolume(lastQuote.volume, avgVolume);
+          const sRSI = scoreRSI(rsi || 50);
+          const totalScore = calculateTotalScore({ adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI });
+
+          const symClean = symbol.replace('.IS', '');
+          chunkResults.push({
+            symbol: symClean,
+            price: currentPrice,
+            changePercent: changePercent,
+            indicators: { sma20, ema50, rsi, macd, mom, atr, adx, vwap, obv, cmf },
+            scores: { adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI, total: totalScore },
+            deepseek: deepseekResults[symClean] || null
+          });
+        } catch (err: any) {}
+      }));
+
+      if (chunkResults.length > 0) {
+        results.push(...chunkResults);
+        bist100Cache = [...results].sort((a, b) => b.scores.total - a.scores.total);
+        lastBatchUpdateTime = Date.now();
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    if (results.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const mongoose = require('mongoose');
+        const DailyAnalysis = mongoose.model('DailyAnalysis');
+        await DailyAnalysis.findOneAndUpdate({ date: today }, { results, timestamp: new Date() }, { upsert: true });
+      } catch (dbErr: any) {}
+      console.log(`✅ [BATCH ANALYSIS] Complete. ${results.length} stocks processed.`);
+    }
+  } catch (globalErr: any) {
+    console.error(`❌ [BATCH ANALYSIS] Critical Failure:`, globalErr.message);
+  } finally {
+    isUpdating = false;
+  }
+}
+
+// Veritabanından en son günlük analizi yükle
+async function loadDailyAnalysisFromDB() {
+  try {
+    const mongoose = require('mongoose');
+    const DailyAnalysis = mongoose.model('DailyAnalysis');
+    const latest = await DailyAnalysis.findOne().sort({ timestamp: -1 });
+    if (latest && latest.results) {
+      bist100Cache = latest.results;
+      lastBatchUpdateTime = latest.timestamp.getTime();
+      console.log(`📥 [DATABASE] Loaded ${latest.results.length} stocks from last daily analysis (${latest.date}).`);
+    }
+  } catch (err) {
+    console.error('❌ [DATABASE] Load Error:', err.message);
+  }
+}
+
+export function getBist100Analysis() {
+  // Eğer cache boşsa ve güncelleme çalışmıyorsa arka planda tetikle ve DB'den yüklemeyi dene
+  if (bist100Cache.length === 0 && !isUpdating) {
+    loadDailyAnalysisFromDB().then(() => {
+      if (bist100Cache.length === 0) updateBist100Analysis();
+    });
+  }
+  return {
+    data: bist100Cache,
+    lastUpdate: lastBatchUpdateTime,
+    isUpdating
+  };
+}

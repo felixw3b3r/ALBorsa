@@ -18,7 +18,7 @@ export default function HalkaArzDetailPage() {
 
   useEffect(() => {
     setMounted(true);
-    fetch(`http://localhost:5000/api/halkaarz/${symbol}`)
+    fetch(`http://127.0.0.1:5000/api/halkaarz/${symbol}`)
       .then(res => res.json())
       .then(d => {
         setData(d);

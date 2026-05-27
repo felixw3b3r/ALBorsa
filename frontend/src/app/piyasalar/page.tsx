@@ -260,7 +260,7 @@ function PortfolioSection() {
     { id: '1w', label: '1H' },
   ];
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
   // Portföy sayfasındakiyle aynı yöntem: her hissenin rate'inden günlük değişim hesapla
   const computeDailyChangeFromRates = async (t: string, items: any[]) => {
@@ -394,7 +394,7 @@ export default function PiyasalarPage() {
   const [portfolioIndex, setPortfolioIndex] = useState<any>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
   const fetchPortfolioIndex = async (token: string) => {
     try {
