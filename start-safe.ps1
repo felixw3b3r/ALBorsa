@@ -7,7 +7,7 @@
 #    4. Monitor loop  - 15sn'de bir kontrol, asinca temiz kapat
 # ================================================================
 
-$PROJECT_ROOT    = "C:\Users\zoomy\Desktop\bistAL"
+$PROJECT_ROOT    = $PSScriptRoot
 $BACKEND_DIR     = "$PROJECT_ROOT\backend"
 $FRONTEND_DIR    = "$PROJECT_ROOT\frontend"
 

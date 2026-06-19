@@ -388,18 +388,26 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
       }
 
       // Fiyat Seçici
-      let finalPrice = dayData.close || dayData.open || dayData.high || dayData.low;
+      const rawPrice = dayData.close || dayData.open || dayData.high || dayData.low;
       
-      if (!finalPrice) {
+      if (!rawPrice) {
          return res.status(404).json({ success: false, message: 'Fiyat seçilemedi' });
       }
 
+      let finalPrice = rawPrice;
       if (isUsdStock) {
         finalPrice = finalPrice * usdRateOnDate;
       }
 
-      console.log(`  ✅ Bulunan Fiyat (TL): ${finalPrice.toFixed(4)} (${new Date(dayData.date).toLocaleDateString('tr-TR')} - Kur: ${usdRateOnDate})\n`);
-      res.json({ success: true, price: finalPrice, date: dayData.date, currency: 'TRY' });
+      console.log(`  ✅ Bulunan Fiyat (TL): ${finalPrice.toFixed(4)} (Orijinal: ${rawPrice.toFixed(4)} USD, ${new Date(dayData.date).toLocaleDateString('tr-TR')} - Kur: ${usdRateOnDate})\n`);
+      res.json({ 
+        success: true, 
+        price: finalPrice, 
+        rawPrice: rawPrice,
+        usdRate: usdRateOnDate,
+        date: dayData.date, 
+        currency: isUsdStock ? 'USD' : 'TRY' 
+      });
     } else {
       res.status(404).json({ success: false, message: 'O tarih için veri bulunamadı. (Borsa kapalı olabilir)' });
     }
@@ -1380,6 +1388,23 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 app.get('/api/halkaarz', (req, res) => {
   const ipoData = [
     { 
+      name: "Beta Enerji ve Teknoloji A.Ş.",
+      symbol: "BETAE",
+      status: "active",
+      date: "23-24-25 Haziran 2026",
+      logo: "/logos/BETAE.png",
+      details: { 
+        price: "40,00 TL", 
+        distribution: "Bireysele Eşit Dağıtım", 
+        lots: "60.750.000 Lot", 
+        manager: "TSKB & Ziraat & Yatırım Finansman", 
+        market: "Yıldız Pazar",
+        listingDate: "Açıklanmadı",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    { 
       name: "Ekinciler Demir ve Çelik Sanayi A.Ş.",
       symbol: "EKDMR",
       status: "completed",
@@ -1447,6 +1472,64 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
   const { symbol } = req.params;
   const sym = symbol.toUpperCase();
   
+  if (sym === 'BETAE') {
+    return res.json({
+      title: "Beta Enerji ve Teknoloji A.Ş.",
+      symbol: "BETAE",
+      status: "active",
+      logo: "/logos/BETAE.png",
+      date: "23-24-25 Haziran 2026",
+      price: "40,00 TL",
+      distribution: "Bireysele Eşit Dağıtım",
+      lots: "60.750.000 Lot",
+      manager: "Türkiye Sınai Kalkınma Bankası A.Ş. & Ziraat Yatırım & Yatırım Finansman",
+      market: "Yıldız Pazar",
+      size: "2.430.000.000 TL",
+      method: {
+        capitalIncrease: "55.000.000 Lot",
+        partnerSale: "5.750.000 Lot",
+        total: "60.750.000 Lot",
+        partners: [
+          { name: "Mevcut Ortaklar", lot: "5.750.000" }
+        ]
+      },
+      balanceSheet: [
+        { year: "2026/3", revenue: "704,0 Milyon TL", profit: "158,0 Milyon TL" },
+        { year: "2025", revenue: "4,6 Milyar TL", profit: "1,5 Milyar TL" },
+        { year: "2024", revenue: "4,3 Milyar TL", profit: "1,5 Milyar TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "202 Lot", amount: "8.080 TL" },
+        { participants: "250 Bin", lots: "121 Lot", amount: "4.840 TL" },
+        { participants: "350 Bin", lots: "86 Lot", amount: "3.440 TL" },
+        { participants: "500 Bin", lots: "61 Lot", amount: "2.440 TL" },
+        { participants: "700 Bin", lots: "43 Lot", amount: "1.720 TL" },
+        { participants: "1,1 Milyon", lots: "28 Lot", amount: "1.120 TL" },
+        { participants: "1,6 Milyon", lots: "19 Lot", amount: "760 TL" },
+        { participants: "2,2 Milyon", lots: "14 Lot", amount: "560 TL" }
+      ],
+      fundUsage: [
+        { area: "Büyüme yatırımlarının finansmanı", ratio: 45 },
+        { area: "İşletme sermayesi", ratio: 55 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel", ratio: 50, lot: "30.375.000" },
+        { group: "Yüksek Başvurulu", ratio: 10, lot: "6.075.000" },
+        { group: "Şirket Çalışanları", ratio: 1, lot: "607.500" },
+        { group: "Yurt İçi Kurumsal", ratio: 39, lot: "23.692.500" }
+      ],
+      t1t2: "Kullanılamaz",
+      stability: "30 Gün (Yatırım Finansman)",
+      index: "Uygundur (Katılım Endeksine Uygun)",
+      extra: {
+        float: "%15",
+        discount: "%20,45",
+        salesMethod: "Sabit Fiyatla Talep Toplama",
+        highThreshold: "450.045 TL"
+      }
+    });
+  }
+
   if (sym === 'EKDMR') {
     return res.json({
       title: "Ekinciler Demir ve Çelik Sanayi A.Ş.",

@@ -132,7 +132,11 @@ export default function RealGetiriPage() {
             ]);
 
             if (usdH.success) histRates[item._id] = { usd: usdH.price, eur: eurH.price || 0 };
-            if (benchH.success) benchHist[date] = benchH.price;
+            if (benchH.success) {
+              const activeTickerUpper = activeTicker.toUpperCase();
+              const isBenchUSD = !activeTickerUpper.endsWith('.IS') && !activeTickerUpper.endsWith('TRY=X');
+              benchHist[date] = (isBenchUSD && benchH.rawPrice != null) ? benchH.rawPrice : benchH.price;
+            }
           }
         }));
         setHistoricalRates(histRates);
@@ -168,78 +172,134 @@ export default function RealGetiriPage() {
       return sCode === itemName || sCode === `${itemName}.IS` || itemName === `${sCode}.IS`;
     });
 
-    const isUsdStock = itemName && !itemName.endsWith('.IS') && !BIST100_STOCKS.includes(itemName);
+    const isNasdaqStock = itemName && !itemName.endsWith('.IS') && !BIST100_STOCKS.includes(itemName);
     const hist = historicalRates[item._id];
     const histUSD = hist?.usd || usdRate;
-    const isCostInUSD = isUsdStock && item.cost < 1500;
-    const itemCostTL = isCostInUSD ? item.cost * (histUSD || usdRate) : item.cost;
-
-    let currentPrice = itemCostTL;
-    if (liveStock) {
-      let price = liveStock.regularMarketPrice || liveStock.price || 0;
-      if ((liveStock.currency === "USD" || (!itemName.includes('.IS') && NASDAQ500_STOCKS.includes(itemName))) && usdRate > 0) {  
-        price = price * usdRate;
-      }
-      currentPrice = price;
-    }
-
-    const valueTL = item.amount * currentPrice;
-    const costTL = item.amount * itemCostTL;
-    const plTL = valueTL - costTL;
-    const plPercent = costTL > 0 ? (plTL / costTL) * 100 : 0;
 
     const purchaseDateStr = item.purchaseDate?.split('T')[0];
     const benchHistPrice = benchmarkHistoricalPrices[purchaseDateStr];
 
-    let benchValue = 0;
-    let benchGain = 0;
-    let benchGainPercent = 0;
+    const isBenchUSD = benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F";
+    const benchNorm = benchmarkTicker.toUpperCase().replace('.IS', '');
+    const itemNorm = itemName.replace('.IS', '');
+    const isSameStock = benchNorm === itemNorm;
 
-    if (benchmarkCurrentPrice) {
-      // ÖNEMLİ: Altın ve NASDAQ dolar bazlıdır, bunları işaretleyelim
-      const isBenchUSD = benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F";
+    if (isNasdaqStock) {
+      // NASDAQ Stock - All calculations in USD
+      const costUSD = item.cost;
+      let currentPriceUSD = costUSD;
+      if (liveStock) {
+        currentPriceUSD = liveStock.regularMarketPrice || liveStock.price || 0;
+      }
+      
+      const valueUSD = item.amount * currentPriceUSD;
+      const costUSD_total = item.amount * costUSD;
+      const plUSD = valueUSD - costUSD_total;
+      const plPercent = costUSD_total > 0 ? (plUSD / costUSD_total) * 100 : 0;
 
-      const benchNorm = benchmarkTicker.toUpperCase().replace('.IS', '');
-      const itemNorm = itemName.replace('.IS', '');
-      const isSameStock = benchNorm === itemNorm;
+      let benchValueUSD = 0;
+      let benchGainUSD = 0;
+      let benchGainPercent = 0;
 
       if (isSameStock) {
-        benchValue = valueTL;
-        benchGain = plTL;
+        benchValueUSD = valueUSD;
+        benchGainUSD = plUSD;
         benchGainPercent = plPercent;
       } else if (benchHistPrice) {
         if (isBenchUSD) {
-          const hist = historicalRates[item._id];
-          const histUSD = hist?.usd || usdRate;
-          const costInUSD = costTL / (histUSD || 1);
-          const units = costInUSD / benchHistPrice;
-          benchValue = units * benchmarkCurrentPrice * usdRate;
+          const units = costUSD_total / benchHistPrice;
+          benchValueUSD = units * benchmarkCurrentPrice;
         } else {
-          const units = costTL / benchHistPrice;
-          benchValue = units * benchmarkCurrentPrice;
+          const costTRY = costUSD_total * histUSD;
+          const units = costTRY / benchHistPrice;
+          const benchValueTRY = units * benchmarkCurrentPrice;
+          benchValueUSD = usdRate > 0 ? (benchValueTRY / usdRate) : 0;
         }
-        benchGain = benchValue - costTL;
-        benchGainPercent = costTL > 0 ? (benchGain / costTL) * 100 : 0;
+        benchGainUSD = benchValueUSD - costUSD_total;
+        benchGainPercent = costUSD_total > 0 ? (benchGainUSD / costUSD_total) * 100 : 0;
       }
-    }
 
-    return {
-      ...item,
-      currentValue: valueTL,
-      costTL,
-      profitLoss: plTL,
-      profitLossPercent: plPercent,
-      benchValue,
-      benchGain,
-      benchGainPercent,
-      benchHistPrice,
-      benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))
-    };
-  }).sort((a, b) => b.currentValue - a.currentValue);
+      // Convert values to TL for portfolio-level summaries
+      const costTL = costUSD_total * histUSD;
+      const profitLossTL = plUSD * usdRate;
+      const currentValueTL = costTL + profitLossTL;
+      const benchGainTL = benchGainUSD * usdRate;
+      const benchValueTL = costTL + benchGainTL;
+
+      return {
+        ...item,
+        isNasdaqStock: true,
+        cost: costUSD,
+        currentValue: valueUSD,
+        costTL,
+        currentValueTL,
+        profitLoss: plUSD,
+        profitLossPercent: plPercent,
+        benchValue: benchValueUSD,
+        benchGain: benchGainUSD,
+        benchGainPercent,
+        benchValueTL,
+        benchGainTL,
+        benchHistPrice,
+        benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))
+      };
+    } else {
+      // BIST Stock - Calculations in TL
+      const costTL_total = item.amount * item.cost;
+      let currentPriceTL = item.cost;
+      if (liveStock) {
+        currentPriceTL = liveStock.regularMarketPrice || liveStock.price || 0;
+      }
+
+      const valueTL = item.amount * currentPriceTL;
+      const plTL = valueTL - costTL_total;
+      const plPercent = costTL_total > 0 ? (plTL / costTL_total) * 100 : 0;
+
+      let benchValueTL = 0;
+      let benchGainTL = 0;
+      let benchGainPercent = 0;
+
+      if (isSameStock) {
+        benchValueTL = valueTL;
+        benchGainTL = plTL;
+        benchGainPercent = plPercent;
+      } else if (benchHistPrice) {
+        if (isBenchUSD) {
+          const costUSD = costTL_total / histUSD;
+          const units = costUSD / benchHistPrice;
+          const benchValueUSD = units * benchmarkCurrentPrice;
+          benchValueTL = benchValueUSD * usdRate;
+        } else {
+          const units = costTL_total / benchHistPrice;
+          benchValueTL = units * benchmarkCurrentPrice;
+        }
+        benchGainTL = benchValueTL - costTL_total;
+        benchGainPercent = costTL_total > 0 ? (benchGainTL / costTL_total) * 100 : 0;
+      }
+
+      return {
+        ...item,
+        isNasdaqStock: false,
+        cost: item.cost,
+        currentValue: valueTL,
+        costTL: costTL_total,
+        currentValueTL: valueTL,
+        profitLoss: plTL,
+        profitLossPercent: plPercent,
+        benchValue: benchValueTL,
+        benchGain: benchGainTL,
+        benchGainPercent,
+        benchValueTL,
+        benchGainTL,
+        benchHistPrice,
+        benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))
+      };
+    }
+  }).sort((a, b) => b.currentValueTL - a.currentValueTL);
 
   const totalCostTL = processedData.reduce((acc, item) => acc + (item.costTL || 0), 0);
-  const totalCurrentValueTL = processedData.reduce((acc, item) => acc + (item.currentValue || 0), 0);
-  const totalBenchmarkValue = processedData.reduce((acc, item) => acc + (item.benchValue || 0), 0);
+  const totalCurrentValueTL = processedData.reduce((acc, item) => acc + (item.currentValueTL || 0), 0);
+  const totalBenchmarkValue = processedData.reduce((acc, item) => acc + (item.benchValueTL || 0), 0);
 
   // REAL USD/EUR MALİYET HESABI: Her bir alımın kendi tarihindeki kuruna göre toplam maliyeti bul
   const totalCostUSD = processedData.reduce((acc, item) => {
@@ -423,7 +483,9 @@ export default function RealGetiriPage() {
                   <div className="w-16 h-16 bg-black border border-white/10 rounded-2xl flex items-center justify-center text-2xl font-black text-cyan-400 group-hover:border-cyan-500 transition-all uppercase">{stock.name[0]}</div>
                   <div>
                     <h4 className="text-2xl font-black tracking-tight">{stock.name}</h4>
-                    <p className="text-xs text-gray-500 font-black uppercase tracking-widest">{stock.amount} LOT / ₺{stock.costTL.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 font-black uppercase tracking-widest">
+                      {stock.amount} LOT / {stock.isNasdaqStock ? "$" : "₺"}{stock.isNasdaqStock ? (stock.cost * stock.amount).toLocaleString(undefined, { maximumFractionDigits: 2 }) : stock.costTL.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
                     <div className="flex items-center gap-2 mt-1 text-[10px] font-bold text-gray-600">
                       <span>{new Date(stock.purchaseDate).toLocaleDateString('tr-TR')}</span>
                       <span className="w-1 h-1 bg-gray-800 rounded-full" />
@@ -435,21 +497,23 @@ export default function RealGetiriPage() {
                 <div className="flex flex-wrap items-center gap-12">
                   <div className="text-right">
                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">Mevcut Değer</p>
-                    <p className="font-black text-2xl text-white tracking-tighter">₺{stock.currentValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                    <p className="font-black text-2xl text-white tracking-tighter">
+                      {stock.isNasdaqStock ? "$" : "₺"}{stock.currentValue.toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })}
+                    </p>
                     <div className={`text-xs font-black flex items-center justify-end gap-1 mt-1 ${stock.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {stock.profitLoss >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      ₺{Math.abs(stock.profitLoss).toLocaleString(undefined, { maximumFractionDigits: 0 })} (%{stock.profitLossPercent.toFixed(1)})
+                      {stock.isNasdaqStock ? "$" : "₺"}{Math.abs(stock.profitLoss).toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })} (%{stock.profitLossPercent.toFixed(1)})
                     </div>
                   </div>
 
                   <div className="text-right min-w-[220px]">
                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">EĞER {stock.benchmarkAssetName} ALSAYDIN</p>
                     <p className="font-black text-2xl text-gray-400 tracking-tighter">
-                      ₺{stock.benchValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      {stock.isNasdaqStock ? "$" : "₺"}{stock.benchValue.toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })}
                     </p>
                     <div className={`text-[11px] font-black flex items-center justify-end gap-1 mt-1 ${stock.benchGainPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {stock.benchGainPercent >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      ₺{Math.abs(stock.benchGain).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      {stock.isNasdaqStock ? "$" : "₺"}{Math.abs(stock.benchGain).toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })}
                       (%{stock.benchGainPercent.toFixed(1)})
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-2">
