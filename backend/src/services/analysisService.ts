@@ -11,7 +11,8 @@ import { calculateVWAP } from '../utils/indicators/vwap';
 import { calculateOBV } from '../utils/indicators/obv';
 import { calculateCMF } from '../utils/indicators/cmf';
 import { scoreADX, scoreVWAP, scoreVolume, scoreRSI, calculateTotalScore } from '../utils/indicators/score';
-import { fetchDeepSeekAnalysis, DeepSeekAnalysis } from './deepseekService';
+import { fetchDeepSeekAnalysis, fetchDeepSeekQuantExplanation, DeepSeekAnalysis } from './deepseekService';
+import { buildQuantSignal, QuantSignal } from './quantModel';
 
 export interface AnalysisResult {
   symbol: string;
@@ -36,6 +37,7 @@ export interface AnalysisResult {
     rsi: number;
     total: number;
   };
+  quant: QuantSignal;
   deepseek?: DeepSeekAnalysis | null;
 }
 
@@ -46,6 +48,7 @@ let isUpdating = false;
 // DeepSeek Analiz Kuyruğu ve Cache'i
 let deepseekResults: Record<string, DeepSeekAnalysis> = {};
 let isDeepSeekRunning = false;
+const ENABLE_LEGACY_DEEPSEEK_SIGNAL = process.env.ENABLE_LEGACY_DEEPSEEK_SIGNAL === 'true';
 
 // Veritabanından her sembolün en son DeepSeek sonucunu yükle
 async function loadDeepSeekResultsFromDB() {
@@ -74,7 +77,7 @@ async function loadDeepSeekResultsFromDB() {
       };
     });
     console.log(`📥 [DEEPSEEK] Loaded ${latestResults.length} latest results from historical DB.`);
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [DEEPSEEK] DB Load Error:', err.message);
   }
 }
@@ -174,12 +177,59 @@ export async function startDeepSeekSequentialAnalysis() {
   console.log(`🔵 [DEEPSEEK] Cycle complete.`);
 }
 
-setInterval(startDeepSeekSequentialAnalysis, 60 * 60 * 1000);
-setTimeout(startDeepSeekSequentialAnalysis, 15000);
+if (ENABLE_LEGACY_DEEPSEEK_SIGNAL) {
+  setInterval(startDeepSeekSequentialAnalysis, 60 * 60 * 1000);
+  setTimeout(startDeepSeekSequentialAnalysis, 15000);
+} else {
+  console.log('[QUANT] Legacy DeepSeek decision loop suspended. Active model: REGIME_FACTOR_V1.');
+}
+
+function quantToDeepSeekResult(quant: QuantSignal): DeepSeekAnalysis {
+  return {
+    karar: quant.decision,
+    olasilik_yuzdesi: quant.probability,
+    neden: quant.reasons.join(' '),
+    stop_loss: quant.stopLoss,
+    take_profit: quant.takeProfit,
+    timestamp: Date.now()
+  };
+}
+
+function parsePositiveInt(value: string | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+async function enrichTopQuantNarratives(results: AnalysisResult[]) {
+  if (!process.env.DEEPSEEK_API_KEY) return;
+
+  const limit = parsePositiveInt(process.env.DEEPSEEK_QUANT_EXPLAIN_LIMIT, 8, 0, 20);
+  if (limit === 0) return;
+
+  const candidates = [...results]
+    .sort((a, b) => b.quant.opportunityScore - a.quant.opportunityScore)
+    .slice(0, limit);
+
+  for (const item of candidates) {
+    const explanation = await fetchDeepSeekQuantExplanation({
+      hisse_adi: item.symbol,
+      anlik_fiyat: item.price,
+      quant: item.quant
+    });
+
+    if (explanation && item.deepseek) {
+      item.deepseek.neden = explanation;
+      item.deepseek.timestamp = Date.now();
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 350));
+  }
+}
 
 export async function updateBist100Analysis() {
   if (isUpdating) {
-    console.log(`⚠️ [BATCH ANALYSIS] Already in progress, skipping...`);
+    console.log(`[BATCH ANALYSIS] Already in progress, skipping...`);
     return;
   }
 
@@ -187,31 +237,36 @@ export async function updateBist100Analysis() {
   if (!symbols || symbols.length === 0) return;
 
   isUpdating = true;
-  console.log(`🚀 [BATCH ANALYSIS] Starting incremental update...`);
-  
+  console.log(`[BATCH ANALYSIS] Starting incremental update...`);
+
   const results: AnalysisResult[] = [];
+  const failedSymbols: string[] = [];
   const startTime = Date.now();
-  
-  // Önce DeepSeek sonuçlarını yükle (Eğer cache boşsa)
-  if (Object.keys(deepseekResults).length === 0) {
-    await loadDeepSeekResultsFromDB();
-  }
 
   try {
+    let indexQuotes: any[] = [];
+    try {
+      const indexPeriod = new Date();
+      indexPeriod.setFullYear(indexPeriod.getFullYear() - 1);
+      const indexData: any = await withYahooSlot(() => yf.chart('XU100.IS', { period1: indexPeriod, interval: '1d' }, { validateResult: false }));
+      indexQuotes = (indexData?.quotes || []).filter((q: any) => q.close != null);
+    } catch (indexErr: any) {
+      console.warn('[QUANT] XU100 regime data unavailable:', indexErr?.message || indexErr);
+    }
+
     const chunkSize = 5;
     for (let i = 0; i < symbols.length; i += chunkSize) {
       const chunk = symbols.slice(i, i + chunkSize);
-      const chunkResults: AnalysisResult[] = [];
 
-      await Promise.all(chunk.map(async (symbol) => {
+      const chunkResults = (await Promise.all(chunk.map(async (symbol): Promise<AnalysisResult | null> => {
         try {
           const period1 = new Date();
           period1.setMonth(period1.getMonth() - 6);
           const data: any = await withYahooSlot(() => yf.chart(symbol, { period1, interval: '1d' }, { validateResult: false }));
-          
-          if (!data || !data.quotes || data.quotes.length < 20) return;
+
+          if (!data || !data.quotes || data.quotes.length < 20) return null;
           const quotes = data.quotes.filter((q: any) => q.close != null);
-          if (quotes.length < 20) return;
+          if (quotes.length < 20) return null;
 
           const highs = quotes.map((q: any) => q.high);
           const lows = quotes.map((q: any) => q.low);
@@ -229,7 +284,7 @@ export async function updateBist100Analysis() {
           const mom = calculateMOM(closes, 10);
           const atr = calculateATR(highs, lows, closes, 14);
           const adx = calculateADX(highs, lows, closes, 14);
-          const vwap = calculateVWAP(highs, lows, closes, volumes); 
+          const vwap = calculateVWAP(highs, lows, closes, volumes);
           const obv = calculateOBV(closes, volumes);
           const cmf = calculateCMF(highs, lows, closes, volumes, 20);
           const avgVolume = volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20;
@@ -241,42 +296,57 @@ export async function updateBist100Analysis() {
           const totalScore = calculateTotalScore({ adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI });
 
           const symClean = symbol.replace('.IS', '');
-          chunkResults.push({
+          const quant = buildQuantSignal({ symbol: symClean, quotes, indexQuotes });
+          return {
             symbol: symClean,
             price: currentPrice,
-            changePercent: changePercent,
+            changePercent,
             indicators: { sma20, ema50, rsi, macd, mom, atr, adx, vwap, obv, cmf },
-            scores: { adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI, total: totalScore },
-            deepseek: deepseekResults[symClean] || null
-          });
-        } catch (err: any) {}
-      }));
+            scores: { adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI, total: quant.opportunityScore || totalScore },
+            quant,
+            deepseek: quantToDeepSeekResult(quant)
+          };
+        } catch (err: any) {
+          failedSymbols.push(symbol);
+          console.warn(`[BATCH ANALYSIS] ${symbol} skipped:`, err?.message || err);
+          return null;
+        }
+      }))).filter((result): result is AnalysisResult => result !== null);
 
       if (chunkResults.length > 0) {
         results.push(...chunkResults);
         bist100Cache = [...results].sort((a, b) => b.scores.total - a.scores.total);
         lastBatchUpdateTime = Date.now();
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     if (results.length > 0) {
+      bist100Cache = [...results].sort((a, b) => b.quant.opportunityScore - a.quant.opportunityScore);
+      await enrichTopQuantNarratives(bist100Cache);
+      lastBatchUpdateTime = Date.now();
+
       const today = new Date().toISOString().split('T')[0];
       try {
         const mongoose = require('mongoose');
         const DailyAnalysis = mongoose.model('DailyAnalysis');
-        await DailyAnalysis.findOneAndUpdate({ date: today }, { results, timestamp: new Date() }, { upsert: true });
-      } catch (dbErr: any) {}
-      console.log(`✅ [BATCH ANALYSIS] Complete. ${results.length} stocks processed.`);
+        await DailyAnalysis.findOneAndUpdate({ date: today }, { results: bist100Cache, timestamp: new Date() }, { upsert: true });
+      } catch (dbErr: any) {
+        console.error(`[BATCH ANALYSIS] DailyAnalysis save failed:`, dbErr?.message || dbErr);
+      }
+      console.log(`[BATCH ANALYSIS] Complete. ${results.length} stocks processed in ${Date.now() - startTime}ms.`);
+    }
+
+    if (failedSymbols.length > 0) {
+      console.warn(`[BATCH ANALYSIS] ${failedSymbols.length} symbols failed: ${failedSymbols.join(', ')}`);
     }
   } catch (globalErr: any) {
-    console.error(`❌ [BATCH ANALYSIS] Critical Failure:`, globalErr.message);
+    console.error(`[BATCH ANALYSIS] Critical Failure:`, globalErr.message);
   } finally {
     isUpdating = false;
   }
 }
-
 // Veritabanından en son günlük analizi yükle
 async function loadDailyAnalysisFromDB() {
   try {
@@ -284,11 +354,17 @@ async function loadDailyAnalysisFromDB() {
     const DailyAnalysis = mongoose.model('DailyAnalysis');
     const latest = await DailyAnalysis.findOne().sort({ timestamp: -1 });
     if (latest && latest.results) {
+      const first = latest.results[0];
+      if (!first?.quant?.modelVersion) {
+        console.log('[DATABASE] Legacy analysis cache ignored; quant model refresh required.');
+        updateBist100Analysis();
+        return;
+      }
       bist100Cache = latest.results;
       lastBatchUpdateTime = latest.timestamp.getTime();
       console.log(`📥 [DATABASE] Loaded ${latest.results.length} stocks from last daily analysis (${latest.date}).`);
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('❌ [DATABASE] Load Error:', err.message);
   }
 }

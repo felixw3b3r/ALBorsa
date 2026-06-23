@@ -1,7 +1,8 @@
 import axios from 'axios';
+import type { QuantSignal } from './quantModel';
 
 export interface DeepSeekAnalysis {
-  karar: "GÜÇLÜ_AL" | "AL" | "BEKLE" | "SAT";
+  karar: string;
   olasilik_yuzdesi: number;
   neden: string;
   stop_loss: number;
@@ -9,6 +10,8 @@ export interface DeepSeekAnalysis {
   timestamp: number;
 }
 
+// Legacy function kept for compatibility. The active quant model does not use
+// DeepSeek as the decision maker anymore; DeepSeek only explains model output.
 export async function fetchDeepSeekAnalysis(data: {
   hisse_adi: string;
   anlik_fiyat: number;
@@ -23,59 +26,40 @@ export async function fetchDeepSeekAnalysis(data: {
 }): Promise<DeepSeekAnalysis | null> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    console.error("❌ [DEEPSEEK] API Key missing!");
+    console.error('[DEEPSEEK] API Key missing.');
     return null;
   }
 
   const prompt = `
-### QUANTITATIVE ANALYSIS REQUEST
-**Role**: Senior Quantitative Strategist at a Global Hedge Fund
-**Context**: 15-30 minute probabilistic trade signal generation
+Return ONLY valid JSON in Turkish.
+Use the provided technical state to produce a short trade signal.
 
----
-### [1] MARKET & ASSET STATE
-- **Stock**: ${data.hisse_adi}
-- **Current Price**: ${data.anlik_fiyat} TRY
-- **Volatility (ATR)**: ${data.indikatorler.atr} TRY
-
----
-### [2] TECHNICAL INDICATOR REPORT
-- **Trend Strength (ADX)**: ${data.indikatorler.adx}
-  *(Guidance: <20 Range, >25 Developing, >40 Strong Trend)*
-- **Institutional Cost (VWAP)**: ${data.indikatorler.vwap_sapma}% ${data.indikatorler.vwap_sapma > 0 ? 'Above' : 'Below'}
-- **Volume Momentum**: ${data.indikatorler.hacim_orani}x vs. 10m Average
-- **Relative Strength (RSI)**:
-  - Current: ${data.indikatorler.rsi_anlik}
-  - Previous: ${data.indikatorler.rsi_onceki}
-
----
-### [3] STRATEGIC MANDATE
-Synthesize the data above. Focus on identifying:
-1. **Mean Reversion**: Overextended moves returning to VWAP.
-2. **Volume Breakouts**: High-momentum trend continuations.
-3. **Trend Reversals**: Fading momentum combined with volume exhaustion.
-
----
-### [4] OUTPUT REQUIREMENTS (STRICT JSON)
-Return **ONLY** a valid JSON object in Turkish. No preamble, no explanation.
+Stock: ${data.hisse_adi}
+Current Price: ${data.anlik_fiyat}
+ADX: ${data.indikatorler.adx}
+VWAP deviation: ${data.indikatorler.vwap_sapma}
+Volume ratio: ${data.indikatorler.hacim_orani}
+RSI current: ${data.indikatorler.rsi_anlik}
+RSI previous: ${data.indikatorler.rsi_onceki}
+ATR: ${data.indikatorler.atr}
 
 {
-    "karar": "GÜÇLÜ_AL" | "AL" | "BEKLE" | "SAT",
-    "olasilik_yuzdesi": integer (0-100),
-    "neden": "Short mathematical reasoning in Turkish",
-    "stop_loss": number (suggested stop level),
-    "take_profit": number (suggested target level)
+  "karar": "GUCLU_AL" | "KADEMELI_AL" | "IZLE" | "AZALT",
+  "olasilik_yuzdesi": integer,
+  "neden": "...",
+  "stop_loss": number,
+  "take_profit": number
 }
   `;
 
   try {
     const response = await axios.post('https://api.deepseek.com/chat/completions', {
-      model: "deepseek-chat",
+      model: 'deepseek-chat',
       messages: [
-        { role: "system", content: "Sen bir kantitatif finans asistanısın. Sadece JSON döndürürsün." },
-        { role: "user", content: prompt }
+        { role: 'system', content: 'Sen bir kantitatif finans asistanisin. Sadece JSON dondurursun.' },
+        { role: 'user', content: prompt }
       ],
-      response_format: { type: "json_object" },
+      response_format: { type: 'json_object' },
       temperature: 0.3
     }, {
       headers: {
@@ -87,13 +71,69 @@ Return **ONLY** a valid JSON object in Turkish. No preamble, no explanation.
 
     const result = response.data.choices[0].message.content;
     const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-    
+
     return {
       ...parsed,
       timestamp: Date.now()
     };
   } catch (error: any) {
-    console.error(`❌ [DEEPSEEK] API Error for ${data.hisse_adi}:`, error.response?.data || error.message);
+    console.error(`[DEEPSEEK] API error for ${data.hisse_adi}:`, error.response?.data || error.message);
+    return null;
+  }
+}
+
+export async function fetchDeepSeekQuantExplanation(data: {
+  hisse_adi: string;
+  anlik_fiyat: number;
+  quant: QuantSignal;
+}): Promise<string | null> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return null;
+
+  const prompt = `
+Deterministik kantitatif modelin ciktisini Turkce ve kisa sekilde acikla.
+Karari, olasiligi, hedefi veya stop seviyesini DEGISTIRME.
+Sadece modelin neden bu sonuca vardigini 1-2 cumlede anlat.
+
+Hisse: ${data.hisse_adi}
+Fiyat: ${data.anlik_fiyat}
+Karar: ${data.quant.decision}
+Endeksi yenme olasiligi: ${data.quant.probability}
+Guven: ${data.quant.confidence}
+Firsat skoru: ${data.quant.opportunityScore}
+Risk skoru: ${data.quant.riskScore}
+Piyasa rejimi: ${data.quant.regime}
+Beklenen 20 gunluk alpha: ${data.quant.expectedAlpha20d}
+Faktorler: ${JSON.stringify(data.quant.factorScores)}
+Teshis: ${JSON.stringify(data.quant.diagnostics)}
+Model gerekceleri: ${data.quant.reasons.join(' | ')}
+
+STRICT JSON:
+{ "neden": "..." }
+  `;
+
+  try {
+    const response = await axios.post('https://api.deepseek.com/chat/completions', {
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: 'Sen kantitatif modeli aciklayan bir finans asistanisin. Sadece JSON dondurursun; yatirim tavsiyesi dili kullanmazsin.' },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.2
+    }, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const result = response.data.choices[0].message.content;
+    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+    return typeof parsed?.neden === 'string' ? parsed.neden : null;
+  } catch (error: any) {
+    console.error(`[DEEPSEEK] Quant explanation error for ${data.hisse_adi}:`, error.response?.data || error.message);
     return null;
   }
 }

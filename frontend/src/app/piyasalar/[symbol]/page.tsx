@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import SymbolLogo from "@/components/SymbolLogo";
 import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink } from 'lucide-react';
 // import { BrainCircuit, Activity, BarChart3, Waves, Info } from 'lucide-react'; // New icons commented out
+import { getCachedValue, setCachedValue } from '@/lib/inMemoryTTLCache';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
@@ -13,6 +14,7 @@ export default function IndexDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const symbol = params.symbol as string;
+  const CACHE_TTL_MS = 60_000;
   
   const [mounted, setMounted] = useState(false);
   const [indexData, setIndexData] = useState<any>(null);
@@ -77,11 +79,19 @@ export default function IndexDetailsPage() {
     const fetchKap = async () => {
       setKapLoading(true);
       try {
-        const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
-        const data = await res.json();
-        if (data.success) {
-          setKapDisclosures(data.data || []);
+        const kapCacheKey = `piyasalar:detail:kap:${symbol}`;
+        let kapData: any[] = [];
+        const cachedKap = getCachedValue<any[]>(kapCacheKey);
+        if (cachedKap !== undefined) kapData = cachedKap;
+        if (!kapData.length) {
+          const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+          if (res.ok) {
+            const data = await res.json();
+            kapData = data?.data || [];
+            setCachedValue(kapCacheKey, kapData, { ttlMs: CACHE_TTL_MS });
+          }
         }
+        setKapDisclosures(kapData);
       } catch (err) {
         console.error('KAP fetch error:', err);
       } finally {
@@ -93,11 +103,19 @@ export default function IndexDetailsPage() {
     const fetchNews = async () => {
       setNewsLoading(true);
       try {
-        const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
-        if (res.ok) {
-          const data = await res.json();
-          setNews(data || []);
+        const newsCacheKey = `piyasalar:detail:news:${symbol}`;
+        let newsData: any[] = [];
+        const cachedNews = getCachedValue<any[]>(newsCacheKey);
+        if (cachedNews !== undefined) newsData = cachedNews;
+        if (!newsData.length) {
+          const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+          if (res.ok) {
+            const data = await res.json();
+            newsData = data || [];
+            setCachedValue(newsCacheKey, newsData, { ttlMs: CACHE_TTL_MS });
+          }
         }
+        setNews(newsData);
       } catch (err) {
         console.error('News fetch error:', err);
       } finally {
@@ -125,20 +143,38 @@ export default function IndexDetailsPage() {
 
   const displayedComponents = filteredComponents.slice(0, visibleCount);
 
-  const fetchData = async (isRangeChange = false) => {
+  const fetchData = async (isRangeChange = false, forceRefresh = false) => {
     if (isRangeChange) setChartLoading(true);
     else setLoading(true);
     try {
-      const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&interval=${timeRange.interval}`);
-      const indexInfo = await indexRes.json();
+      const indexCacheKey = `piyasalar:detail:index:${symbol}:${timeRange.id}:${timeRange.interval}`;
+      let indexInfo: any = undefined;
+      if (!forceRefresh) {
+        indexInfo = getCachedValue<any>(indexCacheKey);
+      }
+      if (!indexInfo) {
+        const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&interval=${timeRange.interval}`);
+        indexInfo = await indexRes.json();
+        setCachedValue(indexCacheKey, indexInfo, { ttlMs: CACHE_TTL_MS });
+      }
       setIndexData(indexInfo);
 
       if (!isRangeChange || components.length === 0) {
-        const compRes = await fetch(`${API_URL}/stocks/${symbol}/components`);
-        if (compRes.ok) {
-          const compData = await compRes.json();
-          setComponents(compData);
+        const componentCacheKey = `piyasalar:detail:components:${symbol}`;
+        let compData: any[] = [];
+        if (!forceRefresh) {
+          const cachedComponents = getCachedValue<any[]>(componentCacheKey);
+          if (cachedComponents !== undefined) compData = cachedComponents;
         }
+        if (!compData.length) {
+          const compRes = await fetch(`${API_URL}/stocks/${symbol}/components`);
+          if (compRes.ok) {
+            const fetchedComponents = await compRes.json();
+            compData = fetchedComponents || [];
+            setCachedValue(componentCacheKey, compData, { ttlMs: CACHE_TTL_MS });
+          }
+        }
+        setComponents(compData);
       }
       
       setLastUpdated(new Date().toLocaleTimeString('tr-TR'));
@@ -163,6 +199,42 @@ export default function IndexDetailsPage() {
   const currentDisplayPrice = hoveredValue || indexData?.price;
   // const tech = analysisData?.indicators;
   // const aiReport = analysisData?.analysis;
+  const defaultNewsImage = 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=600&h=360';
+  const toUnixSeconds = (value: any) => {
+    if (!value) return Math.floor(Date.now() / 1000);
+    if (typeof value === 'number') return value > 1000000000000 ? Math.floor(value / 1000) : value;
+    const parsed = new Date(value).getTime();
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : Math.floor(Date.now() / 1000);
+  };
+  const newsItems = [
+    ...kapDisclosures.map((disclosure) => ({
+      id: `kap-${disclosure.index}`,
+      title: disclosure.subject || disclosure.title || 'KAP Bildirimi',
+      publisher: disclosure.company || 'KAP',
+      link: disclosure.url,
+      providerPublishTime: toUnixSeconds(disclosure.date),
+      thumbnail: defaultNewsImage,
+      content: [disclosure.subject, disclosure.title, disclosure.type].filter(Boolean).join('\n\n'),
+      badge: 'KAP',
+      sourceType: 'kap'
+    })),
+    ...news.map((item) => ({
+      id: `news-${item.id || item.uuid || item.link || item.title}`.replace(/[^a-zA-Z0-9_-]/g, '-'),
+      title: item.title || 'Haber',
+      publisher: item.publisher || 'Haber',
+      link: item.link,
+      providerPublishTime: toUnixSeconds(item.providerPublishTime),
+      thumbnail: item.thumbnail || defaultNewsImage,
+      content: item.content || '',
+      badge: item.publisher === 'KAP' ? 'KAP' : 'HABER',
+      sourceType: item.publisher === 'KAP' ? 'kap-sync' : 'news'
+    }))
+  ].sort((a, b) => b.providerPublishTime - a.providerPublishTime);
+
+  const openNewsItem = (item: any) => {
+    localStorage.setItem(`news_${item.id}`, JSON.stringify(item));
+    router.push(`/haberler/${item.id}`);
+  };
 
   return (
     <div className="min-h-screen bg-[#050505] text-white p-6 md:p-12">
@@ -362,8 +434,56 @@ export default function IndexDetailsPage() {
           </>
         )}
 
+        {/* Haberler ve Bildirimler */}
+        {(!kapLoading && !newsLoading && newsItems.length === 0) ? null : (
+          <div className="mb-16">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight uppercase text-gray-500 italic">Haberler ve Bildirimler</h2>
+                <span className="text-sm text-gray-600 font-bold">
+                  {(kapLoading || newsLoading) ? 'Yukleniyor...' : `${newsItems.length} Kayit`}
+                </span>
+              </div>
+            </div>
+
+            {(kapLoading || newsLoading) ? (
+              <div className="flex items-center justify-center py-12 bg-white/5 border border-white/5 rounded-[2rem]">
+                <RefreshCw className="animate-spin text-neon-purple/50" size={32} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {newsItems.slice(0, 12).map((item, idx) => (
+                  <button
+                    key={`${item.id}-${idx}`}
+                    type="button"
+                    onClick={() => openNewsItem(item)}
+                    className="text-left bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 hover:border-neon-purple/30 transition-all group"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 grayscale group-hover:grayscale-0 transition-all bg-white/5">
+                        <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] font-black text-neon-purple uppercase tracking-widest">{item.badge}</span>
+                          <span className="text-[10px] text-gray-600 font-bold">
+                            {new Date(item.providerPublishTime * 1000).toLocaleDateString('tr-TR')}
+                          </span>
+                        </div>
+                        <h4 className="font-black text-white line-clamp-2 group-hover:text-neon-purple transition-colors">{item.title}</h4>
+                        <p className="text-xs text-gray-500 font-bold mt-2 truncate">{item.publisher}</p>
+                      </div>
+                      <ExternalLink size={16} className="text-gray-600 group-hover:text-neon-purple transition-colors shrink-0" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* KAP Bildirimleri Section */}
-        {(!kapLoading && kapDisclosures.length === 0) ? null : (
+        {true ? null : (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -408,7 +528,7 @@ export default function IndexDetailsPage() {
         )}
 
         {/* News Section */}
-        {(!newsLoading && news.length === 0) ? null : (
+        {true ? null : (
           <div className="mb-16">
             <h2 className="text-2xl font-black tracking-tight uppercase text-gray-500 italic mb-6">Haber Akışı</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

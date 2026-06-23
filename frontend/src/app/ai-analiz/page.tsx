@@ -32,6 +32,31 @@ interface AnalysisResult {
     rsi: number;
     total: number;
   };
+  quant?: {
+    modelVersion: string;
+    decision: string;
+    probability: number;
+    confidence: number;
+    opportunityScore: number;
+    riskScore: number;
+    expectedAlpha20d: number;
+    regime: string;
+    factorScores: {
+      trend: number;
+      momentum: number;
+      volume: number;
+      meanReversion: number;
+      relativeStrength: number;
+      riskAdjusted: number;
+    };
+    diagnostics: {
+      relativeReturn20d: number;
+      volumeRatio20d: number;
+      atrPercent: number;
+      maxDrawdown20d: number;
+    };
+    reasons: string[];
+  };
   deepseek?: {
     karar: "GÜÇLÜ_AL" | "AL" | "BEKLE" | "SAT";
     olasilik_yuzdesi: number;
@@ -48,7 +73,6 @@ export default function AiAnalizPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [search, setSearch] = useState('');
   const [lastUpdate, setLastUpdate] = useState<number>(0);
-  const [sortBy, setSortBy] = useState<'total' | 'change' | 'deepseek'>('total');
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
@@ -76,13 +100,18 @@ export default function AiAnalizPage() {
 
   const filteredData = data
     .filter(item => item.symbol.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      if (sortBy === 'total') return b.scores.total - a.scores.total;
+    .sort((a, b) => (b.quant?.opportunityScore ?? b.scores.total) - (a.quant?.opportunityScore ?? a.scores.total));
+
+  /*
+      if (sortBy === 'total') return (b.quant?.opportunityScore ?? b.scores.total) - (a.quant?.opportunityScore ?? a.scores.total);
       if (sortBy === 'change') return b.changePercent - a.changePercent;
       if (sortBy === 'deepseek') {
         const getDecisionWeight = (item: any) => {
-          if (!item.deepseek) return 0;
-          const k = item.deepseek.karar;
+          const k = String(item.deepseek?.karar || item.quant?.decision || '');
+          if (k === 'GUCLU_AL') return 4;
+          if (k === 'KADEMELI_AL') return 3;
+          if (k === 'IZLE') return 2;
+          if (k === 'AZALT') return 1;
           if (k === 'GÜÇLÜ_AL' || k === 'AL') return 3;
           if (k === 'BEKLE') return 2;
           if (k === 'SAT') return 1;
@@ -106,10 +135,37 @@ export default function AiAnalizPage() {
       return 0;
     });
 
+  */
+
   const getScoreColor = (score: number) => {
     if (score >= 70) return 'text-emerald-400';
     if (score >= 40) return 'text-amber-400';
     return 'text-rose-400';
+  };
+
+  const getDecisionLabel = (decision?: string) => {
+    const value = String(decision || '');
+    if (value === 'GUCLU_AL') return 'GUCLU AL';
+    if (value === 'KADEMELI_AL') return 'KADEMELI AL';
+    if (value === 'IZLE') return 'IZLE';
+    if (value === 'AZALT') return 'AZALT';
+    if (value === 'BEKLE') return 'IZLE';
+    return value || '--';
+  };
+
+  const getRegimeLabel = (regime?: string) => {
+    if (regime === 'BULL_TREND') return 'Trend Pozitif';
+    if (regime === 'RISK_OFF') return 'Risk-Off';
+    if (regime === 'VOLATILE') return 'Volatil';
+    if (regime === 'RANGE') return 'Yatay';
+    return '--';
+  };
+
+  const getDecisionColor = (decision?: string) => {
+    const value = String(decision || '');
+    if (value.includes('AL')) return 'text-emerald-400';
+    if (value === 'AZALT' || value === 'SAT') return 'text-rose-400';
+    return 'text-amber-400';
   };
 
   return (
@@ -134,7 +190,7 @@ export default function AiAnalizPage() {
               <div className="p-2 rounded-lg bg-neon-purple/10 border border-neon-purple/20">
                 <Brain size={24} />
               </div>
-              <span className="font-bold tracking-widest uppercase text-sm">AI Strateji Merkezi</span>
+              <span className="font-bold tracking-widest uppercase text-sm">Quant Strateji Merkezi</span>
               {isUpdating && (
                 <div className="flex items-center gap-2 ml-4 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-bold animate-pulse">
                   <RefreshCw size={10} className="animate-spin" />
@@ -147,10 +203,10 @@ export default function AiAnalizPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-5xl font-black tracking-tight"
             >
-              BIST 100 <span className="text-gray-500">Teknik Analiz</span>
+              BIST 100 <span className="text-gray-500">Rejim Bazli Model</span>
             </motion.h1>
             <p className="text-gray-400 max-w-xl">
-              10 farklı teknik indikatör ve özel skorlama algoritması ile BIST 100 hisselerinin anlık analizi.
+              Rejim, relatif guc, momentum, hacim ve risk katmanlariyla BIST 100 hisselerinin olasilikli analizi.
             </p>
           </div>
 
@@ -171,8 +227,8 @@ export default function AiAnalizPage() {
         </div>
 
         {/* Toolbar Section */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-grow">
+        <div className="mb-8">
+          <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
             <input 
               type="text" 
@@ -183,13 +239,13 @@ export default function AiAnalizPage() {
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="hidden">
             {(['total', 'change', 'deepseek'] as const).map((type) => (
               <button
                 key={type}
-                onClick={() => setSortBy(type)}
+                onClick={() => undefined}
                 className={`px-6 py-4 rounded-2xl border font-bold text-sm transition-all ${
-                  sortBy === type 
+                  false
                     ? 'bg-neon-purple border-neon-purple text-white shadow-[0_0_20px_rgba(139,0,232,0.3)]' 
                     : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
                 }`}
@@ -238,12 +294,29 @@ export default function AiAnalizPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-4xl font-black ${getScoreColor(item.scores.total)}`}>
-                        {Math.round(item.scores.total)}
+                      <div className={`text-4xl font-black ${getScoreColor(item.quant?.opportunityScore ?? item.scores.total)}`}>
+                        {Math.round(item.quant?.opportunityScore ?? item.scores.total)}
                       </div>
-                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">AL SKORU</div>
+                      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">FIRSAT</div>
                     </div>
                   </div>
+
+                  {item.quant && (
+                    <div className="grid grid-cols-3 gap-2 mb-6">
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                        <div className="text-[9px] font-black text-gray-500 uppercase">Olasilik</div>
+                        <div className="text-sm font-black text-cyan-300">%{item.quant.probability}</div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                        <div className="text-[9px] font-black text-gray-500 uppercase">Risk</div>
+                        <div className={getScoreColor(100 - item.quant.riskScore)}>{item.quant.riskScore}</div>
+                      </div>
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                        <div className="text-[9px] font-black text-gray-500 uppercase">Rejim</div>
+                        <div className="text-xs font-black text-gray-200">{getRegimeLabel(item.quant.regime)}</div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Indicator Grid */}
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6">
@@ -276,13 +349,10 @@ export default function AiAnalizPage() {
                           <span className="text-xs font-black uppercase tracking-widest">DeepSeek Quant V4</span>
                         </div>
                         <div className="flex flex-col items-end">
-                          <span className={`text-base font-black tracking-tight ${
-                            item.deepseek.karar.includes('AL') ? 'text-emerald-400' : 
-                            item.deepseek.karar === 'SAT' ? 'text-rose-400' : 'text-amber-400'
-                          }`}>
-                            {item.deepseek.karar}
+                          <span className={`text-base font-black tracking-tight ${getDecisionColor(item.deepseek.karar)}`}>
+                            {getDecisionLabel(item.deepseek.karar)}
                           </span>
-                          <span className="text-[11px] text-blue-300 font-black">GÜVEN: %{item.deepseek.olasilik_yuzdesi}</span>
+                          <span className="text-[11px] text-blue-300 font-black">GUVEN: %{item.quant?.confidence ?? item.deepseek.olasilik_yuzdesi}</span>
                         </div>
                       </div>
                       

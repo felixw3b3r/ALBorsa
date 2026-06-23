@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+
 export default function HalkaArzDetailPage() {
   const { symbol } = useParams();
   const router = useRouter();
@@ -18,16 +20,21 @@ export default function HalkaArzDetailPage() {
 
   useEffect(() => {
     setMounted(true);
-    fetch(`http://127.0.0.1:5000/api/halkaarz/${symbol}`)
-      .then(res => res.json())
-      .then(d => {
+    if (!symbol) return;
+
+    const loadData = async () => {
+      try {
+        const res = await fetch(`${API_URL}/halkaarz/${symbol}`);
+        const d = await res.json();
         setData(d);
-        setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error(err);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
   }, [symbol]);
 
   if (!mounted) return null;

@@ -13,6 +13,15 @@ export default function NewsDetailPage() {
   const [loadingContent, setLoadingContent] = useState(true);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+  const defaultNewsImage = 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=1200&h=700';
+  const getPublishDate = (value: any) => {
+    if (!value) return new Date();
+    if (typeof value === 'number') {
+      return new Date(value > 1000000000000 ? value : value * 1000);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
 
   useEffect(() => {
     const storedNews = localStorage.getItem(`news_${params.id}`);
@@ -22,8 +31,11 @@ export default function NewsDetailPage() {
       if (item.content) {
         setContent(item.content);
         setLoadingContent(false);
-      } else {
+      } else if (item.link) {
         fetchContent(item.link);
+      } else {
+        setContent('Bu bildirim icin detay metni bulunamadi.');
+        setLoadingContent(false);
       }
     }
   }, [params.id]);
@@ -57,7 +69,7 @@ export default function NewsDetailPage() {
           initial={{ scale: 1.2, opacity: 0 }}
           animate={{ scale: 1, opacity: 0.6 }}
           transition={{ duration: 1.5 }}
-          src={newsItem.thumbnail} 
+          src={newsItem.thumbnail || defaultNewsImage} 
           alt={newsItem.title} 
           className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000"
         />
@@ -87,7 +99,7 @@ export default function NewsDetailPage() {
             transition={{ delay: 0.5 }}
           >
             <span className="inline-block px-3 py-1 bg-neon-purple/20 border border-neon-purple/30 text-neon-purple text-[10px] font-black uppercase tracking-[0.2em] rounded-md mb-6">
-              {newsItem.publisher} • ÖZEL HABER
+              {newsItem.publisher} - {newsItem.badge || 'HABER'}
             </span>
             <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-tight mb-8">
               {newsItem.title}
@@ -95,7 +107,7 @@ export default function NewsDetailPage() {
             <div className="flex flex-wrap items-center gap-6 text-gray-400 text-xs font-bold uppercase tracking-widest">
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-neon-purple" />
-                <span>Yayınlanma: {new Date(newsItem.providerPublishTime * 1000).toLocaleString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                <span>Yayınlanma: {getPublishDate(newsItem.providerPublishTime).toLocaleString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <div className="flex items-center gap-2">
                 <User size={16} className="text-neon-purple" />
@@ -135,6 +147,7 @@ export default function NewsDetailPage() {
                   Bu makale aslen <strong>{newsItem.publisher}</strong> tarafından yayınlanmıştır. ALBorsa, veriyi doğruluğunu koruyarak kullanıcılarına sunmaktadır.
                 </p>
                 
+                {newsItem.link && (
                 <a 
                   href={newsItem.link} 
                   target="_blank" 
@@ -144,6 +157,7 @@ export default function NewsDetailPage() {
                   Orijinal Kaynağa Git
                   <ExternalLink size={18} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </a>
+                )}
               </div>
             </>
           )}

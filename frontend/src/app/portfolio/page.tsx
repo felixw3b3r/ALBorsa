@@ -19,6 +19,118 @@ const BIST100_STOCKS = [
   "TTRAK", "TUKAS", "TUPRS", "ULKER", "VAKBN", "VESBE", "VESTL", "YEOTK", "YKBNK", "YYLGD", "ZOREN"
 ].sort();
 
+const BIST_STOCK_NAMES: Record<string, string> = {
+  A1CAP: "A1 Capital Yatırım Menkul Değerler A.Ş.",
+  ACSEL: "Acıpayam Selüloz Sanayi ve Ticaret A.Ş.",
+  ADEL: "Adel Kalemcilik Ticaret ve Sanayi A.Ş.",
+  ADESE: "Adese Gayrimenkul Yatırım A.Ş.",
+  ADGYO: "Adra Gayrimenkul Yatırım Ortaklığı A.Ş.",
+  AEFES: "Anadolu Efes Biracılık ve Malt Sanayii A.Ş.",
+  AGROT: "Agrotech Yüksek Teknoloji ve Agro Ticaret A.Ş.",
+  AKBNK: "Akbank T.A.Ş.",
+  AKCNS: "Akçansa Çimento Sanayi ve Ticaret A.Ş.",
+  AKFGY: "Akfen Gayrimenkul Yatırım Ortaklığı A.Ş.",
+  AKFYE: "Akfen Yenilenebilir Enerji A.Ş.",
+  AKGRT: "Aksigorta A.Ş.",
+  AKSA: "Aksa Akrilik Kimya Sanayii A.Ş.",
+  AKSEN: "Aksa Enerji Üretim A.Ş.",
+  ALARK: "Alarko Holding A.Ş.",
+  ALBRK: "Albaraka Türk Katılım Bankası A.Ş.",
+  ALFAS: "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
+  ANSGR: "Anadolu Anonim Türk Sigorta Şirketi",
+  ARCLK: "Arçelik A.Ş.",
+  ASELS: "Aselsan Elektronik Sanayi ve Ticaret A.Ş.",
+  ASTOR: "Astor Enerji A.Ş.",
+  AVOD: "A.V.O.D. Kurutulmuş Gıda ve Tarım Ürünleri A.Ş.",
+  AYDEM: "Aydem Yenilenebilir Enerji A.Ş.",
+  BAGFS: "Bağfaş Bandırma Gübre Fabrikaları A.Ş.",
+  BERA: "Bera Holding A.Ş.",
+  BIMAS: "BİM Birleşik Mağazalar A.Ş.",
+  BIOEN: "Biotrend Çevre ve Enerji Yatırımları A.Ş.",
+  BOBET: "Boğaziçi Beton Sanayi ve Ticaret A.Ş.",
+  BRISA: "Brisa Bridgestone Sabancı Lastik Sanayi ve Ticaret A.Ş.",
+  BRSAN: "Borusan Birleşik Boru Fabrikaları A.Ş.",
+  BTCIM: "Batıçim Batı Anadolu Çimento Sanayii A.Ş.",
+  BUCIM: "Bursa Çimento Fabrikası A.Ş.",
+  CANTE: "Çan2 Termik A.Ş.",
+  CCOLA: "Coca-Cola İçecek A.Ş.",
+  CEALK: "Reeder Teknoloji Sanayi ve Ticaret A.Ş.",
+  CIMSA: "Çimsa Çimento Sanayi ve Ticaret A.Ş.",
+  CWENE: "CW Enerji Mühendislik Ticaret ve Sanayi A.Ş.",
+  DOAS: "Doğuş Otomotiv Servis ve Ticaret A.Ş.",
+  DOHOL: "Doğan Şirketler Grubu Holding A.Ş.",
+  ECILC: "Eczacıbaşı İlaç Sınai ve Finansal Yatırımlar Sanayi ve Ticaret A.Ş.",
+  ECZYT: "Eczacıbaşı Yatırım Holding Ortaklığı A.Ş.",
+  EGEEN: "Ege Endüstri ve Ticaret A.Ş.",
+  EKGYO: "Emlak Konut Gayrimenkul Yatırım Ortaklığı A.Ş.",
+  ENJSA: "Enerjisa Enerji A.Ş.",
+  ENKAI: "Enka İnşaat ve Sanayi A.Ş.",
+  EREGL: "Ereğli Demir ve Çelik Fabrikaları T.A.Ş.",
+  EUPWR: "Europower Enerji ve Otomasyon Teknolojileri Sanayi Ticaret A.Ş.",
+  FROTO: "Ford Otomotiv Sanayi A.Ş.",
+  GARAN: "Türkiye Garanti Bankası A.Ş.",
+  GENIL: "Gen İlaç ve Sağlık Ürünleri Sanayi ve Ticaret A.Ş.",
+  GESAN: "Girişim Elektrik Taahhüt Ticaret ve Sanayi A.Ş.",
+  GOLTS: "Göltaş Göller Bölgesi Çimento Sanayi ve Ticaret A.Ş.",
+  GSDHO: "GSD Holding A.Ş.",
+  GUBRF: "Gübre Fabrikaları T.A.Ş.",
+  GWIND: "Galata Wind Enerji A.Ş.",
+  HALKB: "Türkiye Halk Bankası A.Ş.",
+  HEKTS: "Hektaş Ticaret T.A.Ş.",
+  IPEKE: "İpek Doğal Enerji Kaynakları Araştırma ve Üretim A.Ş.",
+  ISCTR: "Türkiye İş Bankası A.Ş.",
+  ISGYO: "İş Gayrimenkul Yatırım Ortaklığı A.Ş.",
+  ISMEN: "İş Yatırım Menkul Değerler A.Ş.",
+  IZMDC: "İzmir Demir Çelik Sanayi A.Ş.",
+  KAYSE: "Kayseri Şeker Fabrikası A.Ş.",
+  KBORU: "Kuzey Boru A.Ş.",
+  KCAER: "Kocaer Çelik Sanayi ve Ticaret A.Ş.",
+  KCHOL: "Koç Holding A.Ş.",
+  KENT: "Kent Gıda Maddeleri Sanayii ve Ticaret A.Ş.",
+  KONTR: "Kontrolmatik Teknoloji Enerji ve Mühendislik A.Ş.",
+  KONYA: "Konya Çimento Sanayii A.Ş.",
+  KORDS: "Kordsa Teknik Tekstil A.Ş.",
+  KOZAA: "Koza Anadolu Metal Madencilik İşletmeleri A.Ş.",
+  KOZAL: "Koza Altın İşletmeleri A.Ş.",
+  KRDMD: "Kardemir Karabük Demir Çelik Sanayi ve Ticaret A.Ş.",
+  LMKDC: "Limak Doğu Anadolu Çimento Sanayi ve Ticaret A.Ş.",
+  MAVI: "Mavi Giyim Sanayi ve Ticaret A.Ş.",
+  MGROS: "Migros Ticaret A.Ş.",
+  MIATK: "Mia Teknoloji A.Ş.",
+  NETAS: "Netaş Telekomünikasyon A.Ş.",
+  ODAS: "Odaş Elektrik Üretim Sanayi Ticaret A.Ş.",
+  OTKAR: "Otokar Otomotiv ve Savunma Sanayi A.Ş.",
+  OYAKC: "Oyak Çimento Fabrikaları A.Ş.",
+  PEKGY: "Peker Gayrimenkul Yatırım Ortaklığı A.Ş.",
+  PETKM: "Petkim Petrokimya Holding A.Ş.",
+  PGSUS: "Pegasus Hava Taşımacılığı A.Ş.",
+  QUAGR: "Qua Granite Hayal Yapı ve Ürünleri Sanayi Ticaret A.Ş.",
+  REEDR: "Reeder Teknoloji Sanayi ve Ticaret A.Ş.",
+  SAHOL: "Hacı Ömer Sabancı Holding A.Ş.",
+  SASA: "Sasa Polyester Sanayi A.Ş.",
+  SAYAS: "Say Yenilenebilir Enerji Ekipmanları Sanayi ve Ticaret A.Ş.",
+  SDTTR: "SDT Uzay ve Savunma Teknolojileri A.Ş.",
+  SISE: "Türkiye Şişe ve Cam Fabrikaları A.Ş.",
+  SKBNK: "Şekerbank T.A.Ş.",
+  SMRTG: "Smart Güneş Enerjisi Teknolojileri AR-GE Üretim Sanayi ve Ticaret A.Ş.",
+  SOKM: "Şok Marketler Ticaret A.Ş.",
+  TAVHL: "TAV Havalimanları Holding A.Ş.",
+  TCELL: "Turkcell İletişim Hizmetleri A.Ş.",
+  THYAO: "Türk Hava Yolları Anonim Ortaklığı",
+  TMSN: "Tümosan Motor ve Traktör Sanayi A.Ş.",
+  TOASO: "Tofaş Türk Otomobil Fabrikası A.Ş.",
+  TSKB: "Türkiye Sınai Kalkınma Bankası A.Ş.",
+  TUPRS: "Türkiye Petrol Rafinerileri A.Ş."
+};
+
+const ALL_BIST_STOCKS = Array.from(new Set([...BIST100_STOCKS, ...Object.keys(BIST_STOCK_NAMES)])).sort();
+
+const normalizeSearchText = (value: string) =>
+  value
+    .toLocaleUpperCase('tr-TR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 const NASDAQ500_STOCKS = [
   "A", "AAL", "AAP", "AAPL", "ABBV", "ABC", "ABT", "ACGL", "ACN", "ADAY", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALK", "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APTV", "ARE", "ATO", "ATRC", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP", "AYI", "AZO", "BA", "BAC", "BALL", "BAX", "BBWI", "BBY", "BDX", "BEN", "BF.B", "BG", "BIIB", "BIO", "BK", "BKNG", "BKR", "BLDR", "BLK", "BMY", "BR", "BRK.B", "BRO", "BSX", "BWA", "BX", "BXP", "C", "CAG", "CAH", "CARR", "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CE", "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR", "CI", "CINF", "CL", "CLX", "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS", "CNC", "CNP", "COF", "COO", "COP", "COR", "COST", "CPB", "CPRT", "CPT", "CRL", "CRM", "CRWD", "CSCO", "CSGP", "CSX", "CTAS", "CTLT", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "CZR", "D", "DAL", "DAN", "DAY", "DD", "DE", "DECK", "DFS", "DG", "DGX", "DHI", "DHR", "DIS", "DLR", "DLTR", "DOC", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK", "DVA", "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX", "EG", "EIX", "EL", "ELV", "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX", "EQR", "EQT", "ES", "ESS", "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPD", "EXPE", "EXR", "F", "FANG", "FAST", "FI", "FICO", "FIS", "FITB", "FLT", "FMC", "FOX", "FOXA", "FRT", "FSLR", "FTNT", "FTV", "GD", "GE", "GEV", "GGG", "GILD", "GIS", "GL", "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWRE", "GWW", "HAL", "HAS", "HBAN", "HCA", "HD", "HES", "HIG", "HII", "HLDX", "HOLX", "HON", "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUBB", "HUM", "HWM", "IBM", "ICE", "IDXX", "IEX", "IFF", "ILMN", "INCY", "INTC", "INTU", "INVH", "IP", "IPG", "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT", "JBL", "JCI", "JKHY", "JNJ", "JNPR", "JPM", "K", "KDP", "KEY", "KEYS", "KHC", "KIM", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "KVUE", "L", "LDOS", "LEN", "LH", "LHX", "LIN", "LKQ", "LLY", "LMT", "LNC", "LNT", "LOW", "LRCX", "LULU", "LUV", "LVS", "LW", "LYB", "LYV", "MA", "MAA", "MAR", "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "METC", "MGM", "MHK", "MKC", "MKTX", "MLM", "MMC", "MMM", "MNST", "MO", "MOH", "MOS", "MPC", "MPWR", "MRK", "MRNA", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH", "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP", "NTR", "NTRS", "NUE", "NVDA", "NVR", "NWC", "NWL", "NWS", "NWSA", "NXPI", "O", "ODFL", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS", "OXY", "PANW", "PARA", "PAYC", "PAYX", "PCAR", "PCG", "PEG", "PEP", "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PKI", "PLD", "PM", "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PSA", "PTC", "PWR", "PYPL", "QCOM", "QRVO", "RCL", "RE", "REG", "REGN", "RF", "RHI", "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "RVTY", "SBAC", "SBUX", "SCHW", "SHW", "SIRI", "SITM", "SJM", "SLB", "SMCI", "SNA", "SNPS", "SO", "SPG", "SPGI", "SRE", "STE", "STLD", "STT", "STX", "STZ", "SWK", "SWKS", "SYK", "SYY", "T", "TAP", "TDG", "TDY", "TECH", "TEL", "TER", "TFT", "TFC", "TFX", "TGT", "TJX", "TMO", "TMUS", "TPR", "TRGP", "TRMB", "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT", "TTWO", "TXN", "TXT", "TYL", "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI", "USB", "V", "VICI", "VLO", "VMC", "VRSK", "VRTX", "VTR", "VZ", "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL", "WFC", "WFRD", "WHR", "WM", "WMB", "WMT", "WRB", "WST", "WTW", "WY", "WYNN", "XEL", "XOM", "XRAY", "XYL", "YUM", "ZBH", "ZBRA", "ZTS"
 ].sort();
@@ -34,6 +146,7 @@ export default function PortfolioPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [isManual, setIsManual] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState("BIST 100");
   const [usdRate, setUsdRate] = useState<number>(0);
@@ -48,13 +161,34 @@ export default function PortfolioPage() {
     fetchPortfolio();
     fetchUsdRate();
 
-    // 15 saniyede bir verileri tazele
-    const interval = setInterval(() => {
-      fetchPortfolio();
-    }, 15000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchPortfolio();
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchPortfolio();
+        fetchUsdRate();
+      }
+    };
 
-    return () => clearInterval(interval);
+    const interval = setInterval(refreshWhenVisible, 30000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim().toUpperCase());
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
 
 
   const [newStock, setNewStock] = useState({ 
@@ -65,7 +199,34 @@ export default function PortfolioPage() {
     color: "#00f2ff" 
   });
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+  const API_URL = React.useMemo(() => {
+    const configuredUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
+    if (configuredUrl) {
+      return configuredUrl.endsWith('/') ? configuredUrl.slice(0, -1) : configuredUrl;
+    }
+
+    if (typeof window === 'undefined') {
+      return 'http://localhost:5000/api';
+    }
+
+    const host = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+      ? 'localhost'
+      : window.location.hostname;
+    return `http://${host}:5000/api`;
+  }, []);
+  const suggestionMatches = React.useMemo(() => {
+    if (!showSuggestions) return [];
+    const symbols = selectedMarket === "BIST 100" ? ALL_BIST_STOCKS : NASDAQ500_STOCKS;
+    if (!debouncedSearchTerm) return symbols.slice(0, 20);
+    const search = normalizeSearchText(debouncedSearchTerm);
+    return symbols
+      .filter(symbol => {
+        const name = selectedMarket === "BIST 100" ? BIST_STOCK_NAMES[symbol] || "" : "";
+        return normalizeSearchText(symbol).includes(search) || normalizeSearchText(name).includes(search);
+      })
+      .slice(0, 20);
+  }, [debouncedSearchTerm, selectedMarket, showSuggestions]);
+  const hasSuggestionMatch = suggestionMatches.length > 0;
 
   const handleDeleteStock = async (name: string) => {
     if (!confirm(`${name || 'İsimsiz varlık'} silinsin mi?`)) return;
@@ -225,9 +386,16 @@ export default function PortfolioPage() {
   };
 
   const fetchPortfolio = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setPortfolio([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/portfolio`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       let data = [];
@@ -241,13 +409,16 @@ export default function PortfolioPage() {
       if (data && data.length > 0) {
         const symbols = data.map((p: any) => {
           // BIST 100 listesindeyse sonuna .IS ekle (Yahoo için)
-          if (BIST100_STOCKS.includes(p.name)) return `${p.name}.IS`;
+          if (ALL_BIST_STOCKS.includes(p.name)) return `${p.name}.IS`;
           return p.name;
         });
         fetchLivePrices(symbols);
       }
     } catch (error) {
-      console.error('Fetch error:', error);
+      console.error('Portfolio fetch error:', error);
+      if (error instanceof TypeError) {
+        console.error('API URL veya ağ bağlantısını kontrol edin:', API_URL);
+      }
     } finally {
       setLoading(false);
     }
@@ -329,16 +500,16 @@ export default function PortfolioPage() {
       return code === search || code === `${search}.IS`;
     });
     
-    const isUsdStock = item.name && !item.name.toUpperCase().endsWith('.IS') && !BIST100_STOCKS.includes(item.name.toUpperCase());
-    const isCostInUSD = isUsdStock && item.cost < 1500;
-    const itemCostTL = isCostInUSD ? item.cost * usdRate : item.cost;
+    const normalizedName = (item.name || "").toString().trim().toUpperCase();
+    const isForeignStock = Boolean(normalizedName) && !normalizedName.endsWith('.IS') && !ALL_BIST_STOCKS.includes(normalizedName);
+    const itemCostTL = isForeignStock && usdRate > 0 ? item.cost * usdRate : item.cost;
 
     let currentPrice = itemCostTL;
     
     if (liveStock) {
       let price = liveStock.price;
       // Eğer hisse dolar bazlıysa (NASDAQ vb.), güncel kurla TL'ye çevir
-      if (liveStock.currency === "USD" && usdRate > 0) {
+      if ((liveStock.currency === "USD" || isForeignStock) && usdRate > 0) {
         price = price * usdRate;
       }
       currentPrice = price;
@@ -750,7 +921,7 @@ export default function PortfolioPage() {
                         <div className="text-[10px] text-cyan-400/70 mt-1 font-bold tracking-tight">
                           <span className="opacity-50 font-medium">Son:</span> {(() => {
                             const date = new Date(stock.updatedAt);
-                            const isBist = BIST100_STOCKS.includes(stock.name.toUpperCase()) || stock.name.endsWith('.IS');
+                            const isBist = ALL_BIST_STOCKS.includes(stock.name.toUpperCase()) || stock.name.endsWith('.IS');
                             if (isBist) {
                               date.setMinutes(date.getMinutes() - 15);
                               return `${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} (15dk gecikmeli)`;
@@ -857,10 +1028,7 @@ export default function PortfolioPage() {
                             exit={{ opacity: 0, y: -10 }}
                             className="absolute z-[110] left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-2xl max-h-60 overflow-y-auto shadow-2xl backdrop-blur-xl"
                           >
-                            {(selectedMarket === "BIST 100" ? BIST100_STOCKS : NASDAQ500_STOCKS)
-                              .filter(s => s.includes(searchTerm))
-                              .slice(0, 20) // Performans için ilk 20 sonuç
-                              .map(symbol => (
+                            {suggestionMatches.map(symbol => (
                                 <button
                                   key={symbol}
                                   type="button"
@@ -871,12 +1039,19 @@ export default function PortfolioPage() {
                                   }}
                                   className="w-full text-left px-5 py-3 hover:bg-white/10 transition-colors font-bold flex justify-between items-center"
                                 >
-                                  <span>{symbol}</span>
+                                  <span className="min-w-0">
+                                    <span className="block">{symbol}</span>
+                                    {selectedMarket === "BIST 100" && BIST_STOCK_NAMES[symbol] && (
+                                      <span className="block truncate text-[10px] font-semibold normal-case text-gray-500">
+                                        {BIST_STOCK_NAMES[symbol]}
+                                      </span>
+                                    )}
+                                  </span>
                                   <span className="text-[10px] text-gray-500 uppercase">{selectedMarket}</span>
                                 </button>
                               ))
                             }
-                            {searchTerm && !(selectedMarket === "BIST 100" ? BIST100_STOCKS : NASDAQ500_STOCKS).some(s => s.includes(searchTerm)) && (
+                            {debouncedSearchTerm && !hasSuggestionMatch && (
                               <div className="px-5 py-3 text-gray-500 text-sm italic">Sonuç bulunamadı.</div>
                             )}
                           </motion.div>
@@ -899,12 +1074,12 @@ export default function PortfolioPage() {
                         disabled={fetchingHistorical}
                         className="text-[10px] font-black text-cyan-400 hover:text-white transition-colors uppercase tracking-tighter flex items-center gap-1"
                       >
-                        {fetchingHistorical ? (
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Search className="w-3 h-3" />
-                        )}
-                        {fetchingHistorical ? 'Çekiliyor...' : 'Fiyatı Getir'}
+                        <span className="relative inline-flex w-3 h-3 shrink-0 items-center justify-center">
+                          <Search className={`absolute w-3 h-3 transition-opacity ${fetchingHistorical ? 'opacity-0' : 'opacity-100'}`} />
+                          <RefreshCw className={`absolute w-3 h-3 transition-opacity ${fetchingHistorical ? 'opacity-100 animate-spin' : 'opacity-0'}`} />
+                        </span>
+                        <span className={fetchingHistorical ? 'hidden' : 'inline'}>Fiyatı Getir</span>
+                        <span className={fetchingHistorical ? 'inline' : 'hidden'}>Çekiliyor...</span>
                       </button>
                     </div>
                     <input type="number" step="any" value={newStock.cost} onChange={(e) => setNewStock({...newStock, cost: parseFloat(e.target.value) || 0})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg" required />
@@ -956,12 +1131,12 @@ export default function PortfolioPage() {
                         disabled={fetchingHistorical}
                         className="text-[10px] font-black text-neon-purple hover:text-white transition-colors uppercase tracking-tighter flex items-center gap-1"
                       >
-                        {fetchingHistorical ? (
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Search className="w-3 h-3" />
-                        )}
-                        {fetchingHistorical ? 'Çekiliyor...' : 'Fiyatı Getir'}
+                        <span className="relative inline-flex w-3 h-3 shrink-0 items-center justify-center">
+                          <Search className={`absolute w-3 h-3 transition-opacity ${fetchingHistorical ? 'opacity-0' : 'opacity-100'}`} />
+                          <RefreshCw className={`absolute w-3 h-3 transition-opacity ${fetchingHistorical ? 'opacity-100 animate-spin' : 'opacity-0'}`} />
+                        </span>
+                        <span className={fetchingHistorical ? 'hidden' : 'inline'}>Fiyatı Getir</span>
+                        <span className={fetchingHistorical ? 'inline' : 'hidden'}>Çekiliyor...</span>
                       </button>
                     </div>
                     <input type="number" step="any" value={editingStock.cost} onChange={(e) => setEditingStock({...editingStock, cost: parseFloat(e.target.value) || 0})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg" />

@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import SymbolLogo from "@/components/SymbolLogo";
 import { TrendingUp, TrendingDown, RefreshCw, Activity, Search, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getCachedValue, setCachedValue } from '@/lib/inMemoryTTLCache';
 
 const MARKET_TICKERS = [
   { symbol: "XU100.IS", name: "BIST 100", category: "Borsa İstanbul" },
@@ -395,8 +396,19 @@ export default function PiyasalarPage() {
   const [userToken, setUserToken] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+  const CACHE_TTL_MS = 60_000;
 
-  const fetchPortfolioIndex = async (token: string) => {
+  const fetchPortfolioIndex = async (token: string, forceRefresh = false) => {
+    const cacheKey = `piyasalar:portfolioIndex:${token}`;
+    if (!forceRefresh) {
+      const cachedPortfolioIndex = getCachedValue<any>(cacheKey);
+      if (cachedPortfolioIndex !== undefined) {
+        setPortfolioIndex(cachedPortfolioIndex);
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const portRes = await fetch(`${API_URL}/portfolio`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -452,7 +464,7 @@ export default function PiyasalarPage() {
       // History'yi backend'den al (sparkline için)
       const sparkHistory = histData?.history || [];
 
-      setPortfolioIndex({
+      const generatedPortfolioIndex = {
         symbol: "PORTFOY",
         name: "Portföy Endeksi",
         category: "Portföyüm",
@@ -460,19 +472,65 @@ export default function PiyasalarPage() {
         change: dailyChange,
         changePercent: dailyChangePercent,
         history: histData?.history || []
-      });
+      };
+
+      setPortfolioIndex(generatedPortfolioIndex);
+      setCachedValue(cacheKey, generatedPortfolioIndex, { ttlMs: CACHE_TTL_MS });
     } catch (err) {
       console.error('Portfolio index error:', err);
       setPortfolioIndex(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchMarkets = async () => {
+  const fetchMarkets = async (forceRefresh = false) => {
+    const cacheKey = "piyasalar:market-summary";
+    if (!forceRefresh) {
+      const cachedSummary = getCachedValue<any[]>(cacheKey);
+      if (cachedSummary !== undefined) {
+        const usdData = cachedSummary.find((d: any) => d.symbol === "USDTRY=X") || { price: 32.5 };
+        const onsData = cachedSummary.find((d: any) => d.symbol === "GC=F") || { price: 2350, changePercent: 0, history: [] };
+
+        const cachedResults = MARKET_TICKERS.map(ticker => {
+          if (ticker.symbol === "GRAM_ALTIN") {
+            const gramPrice = (onsData.price / 31.1035) * usdData.price;
+            return {
+              ...ticker,
+              price: gramPrice,
+              changePercent: onsData.changePercent,
+              change: (gramPrice * onsData.changePercent) / 100,
+              history: (onsData.history || []).map((p: number) => (p / 31.1035) * usdData.price)
+            };
+          }
+          if (ticker.symbol === "CEYREK_ALTIN") {
+            const gramPrice = (onsData.price / 31.1035) * usdData.price;
+            return {
+              ...ticker,
+              price: gramPrice * 1.6065,
+              changePercent: onsData.changePercent,
+              change: (gramPrice * 1.6065 * onsData.changePercent) / 100,
+              history: (onsData.history || []).map((p: number) => (p / 31.1035) * usdData.price * 1.6065)
+            };
+          }
+
+          const liveData = cachedSummary.find((d: any) => d.symbol === ticker.symbol);
+          return { ...ticker, ...liveData };
+        });
+
+        setMarketData(cachedResults);
+        setLastUpdate(new Date());
+        setLoading(false);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
       const res = await fetch(`${API_URL}/market-summary`);
       const summaryData = await res.json();
+      setCachedValue(cacheKey, summaryData, { ttlMs: CACHE_TTL_MS });
 
       const usdData = summaryData.find((d: any) => d.symbol === "USDTRY=X") || { price: 32.5 };
       const onsData = summaryData.find((d: any) => d.symbol === "GC=F") || { price: 2350, changePercent: 0, history: [] };
@@ -516,14 +574,21 @@ export default function PiyasalarPage() {
     }
   };
 
+  const refreshAllData = async (forceRefresh = false, tokenOverride?: string | null) => {
+    await fetchMarkets(forceRefresh);
+    const activeToken = tokenOverride ?? userToken;
+    if (activeToken) {
+      await fetchPortfolioIndex(activeToken, forceRefresh);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     const token = localStorage.getItem('token');
     setUserToken(token);
-    fetchMarkets().then(() => {
-      if (token) fetchPortfolioIndex(token);
-    });
-    const interval = setInterval(fetchMarkets, 60000);
+    const runRefresh = () => refreshAllData(false, token);
+    runRefresh().then(() => {});
+    const interval = setInterval(runRefresh, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -555,7 +620,7 @@ export default function PiyasalarPage() {
               <p className="text-xs font-bold text-gray-300">{lastUpdate.toLocaleTimeString()}</p>
             </div>
             <button 
-              onClick={fetchMarkets}
+              onClick={() => refreshAllData(true)}
               disabled={loading}
               className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all group disabled:opacity-50"
             >

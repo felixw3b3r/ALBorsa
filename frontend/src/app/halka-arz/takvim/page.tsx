@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { 
+import {
   Calendar, ChevronRight, ChevronDown, ChevronUp,
   Clock, Ticket, Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from 'next/link';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
 export default function IPOTakvimPage() {
   const [ipoList, setIpoList] = useState<any[]>([]);
@@ -14,7 +16,7 @@ export default function IPOTakvimPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/api/halkaarz')
+    fetch(`${API_URL}/halkaarz`)
       .then(res => res.json())
       .then(data => {
         setIpoList(data);

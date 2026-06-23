@@ -6,31 +6,69 @@ import axios from 'axios';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createClient } from 'redis';
-import { GoogleGenAI } from '@google/genai';
-import { ensureDisclosuresLoaded, getCachedDisclosures, getDisclosuresByStock, getLastFetchTime } from './services/kapService';
-import { INDEX_COMPONENTS } from './utils/constants';
+import {
+  downloadFinancialReportAttachments,
+  downloadFinancialReportAttachmentsBySymbol,
+  ensureDisclosuresLoaded,
+  fetchFinancialReportAttachments,
+  fetchFinancialReportsBySymbol,
+  getCachedDisclosures,
+  getDisclosuresByStock,
+  getLastFetchTime,
+  syncFinancialReportAttachmentsBySymbol
+} from './services/kapService';
 import { updateBist100Analysis, getBist100Analysis } from './services/analysisService';
+import {
+  backfillDailyBars,
+  buildFeatureSnapshots,
+  generateTrainingLabels,
+  getModelDataReadiness,
+  getModelDataStatus,
+  runModelDataPipeline,
+  runQuantBacktest,
+  scoreNewsEvents,
+  syncMacroSeries
+} from './services/modelDataPipeline';
 
 // ... rest of imports
 import apiRouter from './routes/api';
 
 dotenv.config();
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy' });
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  const message = '[AUTH] JWT_SECRET tanimli degil.';
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(`${message} Production ortaminda guvenli JWT_SECRET zorunludur.`);
+  }
+  console.warn(`${message} Gelistirme ortami icin gecici secret kullaniliyor.`);
+}
+const AUTH_SECRET = JWT_SECRET || 'dev_only_jwt_secret_change_me';
+
+let genAI: any = null;
+
+async function getGeminiClient() {
+  if (!genAI) {
+    const { GoogleGenAI } = await import('@google/genai');
+    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy' });
+  }
+  return genAI;
+}
 
 async function translateToTurkish(text: string): Promise<string> {
   if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy') return text;
   if (!text || text.length < 5) return text;
-  
+
   try {
     const prompt = `Sen profesyonel bir finans ve borsa editörüsün. Aşağıdaki İngilizce finans haberini borsa terminolojisine uygun, akıcı bir Türkçeye yerelleştir. Sadece çeviriyi döndür, yorum yapma:\n\n${text}`;
-    
+
     // Projedeki mevcut SDK kullanımına sadık kalıyoruz
-    const result = await genAI.models.generateContent({
+    const client = await getGeminiClient();
+    const result = await client.models.generateContent({
       model: 'gemini-2.5-pro',
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
-    
+
     const resultText = (result.text as any) || '';
     return resultText.trim();
   } catch (error: any) {
@@ -50,9 +88,9 @@ function startMemoryWatchdog() {
   const CHECK_INTERVAL = 15000; // 15 saniyede bir kontrol
   setInterval(() => {
     const used = process.memoryUsage();
-    const heapUsedMB  = Math.round(used.heapUsed  / 1024 / 1024);
+    const heapUsedMB = Math.round(used.heapUsed / 1024 / 1024);
     const heapTotalMB = Math.round(used.heapTotal / 1024 / 1024);
-    const rssM        = Math.round(used.rss       / 1024 / 1024);
+    const rssM = Math.round(used.rss / 1024 / 1024);
     const MAX_HEAP_MB = 1536; // NODE_OPTIONS'daki max-old-space-size
     const pct = (heapUsedMB / MAX_HEAP_MB) * 100;
 
@@ -83,7 +121,10 @@ process.on('unhandledRejection', (reason: any) => {
 // 3. Yahoo Finance Eşzamanlılık Sınırı — Maksimum 3 paralel ağır çağrı
 // (Bu olmadan market-summary 14 eşzamanlı chart() çağrısı açabiliyordu)
 let _yahooActiveRequests = 0;
-const YAHOO_MAX_CONCURRENT = 1; // 1 yapılarak API işlemleri tamamen sıraya alındı (yavaşlatıldı)
+const parsedYahooMaxConcurrent = Number(process.env.YAHOO_MAX_CONCURRENT || 3);
+const YAHOO_MAX_CONCURRENT = Number.isFinite(parsedYahooMaxConcurrent)
+  ? Math.max(1, Math.min(5, Math.floor(parsedYahooMaxConcurrent)))
+  : 3;
 const _yahooQueue: Array<() => void> = [];
 
 function yahooSlot(): Promise<() => void> {
@@ -160,14 +201,16 @@ mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('✅ MongoDB connected successfully');
     // Eski çakışan index'i temizle (E11000 hatasını çözmek için)
-    try {
-      const db = mongoose.connection.db;
-      if (db) {
-        await db.collection('portfolios').dropIndex('name_1');
-        console.log('🗑️ Eski "name_1" index\'i başarıyla temizlendi.');
+    if (process.env.CLEANUP_LEGACY_PORTFOLIO_INDEX === 'true') {
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          await db.collection('portfolios').dropIndex('name_1');
+          console.log('[MONGO] Legacy "name_1" portfolio index temizlendi.');
+        }
+      } catch (e: any) {
+        console.warn('[MONGO] Legacy portfolio index temizleme atlandi:', e?.message || e);
       }
-    } catch (e) {
-      // Index zaten yoksa veya silinmişse sessizce devam et
     }
   })
   .catch((err) => console.error('❌ MongoDB connection error:', err));
@@ -175,6 +218,68 @@ mongoose.connect(MONGODB_URI)
 import yahooFinance from 'yahoo-finance2';
 // yahoo-finance2 v3 requires initialization with `new YahooFinance()`
 export const yf = new (yahooFinance as any)({ suppressNotices: ['yahooSurvey'] });
+
+const EXCHANGE_RATE_SYMBOLS = ['USDTRY=X', 'EURTRY=X', 'GBPTRY=X'];
+const EXCHANGE_RATE_NAMES: Record<string, string> = {
+  USD: 'Amerikan Dolari',
+  EUR: 'Euro',
+  GBP: 'Ingiliz Sterlini'
+};
+let BIST_SYMBOL_SET = new Set<string>();
+
+function normalizeSymbol(value: string | undefined | null): string {
+  return (value || '').toString().trim().toUpperCase();
+}
+
+function isBistPortfolioSymbol(symbol: string | undefined | null): boolean {
+  const normalized = normalizeSymbol(symbol);
+  return BIST_SYMBOL_SET.has(normalized) || normalized.endsWith('.IS');
+}
+
+function toYahooPortfolioSymbol(symbol: string | undefined | null): string {
+  const normalized = normalizeSymbol(symbol);
+  if (normalized.endsWith('.IS')) return normalized;
+  return isBistPortfolioSymbol(normalized) ? `${normalized}.IS` : normalized;
+}
+
+function isForeignPortfolioSymbol(yahooSymbol: string): boolean {
+  const normalized = normalizeSymbol(yahooSymbol);
+  return normalized !== '' && !normalized.endsWith('.IS') && !normalized.endsWith('TRY=X');
+}
+
+function portfolioCostInTry(item: any, yahooSymbol: string, usdRate: number): number {
+  const cost = Number(item?.cost || 0);
+  return isForeignPortfolioSymbol(yahooSymbol) ? cost * usdRate : cost;
+}
+
+function currencyCodeFromYahooSymbol(symbol: string): string {
+  const normalized = normalizeSymbol(symbol);
+  const match = normalized.match(/^([A-Z]{3})TRY=X$/);
+  return match ? match[1] : normalized.slice(0, 3);
+}
+
+function parsePositiveIntEnv(name: string, fallback: number, min: number, max: number): number {
+  const parsed = Number(process.env[name]);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex++;
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 // User Schema & Model
 const userSchema = new mongoose.Schema({
@@ -191,7 +296,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
   if (!token) return res.status(401).json({ message: 'Yetkisiz erişim. Lütfen giriş yapın.' });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
+    const decoded = jwt.verify(token, AUTH_SECRET) as any;
     req.user = decoded;
     next();
   } catch (error) {
@@ -209,9 +314,12 @@ app.get('/api/stocks', authMiddleware, async (req, res) => {
     }
 
     const rawSymbols = symbolsQuery.split(',');
-    const yahooSymbols = rawSymbols.map(s => s.trim().toUpperCase());
+    const yahooSymbols = rawSymbols.map(s => toYahooPortfolioSymbol(s)).filter(Boolean);
+    if (yahooSymbols.length === 0) {
+      return res.json({ success: true, result: [] });
+    }
 
-    const quotes: any = await (yf as any).quote(yahooSymbols);
+    const quotes: any = await withYahooSlot(() => (yf as any).quote(yahooSymbols));
     const result = (Array.isArray(quotes) ? quotes : [quotes]).map((q: any) => ({
       code: q.symbol,
       name: q.shortName || q.longName || q.symbol,
@@ -253,11 +361,11 @@ app.get('/api/yahoo', authMiddleware, async (req, res) => {
 
     const symbols = symbolsQuery.split(',').map(s => s.trim().toUpperCase());
     console.log(`📈 Fetching Yahoo Finance data for: ${symbols.join(', ')}`);
-    
+
     // Yahoo Finance API'sinden çoklu fiyat sorgusu
     const quotes: any = await (yf as any).quote(symbols);
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
-    
+
     // Gelen veriyi frontend'in daha kolay okuyabileceği sade bir formata çevirelim
     const result = quotesArray.map((q: any) => ({
       code: q.symbol,
@@ -283,7 +391,7 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
     }
 
     let yahooSymbol = (symbol as string).toUpperCase();
-    
+
     // Market bazlı sembol formatlama
     if (market === "BIST 100" && !yahooSymbol.includes('.')) {
       yahooSymbol = `${yahooSymbol}.IS`;
@@ -299,34 +407,34 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
 
     const queryDate = new Date(date as string);
     queryDate.setHours(23, 59, 59, 999);
-    
+
     const today = new Date();
     const isUsdStock = !yahooSymbol.endsWith('.IS') && !yahooSymbol.endsWith('TRY=X');
-    
+
     // Eğer sorgulanan tarih bugün veya gelecekteyse, doğrudan güncel fiyatı dön
     if (new Date(date as string) >= new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
-       try {
-         const quote: any = await (yf as any).quote(yahooSymbol);
-         let price = quote.regularMarketPrice || quote.price;
-         if (isUsdStock && price) {
-           let usdRate = 32.5;
-           try {
-             const usdQuote: any = await (yf as any).quote('USDTRY=X');
-             usdRate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
-           } catch (e) { usdRate = 32.5; }
-           price = price * usdRate;
-         }
-         return res.json({ success: true, price: price, date: new Date(), isLive: true });
-       } catch (e) {
-         // Quote başarısız olursa historical'a devam et
-       }
+      try {
+        const quote: any = await (yf as any).quote(yahooSymbol);
+        let price = quote.regularMarketPrice || quote.price;
+        if (isUsdStock && price) {
+          let usdRate = 32.5;
+          try {
+            const usdQuote: any = await (yf as any).quote('USDTRY=X');
+            usdRate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
+          } catch (e) { usdRate = 32.5; }
+          price = price * usdRate;
+        }
+        return res.json({ success: true, price: price, date: new Date(), isLive: true });
+      } catch (e) {
+        // Quote başarısız olursa historical'a devam et
+      }
     }
 
     const fromDate = new Date(queryDate);
     fromDate.setDate(fromDate.getDate() - 10); // 10 günlük pencere (Sizin tercihiniz, ideal süre)
-    
+
     const toDate = new Date(queryDate);
-    toDate.setDate(toDate.getDate() + 2); 
+    toDate.setDate(toDate.getDate() + 2);
 
     // Fetch USDTRY rate for historical date if it is USD stock
     let usdRateOnDate = 32.5;
@@ -379,9 +487,9 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
         const rowDate = new Date(r.date);
         return rowDate.getTime() <= queryDate.getTime();
       }).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
+
       const dayData = validResults[0] || validQuotes[validQuotes.length - 1];
-      
+
       if (!dayData) {
         console.error(`❌ No valid day data found for ${yahooSymbol}`);
         return res.status(404).json({ success: false, message: 'Veri bulunamadı' });
@@ -389,9 +497,9 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
 
       // Fiyat Seçici
       const rawPrice = dayData.close || dayData.open || dayData.high || dayData.low;
-      
+
       if (!rawPrice) {
-         return res.status(404).json({ success: false, message: 'Fiyat seçilemedi' });
+        return res.status(404).json({ success: false, message: 'Fiyat seçilemedi' });
       }
 
       let finalPrice = rawPrice;
@@ -400,13 +508,13 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
       }
 
       console.log(`  ✅ Bulunan Fiyat (TL): ${finalPrice.toFixed(4)} (Orijinal: ${rawPrice.toFixed(4)} USD, ${new Date(dayData.date).toLocaleDateString('tr-TR')} - Kur: ${usdRateOnDate})\n`);
-      res.json({ 
-        success: true, 
-        price: finalPrice, 
+      res.json({
+        success: true,
+        price: finalPrice,
         rawPrice: rawPrice,
         usdRate: usdRateOnDate,
-        date: dayData.date, 
-        currency: isUsdStock ? 'USD' : 'TRY' 
+        date: dayData.date,
+        currency: isUsdStock ? 'USD' : 'TRY'
       });
     } else {
       res.status(404).json({ success: false, message: 'O tarih için veri bulunamadı. (Borsa kapalı olabilir)' });
@@ -421,31 +529,31 @@ app.get('/api/historical', authMiddleware, async (req, res) => {
 app.get('/api/exchange-rate', authMiddleware, async (req, res) => {
   const t0 = Date.now();
   try {
-    const symbols = ['USDTRY=X', 'EURTRY=X', 'GBPTRY=X'];
-    
+    const symbols = EXCHANGE_RATE_SYMBOLS;
+
     // Anlık veri çek
-    const quotes: any = await (yf as any).quote(symbols);
+    const quotes: any = await withYahooSlot(() => (yf as any).quote(symbols));
     const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
-    
+
     const result = quotesArray.map((q: any) => {
-      const code = q.symbol.substring(0, 3);
+      const code = currencyCodeFromYahooSymbol(q.symbol);
       // Fiyat için birden fazla kaynağı dene (Yahoo bazen birini boş dönerse diğeri kurtarır)
       const price = q.regularMarketPrice || q.price || q.bid || q.ask || q.regularMarketPreviousClose || 0;
-      
+
       return {
-        name: code === 'USD' ? 'Amerikan Doları' : (code === 'EUR' ? 'Euro' : 'İngiliz Sterlini'),
+        name: EXCHANGE_RATE_NAMES[code] || code,
         code: code,
         buying: price,
         selling: price,
         updatedAt: new Date()
       };
     });
-    
+
     // Eğer hepsi 0 ise bir de chart ile dene (Son Çare)
     const allZero = result.every(r => r.buying === 0);
     if (allZero) {
-       console.log('⚠️ Quote prices were 0, trying fallback with chart API...');
-       // Burada gerekirse chart API eklenebilir ama yukarıdaki fallbackler genelde yeterlidir.
+      console.log('⚠️ Quote prices were 0, trying fallback with chart API...');
+      // Burada gerekirse chart API eklenebilir ama yukarıdaki fallbackler genelde yeterlidir.
     }
 
     res.json({ success: true, result });
@@ -462,7 +570,7 @@ app.get('/api/crypto', authMiddleware, async (req, res) => {
     const response = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', {
       timeout: 5000
     });
-    
+
     if (response.data && response.data.price) {
       // Frontend'in beklediği veri yapısını taklit ediyoruz (kod değişikliği gerekmesin diye)
       res.json({
@@ -543,6 +651,7 @@ const Portfolio = mongoose.model('Portfolio', portfolioSchema);
 const newsSchema = new mongoose.Schema({
   uuid: { type: String, required: true, unique: true },
   symbol: { type: String, required: true },
+  symbols: [{ type: String }],
   title: { type: String, required: true },
   publisher: { type: String },
   link: { type: String },
@@ -551,7 +660,152 @@ const newsSchema = new mongoose.Schema({
   content: { type: String }, // Tam metin
 }, { timestamps: true });
 newsSchema.index({ symbol: 1, providerPublishTime: -1 });
+newsSchema.index({ symbols: 1, providerPublishTime: -1 });
 const NewsArticle = mongoose.model('NewsArticle', newsSchema);
+
+const kapFinancialReportSchema = new mongoose.Schema({
+  disclosureIndex: { type: Number, required: true, unique: true },
+  symbol: { type: String, required: true },
+  stockCodes: [{ type: String }],
+  companyTitle: String,
+  subject: String,
+  summary: String,
+  disclosureClass: String,
+  disclosureType: String,
+  publishDate: Date,
+  periodYear: Number,
+  periodQuarter: Number,
+  attachmentCount: { type: Number, default: 0 },
+  attachments: [{
+    title: String,
+    fileName: String,
+    url: String,
+    kind: String,
+    extension: String
+  }],
+  attachmentFetchedAt: Date,
+  detailUrl: String,
+  parseStatus: { type: String, default: 'pending' },
+  raw: { type: Object }
+}, { timestamps: true });
+kapFinancialReportSchema.index({ stockCodes: 1, publishDate: -1 });
+kapFinancialReportSchema.index({ symbol: 1, periodYear: -1, periodQuarter: -1 });
+const KapFinancialReport = mongoose.model('KapFinancialReport', kapFinancialReportSchema);
+
+const kapAttachmentFileSchema = new mongoose.Schema({
+  disclosureIndex: { type: Number, required: true },
+  attachmentUrl: { type: String, required: true },
+  url: String,
+  title: String,
+  fileName: String,
+  kind: String,
+  extension: String,
+  contentType: String,
+  sizeBytes: Number,
+  sha256: String,
+  storagePath: String,
+  downloadedAt: Date,
+  parseStatus: { type: String, default: 'downloaded' }
+}, { timestamps: true });
+kapAttachmentFileSchema.index({ disclosureIndex: 1, attachmentUrl: 1 }, { unique: true });
+kapAttachmentFileSchema.index({ sha256: 1 });
+const KapAttachmentFile = mongoose.model('KapAttachmentFile', kapAttachmentFileSchema);
+
+const dailyBarSchema = new mongoose.Schema({
+  symbol: { type: String, required: true },
+  date: { type: String, required: true },
+  timestamp: { type: Date, required: true },
+  open: { type: Number, required: true },
+  high: { type: Number, required: true },
+  low: { type: Number, required: true },
+  close: { type: Number, required: true },
+  adjustedClose: { type: Number },
+  volume: { type: Number, default: 0 },
+  source: { type: String, default: 'yahoo' }
+}, { timestamps: true });
+dailyBarSchema.index({ symbol: 1, date: 1 }, { unique: true });
+dailyBarSchema.index({ date: 1 });
+const DailyBar = mongoose.model('DailyBar', dailyBarSchema);
+
+const featureSnapshotSchema = new mongoose.Schema({
+  symbol: { type: String, required: true },
+  date: { type: String, required: true },
+  modelVersion: { type: String, required: true },
+  price: { type: Number, required: true },
+  volume: { type: Number, default: 0 },
+  indicators: { type: Object },
+  factorScores: { type: Object },
+  diagnostics: { type: Object },
+  quant: { type: Object },
+  decision: { type: String, required: true },
+  probability: { type: Number, required: true },
+  opportunityScore: { type: Number, required: true },
+  riskScore: { type: Number, required: true },
+  regime: { type: String, required: true }
+}, { timestamps: true });
+featureSnapshotSchema.index({ symbol: 1, date: 1, modelVersion: 1 }, { unique: true });
+featureSnapshotSchema.index({ date: 1, opportunityScore: -1 });
+const FeatureSnapshot = mongoose.model('FeatureSnapshot', featureSnapshotSchema);
+
+const trainingLabelSchema = new mongoose.Schema({
+  symbol: { type: String, required: true },
+  date: { type: String, required: true },
+  horizon: { type: Number, required: true },
+  forwardReturn5d: Number,
+  forwardReturn20d: Number,
+  forwardReturn60d: Number,
+  indexReturn20d: Number,
+  relativeReturn20d: Number,
+  maxDrawdown20d: Number,
+  outperformLabel: Boolean,
+  positiveReturnLabel: Boolean
+}, { timestamps: true });
+trainingLabelSchema.index({ symbol: 1, date: 1, horizon: 1 }, { unique: true });
+trainingLabelSchema.index({ date: 1, horizon: 1 });
+const TrainingLabel = mongoose.model('TrainingLabel', trainingLabelSchema);
+
+const backtestResultSchema = new mongoose.Schema({
+  symbol: { type: String, required: true },
+  date: { type: String, required: true },
+  modelVersion: { type: String, required: true },
+  horizon: { type: Number, required: true },
+  decision: String,
+  probability: Number,
+  opportunityScore: Number,
+  riskScore: Number,
+  forwardReturn20d: Number,
+  relativeReturn20d: Number,
+  maxDrawdown20d: Number,
+  hit: Boolean
+}, { timestamps: true });
+backtestResultSchema.index({ symbol: 1, date: 1, modelVersion: 1, horizon: 1 }, { unique: true });
+backtestResultSchema.index({ modelVersion: 1, date: 1 });
+const BacktestResult = mongoose.model('BacktestResult', backtestResultSchema);
+
+const macroSeriesSchema = new mongoose.Schema({
+  source: { type: String, required: true },
+  code: { type: String, required: true },
+  date: { type: String, required: true },
+  value: { type: Number, required: true },
+  raw: { type: Object }
+}, { timestamps: true });
+macroSeriesSchema.index({ source: 1, code: 1, date: 1 }, { unique: true });
+const MacroSeries = mongoose.model('MacroSeries', macroSeriesSchema);
+
+const newsEventScoreSchema = new mongoose.Schema({
+  articleUuid: { type: String, required: true, unique: true },
+  symbol: { type: String },
+  symbols: [{ type: String }],
+  publishedAt: Date,
+  title: String,
+  source: String,
+  eventType: String,
+  impactScore: Number,
+  sentimentScore: Number
+}, { timestamps: true });
+newsEventScoreSchema.index({ symbol: 1, publishedAt: -1 });
+newsEventScoreSchema.index({ eventType: 1, impactScore: -1 });
+const NewsEventScore = mongoose.model('NewsEventScore', newsEventScoreSchema);
 
 app.get('/api/stocks/:symbol', async (req, res) => {
   try {
@@ -561,7 +815,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     // Sembolü hazırla: Eğer nokta, şapka veya tire yoksa ve 4+ karakterse .IS ekle (Altın sembolleri hariç)
     let formattedSymbol = symbol.toUpperCase();
     const isSpecialGold = ['GRAM_ALTIN', 'CEYREK_ALTIN'].includes(formattedSymbol);
-    
+
     if (!isSpecialGold && !formattedSymbol.includes('.') && !formattedSymbol.startsWith('^') && !formattedSymbol.includes('-') && formattedSymbol.length >= 4) {
       formattedSymbol = `${formattedSymbol}.IS`;
     }
@@ -574,7 +828,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     if (!isGlobal) {
       period1.setHours(0, 0, 0, 0); // BIST için gün başından başla
     }
-    
+
     // Küçük harfe çevirip kontrol et
     const r = range.toLowerCase();
 
@@ -589,28 +843,28 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     if (binanceSymbol) {
       try {
         const binanceConfig: Record<string, { interval: string; limit: number }> = {
-          '1g': { interval: '15m', limit: 96 },  '1d': { interval: '15m', limit: 96 },
-          '2g': { interval: '30m', limit: 96 },  '3g': { interval: '1h',  limit: 72 },
-          '1h': { interval: '1h',  limit: 168 }, '1w': { interval: '1h',  limit: 168 },
-          '1a': { interval: '2h',  limit: 360 }, '1m': { interval: '2h',  limit: 360 },
-          '3a': { interval: '1d',  limit: 90 },  '3m': { interval: '1d',  limit: 90 },
-          '1y': { interval: '1d',  limit: 365 }, '1s': { interval: '1d',  limit: 365 },
+          '1g': { interval: '15m', limit: 96 }, '1d': { interval: '15m', limit: 96 },
+          '2g': { interval: '30m', limit: 96 }, '3g': { interval: '1h', limit: 72 },
+          '1h': { interval: '1h', limit: 168 }, '1w': { interval: '1h', limit: 168 },
+          '1a': { interval: '2h', limit: 360 }, '1m': { interval: '2h', limit: 360 },
+          '3a': { interval: '1d', limit: 90 }, '3m': { interval: '1d', limit: 90 },
+          '1y': { interval: '1d', limit: 365 }, '1s': { interval: '1d', limit: 365 },
         };
         const cfg = binanceConfig[r] || { interval: '15m', limit: 96 };
-        
+
         const klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${cfg.interval}&limit=${cfg.limit}`;
         const klinesRes = await axios.get(klinesUrl, { timeout: 8000 });
         const klines = klinesRes.data;
         const history: number[] = klines.map((k: any[]) => parseFloat(k[4]));
         const timestamps: number[] = klines.map((k: any[]) => k[0]);
-        
+
         const tickerRes = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, { timeout: 5000 });
         const ticker = tickerRes.data;
         const price = parseFloat(ticker.lastPrice);
         const change = parseFloat(ticker.priceChange);
         const changePercent = parseFloat(ticker.priceChangePercent);
         const displayName = { 'BTC-USD': 'Bitcoin', 'ETH-USD': 'Ethereum', 'BNB-USD': 'BNB', 'SOL-USD': 'Solana', 'XRP-USD': 'XRP', 'DOGE-USD': 'Dogecoin' }[formattedSymbol] || formattedSymbol;
-        
+
         console.log(`✅ Binance Klines: ${binanceSymbol} ${cfg.interval} × ${history.length} bars`);
         return res.json({ symbol: formattedSymbol, name: displayName, price, change, changePercent, category: 'Kripto Paralar', history, timestamps });
       } catch (binanceErr: any) {
@@ -627,7 +881,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       period1.setDate(period1.getDate() - 9); // 7 gün + 2 gün tampon (hafta sonu koruması)
     } else if (r === '1m' || r === '1a') {
       // 1 Ay: Hassasiyeti 1d'den 1h'ye çıkararak çok daha akıcı bir grafik sağlıyoruz
-      intervalVal = '1h'; 
+      intervalVal = '1h';
       period1.setMonth(period1.getMonth() - 1);
     } else if (r === '3m' || r === '3a') {
       // 3 Ay: Hassasiyeti 1d'den 1h'ye çıkararak 2 katından fazla detay sağlıyoruz
@@ -644,10 +898,10 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       try {
         const usdData: any = await (yf as any).quote('USDTRY=X');
         const onsData: any = await (yf as any).chart('GC=F', { period1, interval: intervalVal }, { validateResult: false });
-        
+
         const usdPrice = usdData.regularMarketPrice || 32.5;
         let onsQuotes = (onsData.quotes || []).filter((q: any) => q.close != null);
-        
+
         // STRICT ROLLING FILTER (Gram/Çeyrek için de son 24/48/72 saat kesimi)
         if (isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && onsQuotes.length > 0) {
           const now = new Date();
@@ -679,15 +933,15 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     // Dinamik Sembol ve Hassasiyet Avcısı: Yahoo bazen nazlanır
     let chart: any = null;
     let quotes: any[] = [];
-    
+
     // Denenecek semboller ve hassasiyetler
     const symbolVariants = [formattedSymbol];
     if (!formattedSymbol.startsWith('^')) symbolVariants.push(`^${formattedSymbol.replace('.IS', '')}`);
     if (formattedSymbol.endsWith('.IS')) symbolVariants.push(formattedSymbol.replace('.IS', ''));
 
     // ÖNCELİKLİ HASSASİYET: 1G, 2G veya 3G ise önce yüksek frekans dene
-    const intervalsToTry = (r === '1d' || r === '1g' || r === '2g' || r === '3g') 
-      ? ['15m', '5m', '2m', '1h', '1d'] 
+    const intervalsToTry = (r === '1d' || r === '1g' || r === '2g' || r === '3g')
+      ? ['15m', '5m', '2m', '1h', '1d']
       : [intervalVal, '1h', '1d'];
 
     // Önce en iyi sembol ve en iyi hassasiyeti dene, olmazsa kademeli düşür
@@ -695,13 +949,13 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       for (const inv of intervalsToTry) {
         try {
           // KRİTİK: v3'te doğrulamayı kapatmak için 'validateResult: false' kullanılır.
-          const attempt: any = await (yf as any).chart(variant, { 
+          const attempt: any = await (yf as any).chart(variant, {
             period1: period1,
             interval: inv
-          }, { validateResult: false }); 
-          
+          }, { validateResult: false });
+
           const attemptQuotes = (attempt.quotes || []).filter((q: any) => q.close != null);
-          
+
           if (attemptQuotes.length > 0) {
             chart = attempt;
             quotes = attemptQuotes;
@@ -713,16 +967,16 @@ app.get('/api/stocks/:symbol', async (req, res) => {
         }
       }
     }
-    
+
     // GENEL FALLBACK: Hala veri yoksa geniş aralığı dene
     if (quotes.length === 0) {
       console.log(`⚠️ No data found for ${formattedSymbol}, trying broad fallback...`);
       const fallbackDate = new Date();
       fallbackDate.setFullYear(fallbackDate.getFullYear() - 2);
-      
+
       // KRİTİK: BIST (.IS) için 1d yerine 1h kullan (1d sadece 1 quote döndürüyor)
       const fallbackIntervals = formattedSymbol.endsWith('.IS') ? ['1h', '1d'] : ['1d'];
-      
+
       outerFallback: for (const variant of symbolVariants) {
         for (const fallbackInterval of fallbackIntervals) {
           try {
@@ -759,7 +1013,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
       //    Bu sayede "bugün kapalı → dünün datasını göster" mantığı çalışır.
       let dayOffset = 0;
       const minBarsThreshold = 5; // En az 5 bar (yaklaşık 75dk işlem) olan günü "geçerli" say
-      
+
       while (dayOffset < uniqueDays.length) {
         const candidateDay = uniqueDays[dayOffset];
         const barsInDay = quotes.filter((q: any) => {
@@ -767,7 +1021,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
           d.setHours(0, 0, 0, 0);
           return d.getTime() === candidateDay;
         }).length;
-        
+
         if (barsInDay >= minBarsThreshold) {
           break; // Bu gün yeterince veri var, buradan başla
         }
@@ -776,7 +1030,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 
       // 4. Sadece hedef günlerin barlarını tut
       const targetDays = uniqueDays.slice(dayOffset, dayOffset + daysToKeep);
-      
+
       if (targetDays.length > 0) {
         quotes = quotes.filter((q: any) => {
           const d = new Date(q.date);
@@ -813,14 +1067,14 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 
     // BAŞARILI SEMBOLÜ KULLAN: Grafik hangi sembolle geldiyse fiyatı da ondan iste (BIST 100 mantığı)
     const activeSymbol = (chart && chart.meta && chart.meta.symbol) || formattedSymbol;
-    
+
     let liveQuote: any = {};
     try {
       liveQuote = await (yf as any).quote(activeSymbol);
     } catch (e) {
       console.warn(`Quote fetch failed for ${activeSymbol}, using empty fallback.`);
     }
-    
+
     // Kullanıcı Dostu İsimlendirme (Süper Temiz Görünüm)
     const nameMap: Record<string, string> = {
       'GC=F': 'ONS Altın',
@@ -850,6 +1104,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 // Hisseye Özel Haberler (Yahoo Finance & DB)
 app.get('/api/stocks/:symbol/news', async (req, res) => {
   try {
+    const legacyYahooNewsEnabled = process.env.ENABLE_LEGACY_YAHOO_NEWS === 'true';
     const { symbol } = req.params;
     const formattedSymbol = symbol.includes('.') || symbol.startsWith('^') || symbol.includes('-')
       ? symbol.toUpperCase()
@@ -857,7 +1112,12 @@ app.get('/api/stocks/:symbol/news', async (req, res) => {
 
     // 1. Önce veritabanına bak (Hem .IS'li hem .IS'siz ara)
     const searchSymbols = [formattedSymbol, formattedSymbol.replace('.IS', '')];
-    const dbNews = await NewsArticle.find({ symbol: { $in: searchSymbols } })
+    const dbNews = await NewsArticle.find({
+      $or: [
+        { symbol: { $in: searchSymbols } },
+        { symbols: { $in: searchSymbols } }
+      ]
+    })
       .sort({ providerPublishTime: -1 })
       .limit(10);
 
@@ -877,13 +1137,17 @@ app.get('/api/stocks/:symbol/news', async (req, res) => {
     }
 
     // 2. Eğer veritabanında yoksa fallback (canlı çekim, ama içeriksiz)
+    if (!legacyYahooNewsEnabled) {
+      return res.json([]);
+    }
+
     const liveQuote: any = await (yf as any).quote(formattedSymbol);
     const searchQuery = liveQuote.shortName || liveQuote.longName || formattedSymbol;
 
     console.log(`📰 Fetching LIVE news fallback for ${searchQuery} (${formattedSymbol})`);
-    
+
     const result: any = await (yf as any).search(searchQuery, { newsCount: 10 });
-    
+
     const news = (result.news || []).map((item: any) => ({
       id: item.uuid,
       title: item.title,
@@ -910,20 +1174,20 @@ app.get('/api/news/content', async (req, res) => {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
     });
     const html = await response.text();
-    
+
     // Improved Article Extraction
     const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/);
     const targetHtml = articleMatch ? articleMatch[1] : html;
-    
+
     const paragraphs = targetHtml.match(/<p[^>]*>(.*?)<\/p>/g) || [];
     const content = paragraphs
       .map(p => p.replace(/<[^>]*>/g, '')
-                 .replace(/&quot;/g, '"')
-                 .replace(/&#39;/g, "'")
-                 .replace(/&amp;/g, '&')
-                 .replace(/&lt;/g, '<')
-                 .replace(/&gt;/g, '>')
-                 .trim())
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim())
       .filter(p => p.length > 50 && !p.includes('Oops, something went wrong'))
       .slice(0, 20)
       .join('\n\n');
@@ -995,34 +1259,189 @@ app.get('/api/stocks/:symbol/kap', async (req, res) => {
 
 // Endeks Bileşenlerini Getir (Batch Fetching)
 // Endeks Bileşenleri (BIST 100 - Tam Liste ve Sıralı)
+app.get('/api/kap/financial-reports/:symbol', async (req, res) => {
+  const start = Date.now();
+  try {
+    const { symbol } = req.params;
+    const upper = symbol.toUpperCase().replace('.IS', '');
+    const refresh = req.query.refresh === 'true';
+    const pageSize = Number(req.query.pageSize || 100);
+    const maxPages = Number(req.query.maxPages || 3);
+
+    const reports = await fetchFinancialReportsBySymbol(upper, {
+      refresh,
+      pageSize: Number.isFinite(pageSize) ? pageSize : 100,
+      maxPages: Number.isFinite(maxPages) ? maxPages : 3
+    });
+
+    res.json({
+      success: true,
+      symbol: upper,
+      count: reports.length,
+      elapsedMs: Date.now() - start,
+      source: refresh ? 'kap-refresh' : 'mongo-cache-or-kap',
+      data: reports.map((report: any) => ({
+        disclosureIndex: report.disclosureIndex,
+        companyTitle: report.companyTitle,
+        subject: report.subject,
+        summary: report.summary,
+        publishDate: report.publishDate,
+        periodYear: report.periodYear,
+        periodQuarter: report.periodQuarter,
+        attachmentCount: report.attachmentCount,
+        parseStatus: report.parseStatus || 'pending',
+        detailUrl: report.detailUrl,
+        stockCodes: report.stockCodes
+      }))
+    });
+  } catch (error: any) {
+    console.error('[KAP] Financial report fetch error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'KAP finansal raporlari cekilemedi.',
+      error: error.message,
+      elapsedMs: Date.now() - start
+    });
+  }
+});
+
+app.get('/api/kap/financial-reports/:symbol/sync-attachments', async (req, res) => {
+  const start = Date.now();
+  try {
+    const { symbol } = req.params;
+    const limit = Number(req.query.limit || 10);
+    const refresh = req.query.refresh === 'true';
+    const result = await syncFinancialReportAttachmentsBySymbol(symbol, {
+      limit: Number.isFinite(limit) ? limit : 10,
+      refresh
+    });
+
+    res.json({
+      success: true,
+      elapsedMs: Date.now() - start,
+      result
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'KAP finansal rapor ekleri senkronize edilemedi.',
+      error: error.message,
+      elapsedMs: Date.now() - start
+    });
+  }
+});
+
+app.get('/api/kap/financial-reports/:symbol/:disclosureIndex/attachments', async (req, res) => {
+  const start = Date.now();
+  try {
+    const disclosureIndex = Number(req.params.disclosureIndex);
+    if (!Number.isFinite(disclosureIndex)) {
+      return res.status(400).json({ success: false, message: 'Gecerli disclosureIndex gerekli.' });
+    }
+
+    const attachments = await fetchFinancialReportAttachments(disclosureIndex, {
+      refresh: req.query.refresh === 'true'
+    });
+
+    res.json({
+      success: true,
+      symbol: req.params.symbol.toUpperCase().replace('.IS', ''),
+      disclosureIndex,
+      count: attachments.length,
+      elapsedMs: Date.now() - start,
+      data: attachments
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'KAP finansal rapor ekleri cekilemedi.',
+      error: error.message,
+      elapsedMs: Date.now() - start
+    });
+  }
+});
+
+app.post('/api/kap/financial-reports/:symbol/download-attachments', async (req, res) => {
+  const start = Date.now();
+  try {
+    const limit = Number(req.query.limit || req.body?.limit || 10);
+    const refresh = req.query.refresh === 'true' || req.body?.refresh === true;
+    const result = await downloadFinancialReportAttachmentsBySymbol(req.params.symbol, {
+      limit: Number.isFinite(limit) ? limit : 10,
+      refresh
+    });
+
+    res.json({
+      success: true,
+      elapsedMs: Date.now() - start,
+      result
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'KAP finansal rapor ekleri indirilemedi.',
+      error: error.message,
+      elapsedMs: Date.now() - start
+    });
+  }
+});
+
+app.post('/api/kap/financial-reports/:symbol/:disclosureIndex/download-attachments', async (req, res) => {
+  const start = Date.now();
+  try {
+    const disclosureIndex = Number(req.params.disclosureIndex);
+    if (!Number.isFinite(disclosureIndex)) {
+      return res.status(400).json({ success: false, message: 'Gecerli disclosureIndex gerekli.' });
+    }
+
+    const result = await downloadFinancialReportAttachments(disclosureIndex, {
+      refresh: req.query.refresh === 'true' || req.body?.refresh === true
+    });
+
+    res.json({
+      success: true,
+      symbol: req.params.symbol.toUpperCase().replace('.IS', ''),
+      elapsedMs: Date.now() - start,
+      result
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: 'KAP finansal rapor eki indirilemedi.',
+      error: error.message,
+      elapsedMs: Date.now() - start
+    });
+  }
+});
+
 const INDEX_COMPONENTS: { [key: string]: string[] } = {
   'XU100.IS': [
     'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
     'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
     'EFOR.IS', 'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TKFEN.IS', 'ODAS.IS', 'AKSEN.IS', 'AEFES.IS', 'MGROS.IS',
-    'TTKOM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'KOZAL.IS', 'KOZAA.IS', 'IPEKE.IS', 'OTKAR.IS',
+    'TTKOM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'OTKAR.IS',
     'ALARK.IS', 'MAVI.IS', 'CCOLA.IS', 'ULKER.IS', 'GUBRF.IS', 'AGHOL.IS', 'DOAS.IS', 'ZOREN.IS', 'BERA.IS', 'TURSG.IS',
     'SKBNK.IS', 'TSKB.IS', 'VESTL.IS', 'KARSN.IS', 'EGEEN.IS', 'OYAKC.IS', 'KORDS.IS', 'ALBRK.IS', 'BRISA.IS', 'LOGO.IS',
     'QUAGR.IS', 'ASUZU.IS', 'GENIL.IS', 'CWENE.IS', 'ALFAS.IS', 'SDTTR.IS', 'MIATK.IS', 'REEDR.IS', 'SAYAS.IS', 'EUPWR.IS',
     'GESAN.IS', 'SMRTG.IS', 'BRYAT.IS', 'CANTE.IS', 'AKFGY.IS', 'KAYSE.IS', 'ENERY.IS', 'TATEN.IS', 'EBEBK.IS', 'TABGD.IS',
-    'VAKFN.IS', 'IZMDC.IS', 'KTSPR.IS', 'BTCIM.IS', 'OYYAT.IS', 'KFEIN.IS', 'ARDYZ.IS', 'FORMT.IS', 'QNBFB.IS', 'BVSAN.IS',
-    'MHRGY.IS', 'BORLS.IS', 'BHRGY.IS', 'AVPGY.IS', 'SURGY.IS', 'MEGMT.IS', 'LMKDC.IS', 'MOGAN.IS', 'ENTRA.IS', 'KOTON.IS',
-    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'KUZAY.IS', 'LKMNH.IS', 'PKENT.IS'
+    'VAKFN.IS', 'IZMDC.IS', 'BTCIM.IS', 'OYYAT.IS', 'KFEIN.IS', 'ARDYZ.IS', 'FORMT.IS', 'BVSAN.IS',
+    'MHRGY.IS', 'BORLS.IS', 'AVPGY.IS', 'SURGY.IS', 'MEGMT.IS', 'LMKDC.IS', 'MOGAN.IS', 'ENTRA.IS', 'KOTON.IS',
+    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'LKMNH.IS', 'PKENT.IS'
   ],
   'XU050.IS': [
     'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
     'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
     'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TKFEN.IS', 'ODAS.IS', 'AKSEN.IS', 'AEFES.IS', 'MGROS.IS', 'TTKOM.IS',
-    'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'KOZAL.IS', 'KOZAA.IS', 'IPEKE.IS', 'OTKAR.IS', 'ALARK.IS',
+    'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'DOHOL.IS', 'SOKM.IS', 'OTKAR.IS', 'ALARK.IS',
     'MAVI.IS', 'CCOLA.IS', 'ULKER.IS', 'GUBRF.IS', 'AGHOL.IS', 'DOAS.IS', 'ZOREN.IS', 'BERA.IS', 'TURSG.IS', 'SKBNK.IS'
   ],
   'XU030.IS': [
     'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
     'ASELS.IS', 'SISE.IS', 'FROTO.IS', 'SASA.IS', 'HEKTS.IS', 'ARCLK.IS', 'TOASO.IS', 'ASTOR.IS', 'KONTR.IS', 'YEOTK.IS',
-    'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'KOZAL.IS', 'ALARK.IS', 'GUBRF.IS'
+    'ENKAI.IS', 'PGSUS.IS', 'KARDM.IS', 'PETKM.IS', 'TCELL.IS', 'HALKB.IS', 'VAKBN.IS', 'ALARK.IS', 'GUBRF.IS'
   ],
   'XBANK.IS': [
-    'AKBNK.IS', 'GARAN.IS', 'ISCTR.IS', 'YKBNK.IS', 'VAKBN.IS', 'HALKB.IS', 'ALBRK.IS', 'SKBNK.IS', 'TSKB.IS', 'QNBFB.IS',
+    'AKBNK.IS', 'GARAN.IS', 'ISCTR.IS', 'YKBNK.IS', 'VAKBN.IS', 'HALKB.IS', 'ALBRK.IS', 'SKBNK.IS', 'TSKB.IS',
     'VAKFN.IS', 'HALKS.IS', 'KLNMA.IS'
   ],
   'XUTEK.IS': [
@@ -1031,7 +1450,7 @@ const INDEX_COMPONENTS: { [key: string]: string[] } = {
   ],
   '^GSPC': [
     'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'TSLA', 'AMD', 'INTC',
-    'BRK-B', 'LLY', 'AVGO', 'JPM', 'UNH', 'V', 'XOM', 'MA', 'HD', 'PG', 
+    'BRK-B', 'LLY', 'AVGO', 'JPM', 'UNH', 'V', 'XOM', 'MA', 'HD', 'PG',
     'COST', 'JNJ', 'ABBV', 'CRM', 'WMT', 'BAC', 'NFLX', 'CVX', 'KO', 'ADBE',
     'PEP', 'MRK', 'ORCL', 'TMO', 'LIN', 'ACN', 'MCD', 'ABT', 'CSCO', 'DHR',
     'QCOM', 'GE', 'INTU', 'TXN', 'VZ', 'AMAT', 'PFE', 'PM', 'IBM', 'AMGN',
@@ -1060,6 +1479,8 @@ const INDEX_COMPONENTS: { [key: string]: string[] } = {
     'NFLX', 'ADBE', 'AMD', 'PEP', 'TMUS', 'INTU', 'CSCO', 'QCOM', 'AMAT', 'TXN'
   ]
 };
+
+BIST_SYMBOL_SET = new Set((INDEX_COMPONENTS['XU100.IS'] || []).map((symbol: string) => symbol.replace('.IS', '')));
 
 // Market Özeti için Global Cache
 let marketSummaryCache: { data: any, timestamp: number } | null = null;
@@ -1126,7 +1547,7 @@ app.get('/api/market-summary', async (req, res) => {
       try {
         const symbol = quote.symbol;
         let history: number[] = sparkData[symbol] || [];
-        
+
         let price = quote.regularMarketPrice || quote.price || quote.regularMarketPreviousClose || 0;
         let change = quote.regularMarketChange || 0;
         let changePercent = quote.regularMarketChangePercent || 0;
@@ -1135,7 +1556,7 @@ app.get('/api/market-summary', async (req, res) => {
         if ((symbol === 'BTC-USD' || symbol === 'ETH-USD') && history.length > 0) {
           // Mini grafiğin son noktasını anlık canlı fiyatla güncelleyelim ki grafik ve fiyat tam uyuşsun
           history[history.length - 1] = price;
-          
+
           const startPrice = history[0];
           change = price - startPrice;
           changePercent = (change / startPrice) * 100;
@@ -1195,8 +1616,8 @@ async function collectMarketData() {
 
   // BIST Çalışma Saatleri (10:00 - 18:15)
   const isBistOpen = day >= 1 && day <= 5 && (
-    (hour > 10 && hour < 18) || 
-    (hour === 10 && minute >= 0) || 
+    (hour > 10 && hour < 18) ||
+    (hour === 10 && minute >= 0) ||
     (hour === 18 && minute <= 15)
   );
 
@@ -1219,7 +1640,7 @@ async function collectMarketData() {
         await MarketData.findOneAndUpdate(
           { symbol: record.symbol, timestamp: { $gte: new Date(now.getTime() - 5 * 60 * 1000) } }, // Son 5 dk içinde kayıt varsa güncelle
           record,
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
       } catch (err) {
         // Sessizce devam et
@@ -1241,87 +1662,93 @@ setTimeout(collectMarketData, 30000);
 // 🆕 AKILLI KAP VE HABER SENKRONİZASYONU (15 DK)
 // ═══════════════════════════════════════════════════════════════
 
+let isKapSyncRunning = false;
+const KAP_SYNC_MAX_ITEMS = parsePositiveIntEnv('KAP_SYNC_MAX_ITEMS', 20, 1, 50);
+const KAP_TRANSLATION_DELAY_MS = parsePositiveIntEnv('KAP_TRANSLATION_DELAY_MS', 1000, 0, 10000);
+
+function normalizeKapSymbols(stockCodes: string | undefined | null): string[] {
+  const rawCodes = (stockCodes || '')
+    .split(/[;,\s]+/)
+    .map(code => normalizeSymbol(code).replace('.IS', ''))
+    .filter(Boolean);
+
+  const uniqueCodes = Array.from(new Set(rawCodes));
+  if (uniqueCodes.length === 0) return ['BIST'];
+  return uniqueCodes.map(code => code === 'BIST' ? code : `${code}.IS`);
+}
+
 async function syncKapNews() {
-  console.log('🚀 [KAP-SYNC] Yeni bildirimler kontrol ediliyor...');
+  if (isKapSyncRunning) {
+    console.log('[KAP-SYNC] Devam eden senkronizasyon var, yeni tur atlandi.');
+    return;
+  }
+
+  isKapSyncRunning = true;
+  console.log('[KAP-SYNC] Yeni bildirimler kontrol ediliyor...');
+
   try {
     await ensureDisclosuresLoaded();
     const disclosures = getCachedDisclosures();
-    
+
     if (!disclosures || disclosures.length === 0) {
-      console.log('   [KAP-SYNC] Yeni bildirim bulunamadı.');
+      console.log('[KAP-SYNC] Yeni bildirim bulunamadi.');
       return;
     }
 
-    // Sadece son 50 bildirimi kontrol edelim (Performans için)
-    const recentDisclosures = disclosures.slice(0, 50);
+    const recentDisclosures = disclosures.slice(0, KAP_SYNC_MAX_ITEMS);
     let processedCount = 0;
 
-    for (let i = 0; i < recentDisclosures.length; i += 5) {
-      const chunk = recentDisclosures.slice(i, i + 5);
-      
-      for (const item of chunk) {
-        // Zaten var mı kontrolü
-        const exists = await NewsArticle.findOne({ uuid: item.disclosureIndex.toString() });
-        if (exists) continue;
+    for (const item of recentDisclosures) {
+      const uuid = item.disclosureIndex.toString();
+      const exists = await NewsArticle.exists({ uuid });
+      if (exists) continue;
 
-        let sym = item.stockCodes ? item.stockCodes.split(',')[0].trim() : 'BIST';
-        
-        // BIST sembollerine .IS ekle (eşleşme için kritik)
-        if (sym !== 'BIST' && !sym.includes('.') && !sym.includes('-') && !sym.startsWith('^')) {
-          sym = `${sym}.IS`;
+      const symbols = normalizeKapSymbols(item.stockCodes);
+      const primarySymbol = symbols[0] || 'BIST';
+      const rawTitle = `${item.kapTitle} - ${item.subject}`;
+      const rawContent = item.summary || item.subject;
+
+      console.log(`[KAP-SYNC] [${primarySymbol}] Yeni KAP haberi: ${item.kapTitle.substring(0, 40)}...`);
+
+      try {
+        const translatedTitle = await translateToTurkish(rawTitle);
+        const translatedContent = rawContent && rawContent.length > 5
+          ? await translateToTurkish(rawContent)
+          : '';
+
+        await NewsArticle.findOneAndUpdate(
+          { uuid },
+          {
+            symbol: primarySymbol,
+            symbols,
+            title: translatedTitle,
+            publisher: 'KAP',
+            link: `https://www.kap.org.tr/tr/Bildirim/${item.disclosureIndex}`,
+            providerPublishTime: new Date(item.publishDate),
+            thumbnail: 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
+            content: translatedContent
+          },
+          { upsert: true, returnDocument: 'after' }
+        );
+
+        processedCount++;
+        console.log(`[KAP-SYNC] [+] [${symbols.join(', ')}] KAP haberi eklendi: ${translatedTitle.substring(0, 45)}...`);
+
+        if (KAP_TRANSLATION_DELAY_MS > 0) {
+          await new Promise(res => setTimeout(res, KAP_TRANSLATION_DELAY_MS));
         }
-
-        const rawTitle = `${item.kapTitle} - ${item.subject}`;
-        const rawContent = item.summary || item.subject;
-
-        console.log(`   [TR] [${sym}] Yeni KAP Haberi Çevriliyor: ${item.kapTitle.substring(0, 40)}...`);
-
-        try {
-          const translatedTitle = await translateToTurkish(rawTitle);
-          let translatedContent = '';
-          
-          if (rawContent && rawContent.length > 5) {
-            translatedContent = await translateToTurkish(rawContent);
-          }
-
-          // Çeviri başarısız olsa bile (zaten Türkçe ise) kaydet
-          await NewsArticle.findOneAndUpdate(
-            { uuid: item.disclosureIndex.toString() },
-            {
-              symbol: sym,
-              title: translatedTitle,
-              publisher: "KAP",
-              link: `https://www.kap.org.tr/tr/Bildirim/${item.disclosureIndex}`,
-              providerPublishTime: new Date(item.publishDate),
-              thumbnail: 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=300&h=200',
-              content: translatedContent
-            },
-            { upsert: true, new: true }
-          );
-
-          processedCount++;
-          console.log(`   [+] [${sym}] KAP Haberi Eklendi: ${translatedTitle.substring(0, 45)}...`);
-          
-          // Gemini RPM limit koruması
-          await new Promise(res => setTimeout(res, 5000));
-        } catch (trErr: any) {
-          console.error(`   [!] [${sym}] Çeviri hatası:`, trErr.message);
-        }
-      }
-
-      if (processedCount >= 5) {
-        console.log('   [💤] 5 haber işlendi, Gemini limitleri için 30 saniye mola...');
-        await new Promise(res => setTimeout(res, 30000));
-        processedCount = 0;
+      } catch (trErr: any) {
+        console.error(`[KAP-SYNC] [${primarySymbol}] Ceviri/kayit hatasi:`, trErr.message);
       }
     }
-    
-    console.log('✅ [KAP-SYNC] Senkronizasyon tamamlandı.');
+
+    console.log(`[KAP-SYNC] Senkronizasyon tamamlandi. ${processedCount} yeni haber islendi.`);
   } catch (err: any) {
-    console.error('❌ [KAP-SYNC] Kritik Hata:', err.message);
+    console.error('[KAP-SYNC] Kritik Hata:', err.message);
+  } finally {
+    isKapSyncRunning = false;
   }
 }
-
 // 15 dakikada bir çalıştır
 setInterval(syncKapNews, 15 * 60 * 1000);
 setTimeout(syncKapNews, 5000); // Başlangıçta 5 sn sonra ilk tur
@@ -1335,7 +1762,7 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
   try {
     const { symbol } = req.params;
     const cacheKey = symbol.toUpperCase();
-    
+
     // 1. Cache kontrolü
     if (componentsCache[cacheKey] && (Date.now() - componentsCache[cacheKey].timestamp < CACHE_DURATION)) {
       console.log(`⚡ Serving components from cache for ${cacheKey}`);
@@ -1352,7 +1779,7 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
     const results: any[] = [];
     // Eğer liste 100'den küçükse tek seferde çek (BIST 100 için ideal), büyükse 100'erli grupla (S&P 500 için ideal)
     const chunkSize = 100;
-    
+
     for (let i = 0; i < components.length; i += chunkSize) {
       const chunk = components.slice(i, i + chunkSize);
       try {
@@ -1387,79 +1814,79 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 // Halka Arz Verileri (2026 Detaylı Liste)
 app.get('/api/halkaarz', (req, res) => {
   const ipoData = [
-    { 
+    {
       name: "Beta Enerji ve Teknoloji A.Ş.",
       symbol: "BETAE",
       status: "active",
       date: "23-24-25 Haziran 2026",
       logo: "/logos/BETAE.png",
-      details: { 
-        price: "40,00 TL", 
-        distribution: "Bireysele Eşit Dağıtım", 
-        lots: "60.750.000 Lot", 
-        manager: "TSKB & Ziraat & Yatırım Finansman", 
+      details: {
+        price: "40,00 TL",
+        distribution: "Bireysele Eşit Dağıtım",
+        lots: "60.750.000 Lot",
+        manager: "TSKB & Ziraat & Yatırım Finansman",
         market: "Yıldız Pazar",
         listingDate: "Açıklanmadı",
         participants: "Açıklanmadı",
         perPerson: "Açıklanmadı"
       }
     },
-    { 
+    {
       name: "Ekinciler Demir ve Çelik Sanayi A.Ş.",
       symbol: "EKDMR",
       status: "completed",
       date: "13-14-15 Mayıs 2026",
       logo: "https://halkarz.com/wp-content/uploads/2024/09/EKINCILER.jpg",
-      details: { 
-        price: "45,00 TL", 
-        distribution: "Eşit Dağıtım", 
-        lots: "52.000.000 Lot", 
-        manager: "A1 Capital Yatırım", 
+      details: {
+        price: "45,00 TL",
+        distribution: "Eşit Dağıtım",
+        lots: "52.000.000 Lot",
+        manager: "A1 Capital Yatırım",
         market: "Yıldız Pazar",
         listingDate: "22 Mayıs 2026",
         participants: "770.000 Kişi",
         perPerson: "27 Lot"
       }
     },
-    { 
-      name: "Enpara Bank A.Ş.", 
-      symbol: "ENPRA", 
-      date: "7 Nisan 2026", 
+    {
+      name: "Enpara Bank A.Ş.",
+      symbol: "ENPRA",
+      date: "7 Nisan 2026",
       logo: "https://halkarz.com/wp-content/uploads/2024/01/enpara.png",
       details: { price: "Açıklanmadı", distribution: "Açıklanmadı", lots: "Açıklanmadı", manager: "Açıklanmadı", market: "Piyasa Öncesi Platform" }
     },
-    { 
-      name: "Ağaoğlu Avrasya GYO A.Ş.", 
-      symbol: "AAGYO", 
-      date: "1-2-3 Nisan 2026", 
+    {
+      name: "Ağaoğlu Avrasya GYO A.Ş.",
+      symbol: "AAGYO",
+      date: "1-2-3 Nisan 2026",
       logo: "https://halkarz.com/wp-content/uploads/2023/12/agaoglu.png",
       details: { price: "21,10 TL", distribution: "Eşit Dağıtım", lots: "176.000.000 Lot", manager: "İnfo & Vakıf Yatırım", market: "Yıldız Pazar" }
     },
-    { 
-      name: "Metropal Kurumsal (MetropolCard)", 
-      symbol: "MCARD", 
-      date: "2026 (Taslak)", 
+    {
+      name: "Metropal Kurumsal (MetropolCard)",
+      symbol: "MCARD",
+      date: "2026 (Taslak)",
       logo: "https://halkarz.com/wp-content/uploads/2023/12/metropolcard.png",
       details: { price: "80,00 TL", distribution: "Eşit Dağıtım", lots: "18.900.000 Lot", manager: "Tera Yatırım", market: "Ana Pazar" }
     },
-    { 
-      name: "Luxera GYO A.Ş.", 
-      symbol: "LXGYO", 
-      date: "2026 (Taslak)", 
+    {
+      name: "Luxera GYO A.Ş.",
+      symbol: "LXGYO",
+      date: "2026 (Taslak)",
       logo: "https://halkarz.com/wp-content/uploads/2023/12/luxera.png",
       details: { price: "12,05 TL", distribution: "Eşit Dağıtım", lots: "120.000.000 Lot", manager: "Tera Yatırım", market: "Ana Pazar" }
     },
-    { 
-      name: "Gentaş Kimya A.Ş.", 
-      symbol: "GENKM", 
-      date: "2026 (Taslak)", 
+    {
+      name: "Gentaş Kimya A.Ş.",
+      symbol: "GENKM",
+      date: "2026 (Taslak)",
       logo: "https://halkarz.com/wp-content/uploads/2023/12/gentas.png",
       details: { price: "11,00 TL", distribution: "Eşit Dağıtım", lots: "124.845.000 Lot", manager: "Deniz Yatırım", market: "Ana Pazar", listingDate: "10 Mart 2026" }
     },
-    { 
-      name: "Akhan Un Fabrikası A.Ş.", 
-      symbol: "AKHAN", 
-      date: "28-30 Ocak 2026", 
+    {
+      name: "Akhan Un Fabrikası A.Ş.",
+      symbol: "AKHAN",
+      date: "28-30 Ocak 2026",
       logo: "https://halkarz.com/wp-content/uploads/2023/12/akhanun.png",
       details: { price: "21,50 TL", distribution: "Eşit Dağıtım", lots: "54.700.000 Lot", manager: "Halk Yatırım", market: "Ana Pazar", listingDate: "5 Şubat 2026", participants: "2.840.000 Kişi", perPerson: "19 Lot" }
     }
@@ -1471,7 +1898,7 @@ app.get('/api/halkaarz', (req, res) => {
 app.get('/api/halkaarz/:symbol', (req, res) => {
   const { symbol } = req.params;
   const sym = symbol.toUpperCase();
-  
+
   if (sym === 'BETAE') {
     return res.json({
       title: "Beta Enerji ve Teknoloji A.Ş.",
@@ -1591,9 +2018,9 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
   }
 
   // Varsayılan/Boş detay (Veri yoksa)
-  res.json({ 
-    title: symbol, 
-    symbol: sym, 
+  res.json({
+    title: symbol,
+    symbol: sym,
     error: "Bu hisse için henüz detaylı veri işlenmedi.",
     fundUsage: [],
     allocation: []
@@ -1613,7 +2040,7 @@ app.post('/api/auth/register', async (req, res) => {
     const user = new User({ email, password: hashedPassword, name });
     await user.save();
 
-    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id, email: user.email }, AUTH_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, user: { name: user.name, email: user.email } });
   } catch (error) {
     res.status(500).json({ message: 'Kayıt sırasında hata oluştu.', error });
@@ -1630,7 +2057,7 @@ app.post('/api/auth/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Hatalı şifre.' });
 
-    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET || 'fallback_secret', { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user._id, email: user.email }, AUTH_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { name: user.name, email: user.email } });
   } catch (error) {
     res.status(500).json({ message: 'Giriş sırasında hata oluştu.', error });
@@ -1652,13 +2079,7 @@ app.get('/api/auth/me', authMiddleware, async (req: any, res: any) => {
 // 1. Get all portfolio items (User specific)
 app.get('/api/portfolio', authMiddleware, async (req: any, res: any) => {
   try {
-    const totalGlobal = await Portfolio.countDocuments();
-    const sample = await Portfolio.findOne();
-    console.log(`🔍 [PORTFOLIO] DB Total: ${totalGlobal}, User in Token: ${req.user.userId}`);
-    if (sample) console.log(`🔍 [PORTFOLIO] Sample User in DB: ${sample.userId}`);
-    
-    const items = await Portfolio.find({ userId: req.user.userId }).sort({ createdAt: 1 });
-    console.log(`✅ [PORTFOLIO] Found ${items.length} items for this user`);
+    const items = await Portfolio.find({ userId: req.user.userId }).sort({ createdAt: 1 }).lean();
     res.json(items);
   } catch (error) {
     console.error('❌ [PORTFOLIO] DB Error:', error);
@@ -1718,9 +2139,8 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
     // Prepare Yahoo symbols
     const symbolMap = new Map<string, any>();
     items.forEach((item: any) => {
-      const isBist = item.name && !item.name.includes('.') && !item.name.includes('-') && !item.name.startsWith('^') && item.name.length <= 5;
-      const yahooSymbol = isBist ? `${item.name}.IS` : item.name;
-      symbolMap.set(yahooSymbol, item);
+      const yahooSymbol = toYahooPortfolioSymbol(item.name);
+      if (yahooSymbol) symbolMap.set(yahooSymbol, item);
     });
     const yahooSymbols = Array.from(symbolMap.keys());
     const hasForeign = yahooSymbols.some(sym => !sym.endsWith('.IS') && sym !== 'USDTRY=X');
@@ -1741,27 +2161,24 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
     // Fetch USDTRY rate
     let usdRate = 0;
     try {
-      const usdQuote: any = await (yf as any).quote('USDTRY=X');
+      const usdQuote: any = await withYahooSlot(() => (yf as any).quote('USDTRY=X'));
       usdRate = usdQuote.regularMarketPrice || usdQuote.price || 32.5;
     } catch (e) { usdRate = 32.5; }
 
-    // Fetch chart data for all symbols SEQUENTIALLY (Sırayla)
-    const validCharts: any[] = [];
-    for (const sym of fetchSymbols) {
+    // Fetch chart data with bounded concurrency
+    const chartResults = await mapWithConcurrency(fetchSymbols, 3, async (sym) => {
       try {
-        console.log(`[PORTFOLIO] ${sym} geçmiş grafiği çekiliyor... (Sırayla)`);
-        const chart: any = await (yf as any).chart(sym, { period1, interval }, { validateResult: false });
-        validCharts.push({
+        const chart: any = await withYahooSlot(() => (yf as any).chart(sym, { period1, interval }, { validateResult: false }));
+        return {
           symbol: sym,
           quotes: (chart.quotes || []).filter((q: any) => q.close != null)
-        });
-        // Sistemi ve ağ kartını yormamak için her istek arasına 500ms bekleme ekle
-        await new Promise(res => setTimeout(res, 500));
+        };
       } catch (err: any) {
-        console.warn(`[PORTFOLIO] ${sym} grafiği çekilemedi:`, err.message);
+        console.warn(`[PORTFOLIO] ${sym} grafigi cekilemedi:`, err.message);
+        return null;
       }
-    }
-
+    });
+    const validCharts = chartResults.filter(Boolean) as any[];
     // Get all unique timestamps (excluding USDTRY=X)
     const allTimestamps = new Set<number>();
     validCharts.forEach(r => {
@@ -1817,11 +2234,8 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
 
     const currentValue = history.length > 0 ? history[history.length - 1] : 0;
     const totalCost = items.reduce((acc: number, item: any) => {
-      const isBist = item.name && !item.name.includes('.') && !item.name.includes('-') && !item.name.startsWith('^') && item.name.length <= 5;
-      let costTL = item.cost || 0;
-      if (!isBist && costTL < 1500) {
-        costTL = costTL * usdRate;
-      }
+      const yahooSymbol = toYahooPortfolioSymbol(item.name);
+      const costTL = portfolioCostInTry(item, yahooSymbol, usdRate);
       return acc + (item.amount || 0) * costTL;
     }, 0);
     const previousValue = history.length > 1 ? history[history.length - 2] : totalCost;
@@ -1840,6 +2254,104 @@ app.get('/api/portfolio/history', authMiddleware, async (req: any, res: any) => 
   } catch (error: any) {
     console.error('Portfolio history error:', error.message);
     res.json({ success: false, history: [], timestamps: [], currentValue: 0, totalCost: 0, dailyChange: 0, dailyChangePercent: 0 });
+  }
+});
+
+function parsePipelineOptions(req: any) {
+  const body = req.body || {};
+  const symbols = Array.isArray(body.symbols)
+    ? body.symbols.map((symbol: any) => String(symbol)).filter(Boolean)
+    : typeof body.symbols === 'string'
+      ? body.symbols.split(',').map((symbol: string) => symbol.trim()).filter(Boolean)
+      : undefined;
+
+  const years = Number(body.years || req.query?.years || 5);
+  const limit = Number(body.limit || req.query?.limit || 0);
+  return {
+    symbols,
+    years: Number.isFinite(years) ? Math.max(1, Math.min(15, Math.floor(years))) : 5,
+    limit: Number.isFinite(limit) && limit > 0 ? Math.min(120, Math.floor(limit)) : undefined
+  };
+}
+
+app.get('/api/model-data/status', authMiddleware, async (req: any, res: any) => {
+  try {
+    const status = await getModelDataStatus();
+    res.json({ success: true, status });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get('/api/model-data/readiness', authMiddleware, async (req: any, res: any) => {
+  try {
+    const readiness = await getModelDataReadiness(parsePipelineOptions(req));
+    res.json({ success: true, readiness });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/backfill-daily-bars', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await backfillDailyBars(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/sync-macro', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await syncMacroSeries(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/features', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await buildFeatureSnapshots(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/labels', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await generateTrainingLabels(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/backtest', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await runQuantBacktest(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/news-events', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await scoreNewsEvents(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/model-data/run', authMiddleware, async (req: any, res: any) => {
+  try {
+    const result = await runModelDataPipeline(parsePipelineOptions(req));
+    res.json({ success: true, result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
