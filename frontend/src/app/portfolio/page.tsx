@@ -7,15 +7,15 @@ import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 
 const BIST100_STOCKS = [
-  "AEFES", "AGHOL", "AHGAZ", "AKBNK", "AKCNS", "AKFGY", "AKSA", "AKSEN", "ALARK", "ALBRK", 
-  "ALFAS", "ARCLK", "ASELS", "ASTOR", "AYGAZ", "BERA", "BIENY", "BIMAS", "BRSAN", "CANTE", 
-  "CCOLA", "CIMSA", "CWENE", "DOAS", "DOHOL", "ECILC", "ECZYT", "EGEEN", "EKGYO", "ENJSA", 
-  "ENKAI", "EREGL", "EUPWR", "EUREN", "FROTO", "GARAN", "GENIL", "GESAN", "GLYHO", "GUBRF", 
-  "GWIND", "HALKB", "HEKTS", "HKTM", "HLGYO", "IMASM", "INVEO", "INVES", "IPEKE", "ISCTR", 
-  "ISDMR", "ISFIN", "ISGYO", "ISMEN", "IZENR", "KCAER", "KCHOL", "KMPUR", "KONTR", "KONYA", 
-  "KOZAA", "KOZAL", "KRDMD", "KZBGY", "MAVI", "MGROS", "MIATK", "ODAS", "OTKAR", "OYAKC", 
-  "PENTA", "PETKM", "PGSUS", "PNLSN", "QUAGR", "SAHOL", "SASA", "SAYAS", "SISE", "SKBNK", 
-  "SMRTG", "SOKM", "SUWEN", "TAVHL", "TCELL", "THYAO", "TKFEN", "TOASO", "TSKB", "TTKOM", 
+  "AEFES", "AGHOL", "AHGAZ", "AKBNK", "AKCNS", "AKFGY", "AKSA", "AKSEN", "ALARK", "ALBRK",
+  "ALFAS", "ARCLK", "ASELS", "ASTOR", "AYGAZ", "BERA", "BIENY", "BIMAS", "BRSAN", "CANTE",
+  "CCOLA", "CIMSA", "CWENE", "DOAS", "DOHOL", "ECILC", "ECZYT", "EGEEN", "EKGYO", "ENJSA",
+  "ENKAI", "EREGL", "EUPWR", "EUREN", "FROTO", "GARAN", "GENIL", "GESAN", "GLYHO", "GUBRF",
+  "GWIND", "HALKB", "HEKTS", "HKTM", "HLGYO", "IMASM", "INVEO", "INVES", "IPEKE", "ISCTR",
+  "ISDMR", "ISFIN", "ISGYO", "ISMEN", "IZENR", "KCAER", "KCHOL", "KMPUR", "KONTR", "KONYA",
+  "KOZAA", "KOZAL", "KRDMD", "KZBGY", "MAVI", "MGROS", "MIATK", "ODAS", "OTKAR", "OYAKC",
+  "PENTA", "PETKM", "PGSUS", "PNLSN", "QUAGR", "SAHOL", "SASA", "SAYAS", "SISE", "SKBNK",
+  "SMRTG", "SOKM", "SUWEN", "TAVHL", "TCELL", "THYAO", "TKFEN", "TOASO", "TSKB", "TTKOM",
   "TTRAK", "TUKAS", "TUPRS", "ULKER", "VAKBN", "VESBE", "VESTL", "YEOTK", "YKBNK", "YYLGD", "ZOREN"
 ].sort();
 
@@ -135,6 +135,151 @@ const NASDAQ500_STOCKS = [
   "A", "AAL", "AAP", "AAPL", "ABBV", "ABC", "ABT", "ACGL", "ACN", "ADAY", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALK", "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APTV", "ARE", "ATO", "ATRC", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP", "AYI", "AZO", "BA", "BAC", "BALL", "BAX", "BBWI", "BBY", "BDX", "BEN", "BF.B", "BG", "BIIB", "BIO", "BK", "BKNG", "BKR", "BLDR", "BLK", "BMY", "BR", "BRK.B", "BRO", "BSX", "BWA", "BX", "BXP", "C", "CAG", "CAH", "CARR", "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CE", "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR", "CI", "CINF", "CL", "CLX", "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS", "CNC", "CNP", "COF", "COO", "COP", "COR", "COST", "CPB", "CPRT", "CPT", "CRL", "CRM", "CRWD", "CSCO", "CSGP", "CSX", "CTAS", "CTLT", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "CZR", "D", "DAL", "DAN", "DAY", "DD", "DE", "DECK", "DFS", "DG", "DGX", "DHI", "DHR", "DIS", "DLR", "DLTR", "DOC", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK", "DVA", "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX", "EG", "EIX", "EL", "ELV", "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX", "EQR", "EQT", "ES", "ESS", "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPD", "EXPE", "EXR", "F", "FANG", "FAST", "FI", "FICO", "FIS", "FITB", "FLT", "FMC", "FOX", "FOXA", "FRT", "FSLR", "FTNT", "FTV", "GD", "GE", "GEV", "GGG", "GILD", "GIS", "GL", "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWRE", "GWW", "HAL", "HAS", "HBAN", "HCA", "HD", "HES", "HIG", "HII", "HLDX", "HOLX", "HON", "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUBB", "HUM", "HWM", "IBM", "ICE", "IDXX", "IEX", "IFF", "ILMN", "INCY", "INTC", "INTU", "INVH", "IP", "IPG", "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT", "JBL", "JCI", "JKHY", "JNJ", "JNPR", "JPM", "K", "KDP", "KEY", "KEYS", "KHC", "KIM", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "KVUE", "L", "LDOS", "LEN", "LH", "LHX", "LIN", "LKQ", "LLY", "LMT", "LNC", "LNT", "LOW", "LRCX", "LULU", "LUV", "LVS", "LW", "LYB", "LYV", "MA", "MAA", "MAR", "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "METC", "MGM", "MHK", "MKC", "MKTX", "MLM", "MMC", "MMM", "MNST", "MO", "MOH", "MOS", "MPC", "MPWR", "MRK", "MRNA", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH", "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP", "NTR", "NTRS", "NUE", "NVDA", "NVR", "NWC", "NWL", "NWS", "NWSA", "NXPI", "O", "ODFL", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS", "OXY", "PANW", "PARA", "PAYC", "PAYX", "PCAR", "PCG", "PEG", "PEP", "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PKI", "PLD", "PM", "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PSA", "PTC", "PWR", "PYPL", "QCOM", "QRVO", "RCL", "RE", "REG", "REGN", "RF", "RHI", "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "RVTY", "SBAC", "SBUX", "SCHW", "SHW", "SIRI", "SITM", "SJM", "SLB", "SMCI", "SNA", "SNPS", "SO", "SPG", "SPGI", "SRE", "STE", "STLD", "STT", "STX", "STZ", "SWK", "SWKS", "SYK", "SYY", "T", "TAP", "TDG", "TDY", "TECH", "TEL", "TER", "TFT", "TFC", "TFX", "TGT", "TJX", "TMO", "TMUS", "TPR", "TRGP", "TRMB", "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT", "TTWO", "TXN", "TXT", "TYL", "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI", "USB", "V", "VICI", "VLO", "VMC", "VRSK", "VRTX", "VTR", "VZ", "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL", "WFC", "WFRD", "WHR", "WM", "WMB", "WMT", "WRB", "WST", "WTW", "WY", "WYNN", "XEL", "XOM", "XRAY", "XYL", "YUM", "ZBH", "ZBRA", "ZTS"
 ].sort();
 
+interface StockWheelPickerProps {
+  stocks: any[];
+  hoveredStock: string | null;
+  setHoveredStock: (name: string | null) => void;
+}
+
+function StockWheelPicker({ stocks, hoveredStock, setHoveredStock }: StockWheelPickerProps) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  };
+
+  const itemHeight = 72;
+  const gap = 12;
+  const itemSpacingHeight = itemHeight + gap;
+  const spacingAngle = 26;
+  const angleRatio = spacingAngle / itemSpacingHeight;
+  const radius = 175;
+  const containerHeight = 360;
+
+  const totalItems = stocks.length;
+  const maxScroll = totalItems > 0 ? (totalItems - 1) * itemSpacingHeight : 0;
+
+  if (totalItems === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[360px] text-gray-500 font-medium">
+        Henüz hisse eklenmemiş.
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-[360px] select-none">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-none {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}} />
+
+      {/* 1. Static Visual 3D Cylinder Container (Outside scroll container) */}
+      <div
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{
+          perspective: '1000px',
+          transformStyle: 'preserve-3d',
+          maskImage: 'linear-gradient(to bottom, transparent, rgba(0,0,0,1) 22%, rgba(0,0,0,1) 78%, transparent)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent, rgba(0,0,0,1) 22%, rgba(0,0,0,1) 78%, transparent)',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            transformStyle: 'preserve-3d',
+          }}
+        >
+          {stocks.map((stock, i) => {
+            const angle = (i * spacingAngle) - (scrollTop * angleRatio);
+            const angleRad = angle * Math.PI / 180;
+            const y = radius * Math.sin(angleRad);
+            const z = radius * (Math.cos(angleRad) - 1);
+
+            const absAngle = Math.abs(angle);
+            const opacity = Math.max(0, 1 - absAngle / 70);
+            const scale = Math.max(0.6, 1 - absAngle / 180 * 0.35);
+
+            if (opacity <= 0) return null;
+
+            return (
+              <div
+                key={stock.name}
+                className="absolute left-4 right-4 pointer-events-none"
+                style={{
+                  height: `${itemHeight}px`,
+                  top: '50%',
+                  marginTop: `-${itemHeight / 2}px`,
+                  transform: `translateY(${y}px) translateZ(${z}px) rotateX(${angle}deg) scale(${scale})`,
+                  opacity: opacity,
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                }}
+              >
+                <div
+                  onMouseEnter={() => setHoveredStock(stock.name)}
+                  onMouseLeave={() => setHoveredStock(null)}
+                  className="w-full h-full p-4 rounded-2xl border cursor-pointer shadow-lg flex items-center justify-between pointer-events-auto transition-all duration-200"
+                  style={{
+                    transform: hoveredStock === stock.name ? `scale(1.05)` : `scale(1)`,
+                    backgroundColor: hoveredStock === stock.name ? `${stock.color}15` : 'rgba(255,255,255,0.05)',
+                    borderColor: hoveredStock === stock.name ? stock.color : 'rgba(255,255,255,0.05)',
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{
+                        backgroundColor: stock.color,
+                        boxShadow: `0 0 10px ${stock.color}`
+                      }}
+                    />
+                    <span className="font-bold text-lg">{stock.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold">
+                      {stock.isForeignStock ? '$' : '₺'}
+                      {stock.value.toLocaleString(undefined, { maximumFractionDigits: stock.isForeignStock ? 2 : 0 })}
+                    </p>
+                    <p className="text-xs text-gray-500">%{stock.percentage} Ağırlık</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Interactive Scroll Container (Overlaying on top, relative z-10) */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="w-full h-full overflow-y-auto scrollbar-none snap-y snap-mandatory relative z-10"
+      >
+        <div style={{ height: `${maxScroll + containerHeight}px`, position: 'relative', width: '100%' }}>
+          {stocks.map((_, i) => (
+            <div
+              key={`snap-${i}`}
+              className="absolute left-0 w-full snap-center"
+              style={{
+                top: `${i * itemSpacingHeight + (containerHeight / 2) - (itemSpacingHeight / 2)}px`,
+                height: `${itemSpacingHeight}px`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PortfolioPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -191,12 +336,12 @@ export default function PortfolioPage() {
   }, [searchTerm]);
 
 
-  const [newStock, setNewStock] = useState({ 
-    name: "", 
-    amount: 0, 
-    cost: 0, 
-    purchaseDate: new Date().toISOString().split('T')[0], 
-    color: "#00f2ff" 
+  const [newStock, setNewStock] = useState({
+    name: "",
+    amount: 0,
+    cost: 0,
+    purchaseDate: new Date().toISOString().split('T')[0],
+    color: "#00f2ff"
   });
 
   const API_URL = React.useMemo(() => {
@@ -273,8 +418,8 @@ export default function PortfolioPage() {
         const usd = data.result.find((r: any) => r.code === "USD" || r.name === "Amerikan Doları");
         if (usd) {
           const rawSelling = usd.selling;
-          const parsedRate = typeof rawSelling === 'string' 
-            ? parseFloat(rawSelling.replace(',', '.')) 
+          const parsedRate = typeof rawSelling === 'string'
+            ? parseFloat(rawSelling.replace(',', '.'))
             : rawSelling;
           setUsdRate(parsedRate || 0);
         }
@@ -291,7 +436,7 @@ export default function PortfolioPage() {
   const fetchHistoricalPrice = async () => {
     const symbol = newStock.name || searchTerm;
     const token = localStorage.getItem('token');
-    
+
     if (!token) {
       alert("Oturum süreniz dolmuş, lütfen tekrar giriş yapın.");
       return;
@@ -301,20 +446,20 @@ export default function PortfolioPage() {
       alert("Lütfen önce hisse seçin ve tarih belirleyin.");
       return;
     }
-    
+
     try {
       setFetchingHistorical(true);
       const response = await fetch(`${API_URL}/historical?symbol=${symbol}&date=${newStock.purchaseDate}&market=${selectedMarket}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.status === 401) {
         alert("Geçersiz token. Lütfen tekrar giriş yapın.");
         return;
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.price) {
         setNewStock({ ...newStock, cost: Number(data.price.toFixed(2)) });
       } else {
@@ -333,7 +478,7 @@ export default function PortfolioPage() {
 
   const fetchHistoricalPriceForEdit = async () => {
     const token = localStorage.getItem('token');
-    
+
     if (!token) {
       alert("Oturum süreniz dolmuş, lütfen tekrar giriş yapın.");
       return;
@@ -343,7 +488,7 @@ export default function PortfolioPage() {
       alert("Lütfen tarih belirleyin.");
       return;
     }
-    
+
     try {
       setFetchingHistorical(true);
       // Piyasayı belirle (NASDAQ listesindeyse ona göre gönder)
@@ -358,7 +503,7 @@ export default function PortfolioPage() {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.price) {
         setEditingStock({ ...editingStock, cost: Number(data.price.toFixed(2)) });
       } else {
@@ -397,7 +542,7 @@ export default function PortfolioPage() {
       const response = await fetch(`${API_URL}/portfolio`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       let data = [];
       if (response.ok) {
         data = await response.json();
@@ -405,7 +550,7 @@ export default function PortfolioPage() {
       } else {
         setPortfolio([]);
       }
-      
+
       if (data && data.length > 0) {
         const symbols = data.map((p: any) => {
           // BIST 100 listesindeyse sonuna .IS ekle (Yahoo için)
@@ -429,7 +574,7 @@ export default function PortfolioPage() {
     try {
       const response = await fetch(`${API_URL}/portfolio`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
@@ -447,7 +592,7 @@ export default function PortfolioPage() {
   const handleCreateStock = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalName = newStock.name || searchTerm;
-    
+
     if (!finalName) {
       alert("Lütfen bir hisse seçin veya sembol girin.");
       return;
@@ -459,10 +604,10 @@ export default function PortfolioPage() {
         "GARAN": "#ffcc00", "AKBNK": "#ff66aa", "KCHOL": "#aa66ff", "SAHOL": "#66aaff"
       };
       const color = stockColors[finalName] || `hsl(${Math.random() * 360}, 70%, 60%)`;
-      
+
       const response = await fetch(`${API_URL}/portfolio`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
@@ -499,66 +644,94 @@ export default function PortfolioPage() {
       // BIST hisselerinde backend'den .IS takısı gelebilir, her iki duruma da bak
       return code === search || code === `${search}.IS`;
     });
-    
+
     const normalizedName = (item.name || "").toString().trim().toUpperCase();
     const isForeignStock = Boolean(normalizedName) && !normalizedName.endsWith('.IS') && !ALL_BIST_STOCKS.includes(normalizedName);
-    const itemCostTL = isForeignStock && usdRate > 0 ? item.cost * usdRate : item.cost;
 
-    let currentPrice = itemCostTL;
-    
+    // Original values in their respective currency (USD for foreign, TL for BIST)
+    let costOriginal = item.cost;
+    const currentPriceOriginal = liveStock ? (liveStock.price || 0) : item.cost;
+
+    // Auto-detect if the stored cost was entered/saved in TL instead of USD
+    if (isForeignStock && costOriginal > 0 && currentPriceOriginal > 0) {
+      const ratio = costOriginal / currentPriceOriginal;
+      // If the ratio is close to the USD/TRY exchange rate (e.g. between 15 and 70),
+      // it means the cost was stored in TL and we convert it to USD for displays & calculations.
+      if (ratio > 15 && ratio < 70 && usdRate > 0) {
+        costOriginal = costOriginal / usdRate;
+      }
+    }
+
+    const costValueOriginal = (item.amount || 0) * costOriginal;
+    const currentValueOriginal = (item.amount || 0) * currentPriceOriginal;
+    const plValueOriginal = currentValueOriginal - costValueOriginal;
+
+    // TL equivalents for calculations and display of plValue in TL
+    const costTL = isForeignStock && usdRate > 0 ? costOriginal * usdRate : item.cost;
+    let currentPriceTL = costTL;
     if (liveStock) {
-      let price = liveStock.price;
-      // Eğer hisse dolar bazlıysa (NASDAQ vb.), güncel kurla TL'ye çevir
+      let price = liveStock.price || 0;
       if ((liveStock.currency === "USD" || isForeignStock) && usdRate > 0) {
         price = price * usdRate;
       }
-      currentPrice = price;
+      currentPriceTL = price;
     }
 
-    const costValue = (item.amount || 0) * itemCostTL;
-    const currentValue = (item.amount || 0) * currentPrice;
-    const plValue = currentValue - costValue;
-    
+    const costValueTL = (item.amount || 0) * costTL;
+    const currentValueTL = (item.amount || 0) * currentPriceTL;
+    const plValueTL = currentValueTL - costValueTL;
+
     return {
       ...item,
-      cost: itemCostTL,
+      isForeignStock,
+      costOriginal,
+      currentPriceOriginal,
+      costValueOriginal,
+      currentValueOriginal,
+      plValueOriginal,
+      value: isForeignStock ? currentValueOriginal : currentValueTL,
+      costValue: isForeignStock ? costValueOriginal : costValueTL,
+      cost: costOriginal,
+      currentPrice: currentPriceOriginal,
       color: item.color && item.color !== "#00f2ff" ? item.color : getStockColor(item.name, index),
-      value: currentValue,
-      costValue,
-      currentPrice,
-      plValue,
-      plPercentage: itemCostTL > 0 ? ((currentPrice - itemCostTL) / itemCostTL) * 100 : 0,
+      plValue: plValueOriginal,
+      plPercentage: costOriginal > 0 ? ((currentPriceOriginal - costOriginal) / costOriginal) * 100 : 0,
       dailyRate: liveStock ? liveStock.rate : 0,
-      updatedAt: liveStock ? liveStock.updatedAt : null
+      updatedAt: liveStock ? liveStock.updatedAt : null,
+
+      // Kept for global TL stats
+      valueTL: currentValueTL,
+      costValueTL,
+      plValueTL
     };
   });
 
-  const totalValue = processedData.reduce((acc, curr) => acc + curr.value, 0);
-  const totalCost = processedData.reduce((acc, curr) => acc + curr.costValue, 0);
+  const totalValue = processedData.reduce((acc, curr) => acc + curr.valueTL, 0);
+  const totalCost = processedData.reduce((acc, curr) => acc + curr.costValueTL, 0);
   const totalPL = totalValue - totalCost;
-  
-  // Ağırlıklı günlük değişim hesaplama
+
+  // Ağırlıklı günlük değişim hesaplama (TL bazlı ağırlıklandırma)
   const totalDailyChangePercent = processedData.reduce((acc, curr) => {
-    const weight = curr.value / (totalValue || 1);
+    const weight = curr.valueTL / (totalValue || 1);
     return acc + (curr.dailyRate * weight);
   }, 0);
-  
+
   // Toplam günlük TL bazlı değişim
   const totalDailyChangeTL = processedData.reduce((acc, curr) => {
-    return acc + (curr.value * (curr.dailyRate / 100));
+    return acc + (curr.valueTL * (curr.dailyRate / 100));
   }, 0);
-  
+
   const processedWithPercentage = processedData.map(item => ({
     ...item,
-    percentage: totalValue > 0 ? Math.round((item.value / totalValue) * 100) : 0
-  })).sort((a, b) => b.value - a.value);
+    percentage: totalValue > 0 ? Math.round((item.valueTL / totalValue) * 100) : 0
+  })).sort((a, b) => b.valueTL - a.valueTL);
 
-  const maxStock = processedWithPercentage.length > 0 
+  const maxStock = processedWithPercentage.length > 0
     ? processedWithPercentage.reduce((prev, current) => (prev.percentage > current.percentage) ? prev : current)
     : { name: "Hisse Yok", percentage: 0, color: "#8b00e8" };
 
-  const displayStock = hoveredStock 
-    ? processedWithPercentage.find(s => s.name === hoveredStock) 
+  const displayStock = hoveredStock
+    ? processedWithPercentage.find(s => s.name === hoveredStock)
     : maxStock;
 
   if (!mounted) return null;
@@ -566,7 +739,7 @@ export default function PortfolioPage() {
   return (
     <main className="min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30">
       <Navbar />
-      
+
       {/* Background Glow */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-purple/10 blur-[120px] rounded-full" />
@@ -593,10 +766,10 @@ export default function PortfolioPage() {
                 </p>
               </div>
             </div>
-            <button 
+            <button
               onClick={async () => {
                 setLoading(true);
-                await fetchPortfolio(); 
+                await fetchPortfolio();
                 await fetchUsdRate();
                 setLoading(false);
               }}
@@ -609,16 +782,16 @@ export default function PortfolioPage() {
 
         {/* Top Summary & Chart Area (Sketch-based) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          
+
           {/* Left: Stats List */}
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex flex-col justify-center gap-8 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+          <div className="h-[480px] bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex flex-col justify-center gap-8 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
             <div className="group transition-transform hover:translate-x-2">
               <p className="text-sm text-neon-purple font-bold uppercase tracking-wider mb-2">
                 {totalPL >= 0 ? 'Toplam Kar' : 'Toplam Zarar'}
               </p>
               <div className="flex items-center gap-3">
                 <span className={`text-4xl font-black tracking-tighter ${totalPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {totalPL >= 0 ? '+' : ''}₺{(totalPL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {totalPL >= 0 ? '+' : ''}₺{Math.trunc(totalPL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
                 {totalPL >= 0 ? <TrendingUp className="text-green-400 w-6 h-6" /> : <TrendingDown className="text-red-400 w-6 h-6" />}
               </div>
@@ -627,14 +800,14 @@ export default function PortfolioPage() {
               </p>
             </div>
             <div className="h-px bg-white/5 w-full" />
-            
+
             <div className="group transition-transform hover:translate-x-2">
               <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2">
                 {totalDailyChangeTL >= 0 ? 'Günlük Kar' : 'Günlük Zarar'}
               </p>
               <div className="flex items-center gap-3">
                 <span className={`text-3xl font-black tracking-tighter ${totalDailyChangePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {totalDailyChangePercent >= 0 ? '+' : '-'}₺{Math.abs(totalDailyChangeTL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalDailyChangePercent >= 0 ? '+' : '-'}₺{Math.trunc(Math.abs(totalDailyChangeTL)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </span>
                 {totalDailyChangePercent >= 0 ? <TrendingUp className="text-green-400 w-6 h-6" /> : <TrendingDown className="text-red-400 w-6 h-6" />}
               </div>
@@ -675,51 +848,28 @@ export default function PortfolioPage() {
           </div>
 
           {/* Middle: Legend List */}
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex flex-col justify-center gap-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+          <div className="h-[480px] bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex flex-col justify-start gap-4 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
             <h3 className="text-xs text-gray-500 font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
               <Activity size={14} className="text-neon-purple" /> Varlık Dağılımı
             </h3>
-            {processedWithPercentage.map((stock, i) => (
-              <motion.div 
-                key={i}
-                animate={{ 
-                  scale: hoveredStock === stock.name ? 1.05 : 1,
-                  backgroundColor: hoveredStock === stock.name ? `${stock.color}15` : 'rgba(255,255,255,0.05)',
-                  borderColor: hoveredStock === stock.name ? stock.color : 'rgba(255,255,255,0.05)'
-                }}
-                onMouseEnter={() => setHoveredStock(stock.name)}
-                onMouseLeave={() => setHoveredStock(null)}
-                className="flex items-center justify-between p-4 rounded-2xl border transition-all cursor-pointer shadow-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ 
-                      backgroundColor: stock.color, 
-                      boxShadow: `0 0 10px ${stock.color}` 
-                    }} 
-                  />
-                  <span className="font-bold text-lg">{stock.name}</span>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">₺{stock.value.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">%{stock.percentage} Ağırlık</p>
-                </div>
-              </motion.div>
-            ))}
+            <StockWheelPicker
+              stocks={processedWithPercentage}
+              hoveredStock={hoveredStock}
+              setHoveredStock={setHoveredStock}
+            />
           </div>
 
           {/* Right: Pie Chart (The Star) */}
-          <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex items-center justify-center relative overflow-hidden group shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+          <div className="h-[480px] bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex items-center justify-center relative overflow-hidden group shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
             <div className="absolute inset-0 bg-neon-purple/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            
+
             <div className="relative w-64 h-64 md:w-80 md:h-80">
               <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
                 {processedWithPercentage.map((stock, i) => {
                   const prevPercentages = processedWithPercentage.slice(0, i).reduce((acc, curr) => acc + curr.percentage, 0);
                   const startAngle = (prevPercentages / 100) * 360;
                   const endAngle = ((prevPercentages + stock.percentage) / 100) * 360;
-                  
+
                   const polarToCartesian = (cx: number, cy: number, r: number, angleInDegrees: number) => {
                     const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
                     return {
@@ -730,9 +880,9 @@ export default function PortfolioPage() {
 
                   const r_outer = 48;
                   const r_inner = 32;
-                  
+
                   // Add a small gap between segments by adjusting angles
-                  const gap = 1; 
+                  const gap = 1;
                   const adjustedStart = startAngle + gap;
                   const adjustedEnd = endAngle - gap;
 
@@ -741,8 +891,8 @@ export default function PortfolioPage() {
                   const start_i = polarToCartesian(50, 50, r_inner, adjustedEnd);
                   const end_i = polarToCartesian(50, 50, r_inner, adjustedStart);
 
-                  const largeArcFlag = (stock.percentage - (gap*2/360*100)) > 50 ? "1" : "0";
-                  
+                  const largeArcFlag = (stock.percentage - (gap * 2 / 360 * 100)) > 50 ? "1" : "0";
+
                   const d = [
                     "M", start_o.x, start_o.y,
                     "A", r_outer, r_outer, 0, largeArcFlag, 0, end_o.x, end_o.y,
@@ -750,12 +900,12 @@ export default function PortfolioPage() {
                     "A", r_inner, r_inner, 0, largeArcFlag, 1, start_i.x, start_i.y,
                     "Z"
                   ].join(" ");
-                  
+
                   const textAngle = startAngle + (stock.percentage / 2);
                   const textPos = polarToCartesian(50, 50, 40, textAngle);
 
                   return (
-                    <g 
+                    <g
                       key={i}
                       className="cursor-pointer"
                       onMouseEnter={() => setHoveredStock(stock.name)}
@@ -765,23 +915,23 @@ export default function PortfolioPage() {
                         d={d}
                         fill={stock.color}
                         initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ 
+                        animate={{
                           opacity: hoveredStock ? (hoveredStock === stock.name ? 1 : 0.3) : 0.8,
                           scale: hoveredStock === stock.name ? 1.05 : 1,
                         }}
                         whileHover={{ filter: 'brightness(1.2)' }}
                         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        style={{ 
+                        style={{
                           filter: hoveredStock === stock.name ? `drop-shadow(0 0 15px ${stock.color})` : 'none',
                         }}
                       />
                       {stock.percentage > 8 && !hoveredStock && (
-                        <text 
-                          x={textPos.x} 
-                          y={textPos.y} 
-                          fill="white" 
-                          fontSize="3.5" 
-                          fontWeight="black" 
+                        <text
+                          x={textPos.x}
+                          y={textPos.y}
+                          fill="white"
+                          fontSize="3.5"
+                          fontWeight="black"
                           textAnchor="middle"
                           dominantBaseline="middle"
                           className="pointer-events-none transform rotate-90 origin-center opacity-80"
@@ -834,7 +984,7 @@ export default function PortfolioPage() {
               </span>
             </h2>
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={async () => {
                   setLoading(true);
                   await fetchPortfolio();
@@ -845,7 +995,7 @@ export default function PortfolioPage() {
               >
                 <RefreshCw className="w-4 h-4" /> Güncelle
               </button>
-              <button 
+              <button
                 onClick={() => setIsAdding(true)}
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-neon-purple/20 hover:bg-neon-purple/40 border border-neon-purple/50 rounded-2xl transition-all duration-300 font-bold text-sm"
               >
@@ -868,14 +1018,17 @@ export default function PortfolioPage() {
               <tbody className="divide-y divide-white/5">
                 {processedWithPercentage.map((stock, i) => (
                   <tr key={i} className="hover:bg-white/5 transition-colors group">
-                    <td className="px-8 py-6">
+                    <td 
+                      className="px-8 py-6 cursor-pointer hover:text-neon-purple transition-colors"
+                      onClick={() => router.push(`/piyasalar/${stock.name}`)}
+                    >
                       <div className="flex items-center gap-3">
-                        <div 
+                        <div
                           className="w-10 h-10 rounded-xl flex items-center justify-center font-bold transition-transform group-hover:scale-110"
-                          style={{ 
-                            backgroundColor: `${stock.color}20`, 
+                          style={{
+                            backgroundColor: `${stock.color}20`,
                             color: stock.color,
-                            boxShadow: `0 0 15px ${stock.color}30` 
+                            boxShadow: `0 0 15px ${stock.color}30`
                           }}
                         >
                           {stock.name[0]}
@@ -889,10 +1042,10 @@ export default function PortfolioPage() {
                               // Saat farklarını sıfırlayalım ki sadece gün bazlı net hesaplama yapsın
                               const pDate = new Date(purchase.getFullYear(), purchase.getMonth(), purchase.getDate());
                               const tDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                              
+
                               const diffTime = Math.abs(tDate.getTime() - pDate.getTime());
                               const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                              
+
                               const dateStr = purchase.toLocaleDateString('tr-TR', {
                                 day: '2-digit',
                                 month: '2-digit',
@@ -907,15 +1060,23 @@ export default function PortfolioPage() {
                     </td>
                     <td className="px-8 py-6 font-medium text-gray-300">{stock.amount} Lot</td>
                     <td className="px-8 py-6">
-                      <div className="font-medium text-gray-300">₺{stock.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="font-medium text-gray-300">
+                        {stock.isForeignStock ? '$' : '₺'}
+                        {stock.costOriginal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
                       <div className="text-[11px] text-gray-500 font-bold mt-1 tracking-wider uppercase">
-                        Maliyet: ₺{(stock.cost * stock.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Maliyet: {stock.isForeignStock ? '$' : '₺'}
+                        {(stock.costOriginal * stock.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="font-bold text-white">₺{stock.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="font-bold text-white">
+                        {stock.isForeignStock ? '$' : '₺'}
+                        {stock.currentPriceOriginal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
                       <div className="text-[11px] text-neon-purple font-bold mt-1 tracking-wider uppercase opacity-80">
-                        Değer: ₺{(stock.currentPrice * stock.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Değer: {stock.isForeignStock ? '$' : '₺'}
+                        {(stock.currentPriceOriginal * stock.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       {stock.updatedAt && (
                         <div className="text-[10px] text-cyan-400/70 mt-1 font-bold tracking-tight">
@@ -934,7 +1095,9 @@ export default function PortfolioPage() {
                     <td className="px-8 py-6 text-right">
                       <div className={`flex flex-col items-end`}>
                         <span className={`font-bold ${stock.plValue >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {stock.plValue >= 0 ? '+' : ''}₺{stock.plValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {stock.plValue >= 0 ? '+' : ''}
+                          {stock.isForeignStock ? '$' : '₺'}
+                          {Math.trunc(stock.plValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </span>
                         <span className={`text-xs font-bold ${stock.plValue >= 0 ? 'text-green-400/60' : 'text-red-400/60'}`}>
                           %{stock.plPercentage.toFixed(2)}
@@ -942,7 +1105,7 @@ export default function PortfolioPage() {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <button 
+                      <button
                         onClick={() => setEditingStock(stock)}
                         className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
                       >
@@ -972,7 +1135,7 @@ export default function PortfolioPage() {
               <form onSubmit={handleCreateStock} className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Borsa Seçimi</label>
-                  <select 
+                  <select
                     value={selectedMarket}
                     onChange={(e) => setSelectedMarket(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg appearance-none cursor-pointer"
@@ -987,20 +1150,20 @@ export default function PortfolioPage() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">
                       {isManual ? 'Hisse Sembolü (Manuel)' : 'Hisse Seçimi (BIST 100)'}
                     </label>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setIsManual(!isManual)}
                       className="text-[10px] font-black text-cyan-400 hover:text-white transition-colors uppercase tracking-tighter"
                     >
                       {isManual ? '← Listeye Dön' : '+ Global / Manuel Giriş'}
                     </button>
                   </div>
-                  
+
                   {isManual ? (
-                    <input 
+                    <input
                       type="text"
                       value={newStock.name}
-                      onChange={(e) => setNewStock({...newStock, name: e.target.value.toUpperCase()})}
+                      onChange={(e) => setNewStock({ ...newStock, name: e.target.value.toUpperCase() })}
                       placeholder="Örn: NVDA veya AAPL"
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg"
                       autoFocus
@@ -1008,7 +1171,7 @@ export default function PortfolioPage() {
                     />
                   ) : (
                     <div className="relative">
-                      <input 
+                      <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => {
@@ -1022,34 +1185,34 @@ export default function PortfolioPage() {
                       />
                       <AnimatePresence>
                         {showSuggestions && (
-                          <motion.div 
+                          <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             className="absolute z-[110] left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-2xl max-h-60 overflow-y-auto shadow-2xl backdrop-blur-xl"
                           >
                             {suggestionMatches.map(symbol => (
-                                <button
-                                  key={symbol}
-                                  type="button"
-                                  onClick={() => {
-                                    setNewStock({...newStock, name: symbol});
-                                    setSearchTerm(symbol);
-                                    setShowSuggestions(false);
-                                  }}
-                                  className="w-full text-left px-5 py-3 hover:bg-white/10 transition-colors font-bold flex justify-between items-center"
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block">{symbol}</span>
-                                    {selectedMarket === "BIST 100" && BIST_STOCK_NAMES[symbol] && (
-                                      <span className="block truncate text-[10px] font-semibold normal-case text-gray-500">
-                                        {BIST_STOCK_NAMES[symbol]}
-                                      </span>
-                                    )}
-                                  </span>
-                                  <span className="text-[10px] text-gray-500 uppercase">{selectedMarket}</span>
-                                </button>
-                              ))
+                              <button
+                                key={symbol}
+                                type="button"
+                                onClick={() => {
+                                  setNewStock({ ...newStock, name: symbol });
+                                  setSearchTerm(symbol);
+                                  setShowSuggestions(false);
+                                }}
+                                className="w-full text-left px-5 py-3 hover:bg-white/10 transition-colors font-bold flex justify-between items-center"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block">{symbol}</span>
+                                  {selectedMarket === "BIST 100" && BIST_STOCK_NAMES[symbol] && (
+                                    <span className="block truncate text-[10px] font-semibold normal-case text-gray-500">
+                                      {BIST_STOCK_NAMES[symbol]}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-[10px] text-gray-500 uppercase">{selectedMarket}</span>
+                              </button>
+                            ))
                             }
                             {debouncedSearchTerm && !hasSuggestionMatch && (
                               <div className="px-5 py-3 text-gray-500 text-sm italic">Sonuç bulunamadı.</div>
@@ -1063,12 +1226,14 @@ export default function PortfolioPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Adet (Lot)</label>
-                    <input type="number" value={newStock.amount} onChange={(e) => setNewStock({...newStock, amount: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg" required />
+                    <input type="number" value={newStock.amount} onChange={(e) => setNewStock({ ...newStock, amount: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg" required />
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-2 ml-1">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Maliyet (TL)</label>
-                      <button 
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">
+                        {selectedMarket === "NASDAQ 500" ? "Maliyet (USD)" : "Maliyet (TL)"}
+                      </label>
+                      <button
                         type="button"
                         onClick={fetchHistoricalPrice}
                         disabled={fetchingHistorical}
@@ -1082,7 +1247,7 @@ export default function PortfolioPage() {
                         <span className={fetchingHistorical ? 'inline' : 'hidden'}>Çekiliyor...</span>
                       </button>
                     </div>
-                    <input type="number" step="any" value={newStock.cost} onChange={(e) => setNewStock({...newStock, cost: parseFloat(e.target.value) || 0})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg" required />
+                    <input type="number" step="any" value={newStock.cost} onChange={(e) => setNewStock({ ...newStock, cost: parseFloat(e.target.value) || 0 })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg" required />
                   </div>
                 </div>
                 <div>
@@ -1090,11 +1255,11 @@ export default function PortfolioPage() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Alım Tarihi</label>
                     <span className="text-[10px] font-bold text-cyan-400 uppercase">{calculateDaysAgo(newStock.purchaseDate)}</span>
                   </div>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={newStock.purchaseDate}
-                    onChange={(e) => setNewStock({...newStock, purchaseDate: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg color-scheme-dark" 
+                    onChange={(e) => setNewStock({ ...newStock, purchaseDate: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-cyan-400 transition-colors font-bold text-lg color-scheme-dark"
                   />
                 </div>
                 <button type="submit" className="w-full bg-cyan-500 text-black py-4 rounded-2xl font-black text-lg hover:bg-cyan-400 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,255,0.3)]">
@@ -1120,12 +1285,14 @@ export default function PortfolioPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Adet (Lot)</label>
-                    <input type="number" value={editingStock.amount} onChange={(e) => setEditingStock({...editingStock, amount: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg" />
+                    <input type="number" value={editingStock.amount} onChange={(e) => setEditingStock({ ...editingStock, amount: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg" />
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-2 ml-1">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Maliyet (TL)</label>
-                      <button 
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">
+                        {(editingStock && (NASDAQ500_STOCKS.includes(editingStock.name) || (!editingStock.name.endsWith('.IS') && !ALL_BIST_STOCKS.includes(editingStock.name)))) ? "Maliyet (USD)" : "Maliyet (TL)"}
+                      </label>
+                      <button
                         type="button"
                         onClick={fetchHistoricalPriceForEdit}
                         disabled={fetchingHistorical}
@@ -1139,7 +1306,7 @@ export default function PortfolioPage() {
                         <span className={fetchingHistorical ? 'inline' : 'hidden'}>Çekiliyor...</span>
                       </button>
                     </div>
-                    <input type="number" step="any" value={editingStock.cost} onChange={(e) => setEditingStock({...editingStock, cost: parseFloat(e.target.value) || 0})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg" />
+                    <input type="number" step="any" value={editingStock.cost} onChange={(e) => setEditingStock({ ...editingStock, cost: parseFloat(e.target.value) || 0 })} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg" />
                   </div>
                 </div>
                 <div>
@@ -1147,22 +1314,22 @@ export default function PortfolioPage() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Alım Tarihi</label>
                     <span className="text-[10px] font-bold text-neon-purple uppercase">{calculateDaysAgo(editingStock.purchaseDate)}</span>
                   </div>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={editingStock.purchaseDate ? editingStock.purchaseDate.split('T')[0] : ""}
-                    onChange={(e) => setEditingStock({...editingStock, purchaseDate: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg color-scheme-dark" 
+                    onChange={(e) => setEditingStock({ ...editingStock, purchaseDate: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 focus:outline-none focus:border-neon-purple transition-colors font-bold text-lg color-scheme-dark"
                   />
                 </div>
                 <div className="flex gap-4">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => handleDeleteStock(editingStock.name)}
                     className="flex-1 bg-red-500/10 text-red-500 py-4 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2 border border-red-500/20"
                   >
                     <Trash2 size={20} /> Sil
                   </button>
-                  <button 
+                  <button
                     type="submit"
                     className="flex-[2] bg-neon-purple text-white py-4 rounded-2xl font-black text-lg hover:bg-neon-purple-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(139,0,232,0.4)]"
                   >

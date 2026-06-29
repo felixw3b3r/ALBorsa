@@ -286,8 +286,9 @@ export default function HalkaArzDetailPage() {
                 </div>
               </div>
 
-              <TechnicalItem label="T1-T2 Bakiye" value={data.t1t2} color={data.t1t2.includes('Kullanılabilir') ? 'text-green-500' : 'text-red-500'} />
+              <TechnicalItem label="T1-T2 Bakiye" value={data.t1t2} color={data.t1t2.includes('Kullanılabilir') || data.t1t2.includes('Uygun') ? 'text-green-500' : 'text-red-500'} />
               <TechnicalItem label="Fiyat İstikrarı" value={data.stability} />
+              {data.satmama && <TechnicalItem label="Satmama Taahhüdü" value={data.satmama} />}
               <TechnicalItem label="Katılım Endeksi" value={data.index} color={data.index.includes('Uygun') ? 'text-green-500' : 'text-red-500'} />
               
               <div className="pt-6 border-t border-white/5 space-y-4">

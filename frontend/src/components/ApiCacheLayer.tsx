@@ -27,11 +27,17 @@ const GLOBAL_CACHE_OPTIONS: GlobalCacheOptions = {
   maxEntries: 180,
   maxBytes: 24 * 1024 * 1024
 };
+const IPO_CACHE_OPTIONS: GlobalCacheOptions = {
+  ttlMs: 10 * 60_000,
+  maxEntries: 220,
+  maxBytes: 24 * 1024 * 1024
+};
 
 let isPatched = false;
 let cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
-const NO_CACHE_PATHS = ['/auth/login', '/auth/register', '/halkaarz'];
+const NO_CACHE_PATHS = ['/auth/login', '/auth/register'];
+const NO_CACHE_HEADER = 'x-bypass-api-cache';
 
 function normalizePath(prefix: string) {
   if (!prefix.endsWith('/')) return prefix;
@@ -65,6 +71,15 @@ function isNoCachePath(path: string): boolean {
 function cacheKeyForRequest(request: Request): string {
   const authorization = request.headers.get('authorization') || '';
   return `${GLOBAL_CACHE_PREFIX}${request.url}:auth=${authorization}`;
+}
+
+function cacheOptionsForRequest(request: Request): GlobalCacheOptions {
+  const requestUrl = new URL(request.url);
+  if (requestUrl.pathname.includes('/halkaarz')) {
+    return IPO_CACHE_OPTIONS;
+  }
+
+  return GLOBAL_CACHE_OPTIONS;
 }
 
 function isCacheableRequest(request: Request): boolean {
@@ -131,10 +146,22 @@ export default function ApiCacheLayer() {
     }
 
     const originalFetch = window.fetch.bind(window);
-    const inFlight = new Map<string, Promise<Response>>();
+    const inFlight = new Map<string, Promise<CachedResponsePayload>>();
 
     const wrappedFetch: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const request = new Request(input, init);
+      const isBypassCache = request.headers.get(NO_CACHE_HEADER) === '1';
+
+      if (isBypassCache) {
+        const response = originalFetch(request);
+        const invalidatePrefix = shouldInvalidateAfter(request);
+        if (invalidatePrefix && request.method.toUpperCase() !== 'GET') {
+          response.finally(() => {
+            clearByPrefix(invalidatePrefix);
+          });
+        }
+        return response;
+      }
 
       if (!isCacheableRequest(request)) {
         const response = originalFetch(request);
@@ -154,26 +181,25 @@ export default function ApiCacheLayer() {
       }
 
       if (inFlight.has(key)) {
-        return inFlight.get(key)!;
+        const inFlightPayload = await inFlight.get(key)!;
+        return fromPayload(inFlightPayload);
       }
 
       const fetchPromise = originalFetch(request)
         .then(async (response) => {
+          const payload = await toPayload(response);
           if (response.ok) {
-            const payload = await toPayload(response);
-            setCachedValue(key, payload, GLOBAL_CACHE_OPTIONS);
+            setCachedValue(key, payload, cacheOptionsForRequest(request));
           }
-          return response;
-        })
-        .catch((error) => {
-          throw error;
+          return payload;
         })
         .finally(() => {
           inFlight.delete(key);
         });
 
       inFlight.set(key, fetchPromise);
-      return fetchPromise;
+      const payload = await fetchPromise;
+      return fromPayload(payload);
     };
 
     window.fetch = wrappedFetch;

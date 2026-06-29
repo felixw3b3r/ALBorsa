@@ -23,6 +23,20 @@ const NASDAQ500_STOCKS = [
   "A", "AAL", "AAP", "AAPL", "ABBV", "ABC", "ABT", "ACGL", "ACN", "ADAY", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALK", "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APTV", "ARE", "ATO", "ATRC", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP", "AYI", "AZO", "BA", "BAC", "BALL", "BAX", "BBWI", "BBY", "BDX", "BEN", "BF.B", "BG", "BIIB", "BIO", "BK", "BKNG", "BKR", "BLDR", "BLK", "BMY", "BR", "BRK.B", "BRO", "BSX", "BWA", "BX", "BXP", "C", "CAG", "CAH", "CARR", "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CE", "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR", "CI", "CINF", "CL", "CLX", "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS", "CNC", "CNP", "COF", "COO", "COP", "COR", "COST", "CPB", "CPRT", "CPT", "CRL", "CRM", "CRWD", "CSCO", "CSGP", "CSX", "CTAS", "CTLT", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "CZR", "D", "DAL", "DAN", "DAY", "DD", "DE", "DECK", "DFS", "DG", "DGX", "DHI", "DHR", "DIS", "DLR", "DLTR", "DOC", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK", "DVA", "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX", "EG", "EIX", "EL", "ELV", "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX", "EQR", "EQT", "ES", "ESS", "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPD", "EXPE", "EXR", "F", "FANG", "FAST", "FI", "FICO", "FIS", "FITB", "FLT", "FMC", "FOX", "FOXA", "FRT", "FSLR", "FTNT", "FTV", "GD", "GE", "GEV", "GGG", "GILD", "GIS", "GL", "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWRE", "GWW", "HAL", "HAS", "HBAN", "HCA", "HD", "HES", "HIG", "HII", "HLDX", "HOLX", "HON", "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUBB", "HUM", "HWM", "IBM", "ICE", "IDXX", "IEX", "IFF", "ILMN", "INCY", "INTC", "INTU", "INVH", "IP", "IPG", "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT", "JBL", "JCI", "JKHY", "JNJ", "JNPR", "JPM", "K", "KDP", "KEY", "KEYS", "KHC", "KIM", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "KVUE", "L", "LDOS", "LEN", "LH", "LHX", "LIN", "LKQ", "LLY", "LMT", "LNC", "LNT", "LOW", "LRCX", "LULU", "LUV", "LVS", "LW", "LYB", "LYV", "MA", "MAA", "MAR", "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "METC", "MGM", "MHK", "MKC", "MKTX", "MLM", "MMC", "MMM", "MNST", "MO", "MOH", "MOS", "MPC", "MPWR", "MRK", "MRK", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH", "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP", "NTR", "NTRS", "NUE", "NVDA", "NVR", "NWC", "NWL", "NWS", "NWSA", "NXPI", "O", "ODFL", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS", "OXY", "PANW", "PARA", "PAYC", "PAYX", "PCAR", "PCG", "PEG", "PEP", "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PKI", "PLD", "PM", "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PSA", "PTC", "PWR", "PYPL", "QCOM", "QRVO", "RCL", "RE", "REG", "REGN", "RF", "RHI", "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "RVTY", "SBAC", "SBUX", "SCHW", "SHW", "SIRI", "SITM", "SJM", "SLB", "SMCI", "SNA", "SNPS", "SO", "SPG", "SPGI", "SRE", "STE", "STLD", "STT", "STX", "STZ", "SWK", "SWKS", "SYK", "SYY", "T", "TAP", "TDG", "TDY", "TECH", "TEL", "TER", "TFT", "TFC", "TFX", "TGT", "TJX", "TMO", "TMUS", "TPR", "TRGP", "TRMB", "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT", "TTWO", "TXN", "TXT", "TYL", "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI", "USB", "V", "VICI", "VLO", "VMC", "VRSK", "VRTX", "VTR", "VZ", "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL", "WFC", "WFRD", "WHR", "WM", "WMB", "WMT", "WRB", "WST", "WTW", "WY", "WYNN", "XEL", "XOM", "XRAY", "XYL", "YUM", "ZBH", "ZBRA", "ZTS"      
 ];
 
+const getBenchmarkLabel = (ticker: string) => {
+  if (ticker === "USDTRY=X") return "DOLAR";
+  if (ticker === "EURTRY=X") return "EURO";
+  if (ticker === "GC=F") return "ALTIN";
+  if (ticker === "BTC-USD") return "BTC";
+  return ticker;
+};
+
+const isUsdPricedBenchmark = (ticker: string, currency: string) => {
+  const normalized = ticker.toUpperCase();
+  if (normalized.endsWith("TRY=X")) return false;
+  return currency === "USD" || normalized.includes("-USD") || NASDAQ500_STOCKS.includes(normalized) || normalized === "GC=F";
+};
+
 export default function RealGetiriPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -30,7 +44,6 @@ export default function RealGetiriPage() {
   const [livePrices, setLivePrices] = useState<any[]>([]);
   const [usdRate, setUsdRate] = useState<number>(0);
   const [eurRate, setEurRate] = useState<number>(0);
-  const [btcRate, setBtcRate] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [historicalRates, setHistoricalRates] = useState<{[key: string]: {usd: number, eur: number}}>({});
 
@@ -66,14 +79,6 @@ export default function RealGetiriPage() {
 
         const eur = rateData.result.find((r: any) => r.code === "EUR");
         if (eur) setEurRate(typeof eur.selling === 'string' ? parseFloat(eur.selling.replace(',', '.')) : eur.selling);
-      }
-
-      // BTC Kuru
-      const cryptoRes = await fetch(`${API_URL}/crypto`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-      const cryptoData = await cryptoRes.json();
-      if (cryptoData.success && cryptoData.result) {
-        const btc = cryptoData.result.find((r: any) => r.code === "BTC");
-        if (btc) setBtcRate(typeof btc.price === 'string' ? parseFloat(btc.price.replace(',', '.')) : btc.price);
       }
 
       // 1. Güncel Benchmark Fiyatı
@@ -131,11 +136,13 @@ export default function RealGetiriPage() {
               fetch(`${API_URL}/historical?symbol=${activeTicker}&date=${date}&market=${mkt}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json())
             ]);
 
-            if (usdH.success) histRates[item._id] = { usd: usdH.price, eur: eurH.price || 0 };
+            histRates[item._id] = {
+              usd: usdH.success ? usdH.price : usdRate,
+              eur: eurH.success ? eurH.price : eurRate
+            };
             if (benchH.success) {
-              const activeTickerUpper = activeTicker.toUpperCase();
-              const isBenchUSD = !activeTickerUpper.endsWith('.IS') && !activeTickerUpper.endsWith('TRY=X');
-              benchHist[date] = (isBenchUSD && benchH.rawPrice != null) ? benchH.rawPrice : benchH.price;
+              const usesRawUsdPrice = isUsdPricedBenchmark(activeTicker, benchH.currency || "");
+              benchHist[date] = (usesRawUsdPrice && benchH.rawPrice != null) ? benchH.rawPrice : benchH.price;
             }
           }
         }));
@@ -165,136 +172,96 @@ export default function RealGetiriPage() {
     }
   }, [benchmarkTicker]);
 
+  const benchmarkLabel = getBenchmarkLabel(benchmarkTicker);
+  const benchmarkIsUsdPriced = isUsdPricedBenchmark(benchmarkTicker, benchmarkCurrency);
+  const benchmarkPricePrefix = benchmarkIsUsdPriced ? "$" : "₺";
+
   const processedData = portfolio.map(item => {
-    const itemName = item.name.toUpperCase();
+    const itemName = (item.name || "").toString().trim().toUpperCase();
     const liveStock = livePrices.find(s => {
-      const sCode = s.code.toUpperCase();
+      const sCode = (s.code || "").toString().trim().toUpperCase();
       return sCode === itemName || sCode === `${itemName}.IS` || itemName === `${sCode}.IS`;
     });
 
-    const isNasdaqStock = itemName && !itemName.endsWith('.IS') && !BIST100_STOCKS.includes(itemName);
+    const amount = Number(item.amount || 0);
     const hist = historicalRates[item._id];
-    const histUSD = hist?.usd || usdRate;
+    const histUSD = hist?.usd || usdRate || 1;
+    const histEUR = hist?.eur || eurRate || 1;
+    const currentUSDRate = usdRate || histUSD || 1;
 
     const purchaseDateStr = item.purchaseDate?.split('T')[0];
-    const benchHistPrice = benchmarkHistoricalPrices[purchaseDateStr];
+    const benchHistPrice = Number(benchmarkHistoricalPrices[purchaseDateStr] || 0);
+    const currentBenchmarkPrice = Number(benchmarkCurrentPrice || 0);
 
-    const isBenchUSD = benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F";
     const benchNorm = benchmarkTicker.toUpperCase().replace('.IS', '');
     const itemNorm = itemName.replace('.IS', '');
     const isSameStock = benchNorm === itemNorm;
+    const liveCurrency = liveStock?.currency;
+    const isNasdaqStock = Boolean(itemName) && (
+      liveCurrency === "USD" ||
+      itemName.includes("-USD") ||
+      itemName === "GC=F" ||
+      NASDAQ500_STOCKS.includes(itemName)
+    );
 
-    if (isNasdaqStock) {
-      // NASDAQ Stock - All calculations in USD
-      const costUSD = item.cost;
-      let currentPriceUSD = costUSD;
-      if (liveStock) {
-        currentPriceUSD = liveStock.regularMarketPrice || liveStock.price || 0;
+    let cost = Number(item.cost || 0);
+    let currentPrice = liveStock ? Number(liveStock.regularMarketPrice || liveStock.price || 0) : cost;
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) currentPrice = cost;
+
+    if (isNasdaqStock && cost > 0 && currentPrice > 0 && usdRate > 0) {
+      const ratio = cost / currentPrice;
+      if (ratio > 15 && ratio < 70) {
+        cost = cost / usdRate;
       }
-      
-      const valueUSD = item.amount * currentPriceUSD;
-      const costUSD_total = item.amount * costUSD;
-      const plUSD = valueUSD - costUSD_total;
-      const plPercent = costUSD_total > 0 ? (plUSD / costUSD_total) * 100 : 0;
-
-      let benchValueUSD = 0;
-      let benchGainUSD = 0;
-      let benchGainPercent = 0;
-
-      if (isSameStock) {
-        benchValueUSD = valueUSD;
-        benchGainUSD = plUSD;
-        benchGainPercent = plPercent;
-      } else if (benchHistPrice) {
-        if (isBenchUSD) {
-          const units = costUSD_total / benchHistPrice;
-          benchValueUSD = units * benchmarkCurrentPrice;
-        } else {
-          const costTRY = costUSD_total * histUSD;
-          const units = costTRY / benchHistPrice;
-          const benchValueTRY = units * benchmarkCurrentPrice;
-          benchValueUSD = usdRate > 0 ? (benchValueTRY / usdRate) : 0;
-        }
-        benchGainUSD = benchValueUSD - costUSD_total;
-        benchGainPercent = costUSD_total > 0 ? (benchGainUSD / costUSD_total) * 100 : 0;
-      }
-
-      // Convert values to TL for portfolio-level summaries
-      const costTL = costUSD_total * histUSD;
-      const profitLossTL = plUSD * usdRate;
-      const currentValueTL = costTL + profitLossTL;
-      const benchGainTL = benchGainUSD * usdRate;
-      const benchValueTL = costTL + benchGainTL;
-
-      return {
-        ...item,
-        isNasdaqStock: true,
-        cost: costUSD,
-        currentValue: valueUSD,
-        costTL,
-        currentValueTL,
-        profitLoss: plUSD,
-        profitLossPercent: plPercent,
-        benchValue: benchValueUSD,
-        benchGain: benchGainUSD,
-        benchGainPercent,
-        benchValueTL,
-        benchGainTL,
-        benchHistPrice,
-        benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))
-      };
-    } else {
-      // BIST Stock - Calculations in TL
-      const costTL_total = item.amount * item.cost;
-      let currentPriceTL = item.cost;
-      if (liveStock) {
-        currentPriceTL = liveStock.regularMarketPrice || liveStock.price || 0;
-      }
-
-      const valueTL = item.amount * currentPriceTL;
-      const plTL = valueTL - costTL_total;
-      const plPercent = costTL_total > 0 ? (plTL / costTL_total) * 100 : 0;
-
-      let benchValueTL = 0;
-      let benchGainTL = 0;
-      let benchGainPercent = 0;
-
-      if (isSameStock) {
-        benchValueTL = valueTL;
-        benchGainTL = plTL;
-        benchGainPercent = plPercent;
-      } else if (benchHistPrice) {
-        if (isBenchUSD) {
-          const costUSD = costTL_total / histUSD;
-          const units = costUSD / benchHistPrice;
-          const benchValueUSD = units * benchmarkCurrentPrice;
-          benchValueTL = benchValueUSD * usdRate;
-        } else {
-          const units = costTL_total / benchHistPrice;
-          benchValueTL = units * benchmarkCurrentPrice;
-        }
-        benchGainTL = benchValueTL - costTL_total;
-        benchGainPercent = costTL_total > 0 ? (benchGainTL / costTL_total) * 100 : 0;
-      }
-
-      return {
-        ...item,
-        isNasdaqStock: false,
-        cost: item.cost,
-        currentValue: valueTL,
-        costTL: costTL_total,
-        currentValueTL: valueTL,
-        profitLoss: plTL,
-        profitLossPercent: plPercent,
-        benchValue: benchValueTL,
-        benchGain: benchGainTL,
-        benchGainPercent,
-        benchValueTL,
-        benchGainTL,
-        benchHistPrice,
-        benchmarkAssetName: benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))
-      };
     }
+
+    const costValue = amount * cost;
+    const currentValue = amount * currentPrice;
+    const costTL = isNasdaqStock ? costValue * histUSD : costValue;
+    const currentValueTL = isNasdaqStock ? currentValue * currentUSDRate : currentValue;
+    const profitLoss = currentValue - costValue;
+    const profitLossPercent = costValue > 0 ? (profitLoss / costValue) * 100 : 0;
+
+    let benchValueTL = costTL;
+    const hasBenchmarkData = isSameStock || (benchHistPrice > 0 && currentBenchmarkPrice > 0);
+
+    if (isSameStock) {
+      benchValueTL = currentValueTL;
+    } else if (hasBenchmarkData) {
+      if (benchmarkIsUsdPriced) {
+        const units = (costTL / histUSD) / benchHistPrice;
+        benchValueTL = units * currentBenchmarkPrice * currentUSDRate;
+      } else {
+        const units = costTL / benchHistPrice;
+        benchValueTL = units * currentBenchmarkPrice;
+      }
+    }
+
+    const benchValue = isNasdaqStock ? benchValueTL / currentUSDRate : benchValueTL;
+    const benchCostBase = isNasdaqStock ? costValue : costTL;
+    const benchGain = benchValue - benchCostBase;
+    const benchGainPercent = benchCostBase > 0 ? (benchGain / benchCostBase) * 100 : 0;
+    const benchGainTL = benchValueTL - costTL;
+
+    return {
+      ...item,
+      isNasdaqStock,
+      cost,
+      currentValue,
+      costTL,
+      currentValueTL,
+      profitLoss,
+      profitLossPercent,
+      benchValue,
+      benchGain,
+      benchGainPercent,
+      benchValueTL,
+      benchGainTL,
+      benchHistPrice,
+      costUSDAtPurchase: costTL / histUSD,
+      costEURAtPurchase: costTL / histEUR,
+      benchmarkAssetName: benchmarkLabel
+    };
   }).sort((a, b) => b.currentValueTL - a.currentValueTL);
 
   const totalCostTL = processedData.reduce((acc, item) => acc + (item.costTL || 0), 0);
@@ -302,17 +269,8 @@ export default function RealGetiriPage() {
   const totalBenchmarkValue = processedData.reduce((acc, item) => acc + (item.benchValueTL || 0), 0);
 
   // REAL USD/EUR MALİYET HESABI: Her bir alımın kendi tarihindeki kuruna göre toplam maliyeti bul
-  const totalCostUSD = processedData.reduce((acc, item) => {
-    const hist = historicalRates[item._id];
-    const histUSD = hist?.usd || usdRate;
-    return acc + (item.costTL / (histUSD || 1));
-  }, 0);
-
-  const totalCostEUR = processedData.reduce((acc, item) => {
-    const hist = historicalRates[item._id];
-    const histEUR = hist?.eur || eurRate;
-    return acc + (item.costTL / (histEUR || 1));
-  }, 0);
+  const totalCostUSD = processedData.reduce((acc, item) => acc + (item.costUSDAtPurchase || 0), 0);
+  const totalCostEUR = processedData.reduce((acc, item) => acc + (item.costEURAtPurchase || 0), 0);
 
   const totalValueUSD = totalCurrentValueTL / (usdRate || 1);
   const totalValueEUR = totalCurrentValueTL / (eurRate || 1);
@@ -352,7 +310,7 @@ export default function RealGetiriPage() {
               <BarChart3 className="text-cyan-400 w-5 h-5" />
               <div className="text-left">
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none mb-1">Kıyaslama Varlığı</p>
-                <p className="text-sm font-black text-white uppercase">{benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))}</p>
+                <p className="text-sm font-black text-white uppercase">{benchmarkLabel}</p>
               </div>
             </button>
 
@@ -398,7 +356,7 @@ export default function RealGetiriPage() {
             </div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">TL Nominal Getiri</p>
             <h3 className={`text-3xl font-black ${totalPLTL >= 0 ? 'text-green-400' : 'text-red-400'}`}>%{totalPLPercentTL.toFixed(2)}</h3>
-            <p className="text-xs text-gray-400 mt-2">Net kârınızın ana paraya oranı.</p>
+            <p className="text-xs text-gray-400 mt-2">Net sonucun ana paraya oranı.</p>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl border-cyan-500/30">
@@ -411,7 +369,7 @@ export default function RealGetiriPage() {
               %{totalPLPercentUSD.toFixed(2)}
             </h3>
             <p className={`text-sm mt-2 font-black ${totalPLPercentUSD >= 0 ? 'text-green-400/80' : 'text-red-400/80'}`}>
-              {totalPLPercentUSD >= 0 ? '+' : ''}${(totalValueUSD - totalCostUSD).toLocaleString(undefined, { maximumFractionDigits: 2 })} Net Kar
+              {totalPLPercentUSD >= 0 ? '+' : '-'}${Math.abs(totalValueUSD - totalCostUSD).toLocaleString(undefined, { maximumFractionDigits: 2 })} {totalPLPercentUSD >= 0 ? 'Net Kâr' : 'Zarar'}
             </p>
           </motion.div>
 
@@ -425,7 +383,7 @@ export default function RealGetiriPage() {
               %{totalPLPercentEUR.toFixed(2)}
             </h3>
             <p className={`text-sm mt-2 font-black ${totalPLPercentEUR >= 0 ? 'text-green-400/80' : 'text-red-400/80'}`}>
-              {totalPLPercentEUR >= 0 ? '+' : ''}€{(totalValueEUR - totalCostEUR).toLocaleString(undefined, { maximumFractionDigits: 2 })} Net Kar
+              {totalPLPercentEUR >= 0 ? '+' : '-'}€{Math.abs(totalValueEUR - totalCostEUR).toLocaleString(undefined, { maximumFractionDigits: 2 })} {totalPLPercentEUR >= 0 ? 'Net Kâr' : 'Zarar'}
             </p>
           </motion.div>
         </div>
@@ -435,9 +393,9 @@ export default function RealGetiriPage() {
           <div className="absolute top-0 right-0 p-8 opacity-10 text-cyan-400"><BarChart3 size={120} /></div>
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
             <div>
-              <h2 className="text-3xl font-black mb-2 italic tracking-tighter uppercase underline decoration-cyan-500/30">TURNUSOL ÖZETİ ( {benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))} )</h2>
+              <h2 className="text-3xl font-black mb-2 italic tracking-tighter uppercase underline decoration-cyan-500/30">TURNUSOL ÖZETİ ( {benchmarkLabel} )</h2>
               <p className="text-gray-400 text-sm max-w-md font-medium leading-relaxed">
-                Eğer portföyünüzdeki her varlığı aldığınız tarihte o parayla doğrudan <span className="text-white font-black underline decoration-cyan-500">{benchmarkTicker === "USDTRY=X" ? "DOLAR" : (benchmarkTicker === "GC=F" ? "ALTIN" : (benchmarkTicker === "BTC-USD" ? "BTC" : benchmarkTicker))}</span> alsaydınız:
+                Eğer portföyünüzdeki her varlığı aldığınız tarihte o parayla doğrudan <span className="text-white font-black underline decoration-cyan-500">{benchmarkLabel}</span> alsaydınız:
               </p>
             </div>
             <div className="flex flex-col md:flex-row items-center md:items-end gap-8 md:gap-12">
@@ -448,7 +406,7 @@ export default function RealGetiriPage() {
                 <div className={`inline-flex flex-col items-center gap-1 px-6 py-3 rounded-2xl font-black shadow-xl ${totalPLTL >= 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>      
                   <div className="flex items-center gap-2 text-sm">
                     {totalPLTL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
-                    %{totalPLPercentTL.toFixed(1)} Kâr
+                    %{Math.abs(totalPLPercentTL).toFixed(1)} {totalPLTL >= 0 ? 'Kâr' : 'Zarar'}
                   </div>
                   <div className="text-xs opacity-80">
                     ₺{Math.abs(totalPLTL).toLocaleString(undefined, { maximumFractionDigits: 0 })} {totalPLTL >= 0 ? 'Net Kâr' : 'Zarar'}
@@ -463,7 +421,7 @@ export default function RealGetiriPage() {
                 <div className={`inline-flex flex-col items-center gap-1 px-6 py-3 rounded-2xl font-black shadow-xl ${totalBenchmarkPL >= 0 ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'}`}>
                   <div className="flex items-center gap-2 text-sm">
                     {totalBenchmarkPL >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
-                    %{totalBenchmarkPLPercent.toFixed(1)} Getiri
+                    %{Math.abs(totalBenchmarkPLPercent).toFixed(1)} {totalBenchmarkPL >= 0 ? 'Getiri' : 'Zarar'}
                   </div>
                   <div className="text-xs opacity-80">
                     ₺{Math.abs(totalBenchmarkPL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} {totalBenchmarkPL >= 0 ? 'Net Kâr' : 'Zarar'}
@@ -520,14 +478,14 @@ export default function RealGetiriPage() {
                       <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/5">
                         <span className="text-[9px] text-gray-500 font-bold uppercase">H:</span>
                         <span className="text-[10px] text-gray-400 font-black">
-                          {(benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? "$" : "₺"}
+                          {benchmarkPricePrefix}
                           {stock.benchHistPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/10 shadow-sm">  
                         <span className="text-[9px] text-gray-500 font-bold uppercase">C:</span>
                         <span className="text-[10px] text-cyan-400 font-black">
-                          {(benchmarkCurrency === "USD" || benchmarkTicker.includes("-USD") || NASDAQ500_STOCKS.includes(benchmarkTicker) || benchmarkTicker === "GC=F") ? "$" : "₺"}
+                          {benchmarkPricePrefix}
                           {benchmarkCurrentPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </span>
                       </div>

@@ -1426,7 +1426,7 @@ const INDEX_COMPONENTS: { [key: string]: string[] } = {
     'GESAN.IS', 'SMRTG.IS', 'BRYAT.IS', 'CANTE.IS', 'AKFGY.IS', 'KAYSE.IS', 'ENERY.IS', 'TATEN.IS', 'EBEBK.IS', 'TABGD.IS',
     'VAKFN.IS', 'IZMDC.IS', 'BTCIM.IS', 'OYYAT.IS', 'KFEIN.IS', 'ARDYZ.IS', 'FORMT.IS', 'BVSAN.IS',
     'MHRGY.IS', 'BORLS.IS', 'AVPGY.IS', 'SURGY.IS', 'MEGMT.IS', 'LMKDC.IS', 'MOGAN.IS', 'ENTRA.IS', 'KOTON.IS',
-    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'LKMNH.IS', 'PKENT.IS'
+    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'LKMNH.IS', 'PKENT.IS', 'TERA.IS'
   ],
   'XU050.IS': [
     'THYAO.IS', 'TUPRS.IS', 'KCHOL.IS', 'AKBNK.IS', 'ISCTR.IS', 'GARAN.IS', 'BIMAS.IS', 'EREGL.IS', 'SAHOL.IS', 'YKBNK.IS',
@@ -1815,6 +1815,57 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 app.get('/api/halkaarz', (req, res) => {
   const ipoData = [
     {
+      name: "Soho Giyim ve Enerji A.Ş.",
+      symbol: "SOHO",
+      status: "active",
+      date: "Hazırlanıyor...",
+      logo: "/logos/SOHO.png",
+      details: {
+        price: "15,00 TL",
+        distribution: "Eşit Dağıtım **",
+        lots: "100.000.000 Lot",
+        manager: "İntegral Yatırım Menkul Değerler A.Ş.",
+        market: "Ana Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
+      name: "Isvea Seramik ve Banyo Ürünleri Sanayi A.Ş.",
+      symbol: "ISVEA",
+      status: "active",
+      date: "Hazırlanıyor...",
+      logo: "/logos/ISVEA.png",
+      details: {
+        price: "20,90 TL",
+        distribution: "Eşit Dağıtım",
+        lots: "67.000.000 Lot",
+        manager: "Halk Yatırım Menkul Değerler A.Ş. & Ahlatcı Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+        market: "Yıldız Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
+      name: "Golda Gıda San. ve Tic. A.Ş.",
+      symbol: "GOLDA",
+      status: "active",
+      date: "Hazırlanıyor...",
+      logo: "/logos/GOLDA.png",
+      details: {
+        price: "9,20 TL",
+        distribution: "Eşit Dağıtım",
+        lots: "87.499.998 Lot",
+        manager: "Gedik Yatırım Menkul Değerler A.Ş. / Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
+        market: "Ana Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
       name: "Beta Enerji ve Teknoloji A.Ş.",
       symbol: "BETAE",
       status: "active",
@@ -1826,9 +1877,9 @@ app.get('/api/halkaarz', (req, res) => {
         lots: "60.750.000 Lot",
         manager: "TSKB & Ziraat & Yatırım Finansman",
         market: "Yıldız Pazar",
-        listingDate: "Açıklanmadı",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
+        listingDate: "Hazırlanıyor...",
+        participants: "1.100.000 Kişi",
+        perPerson: "28 Lot"
       }
     },
     {
@@ -1953,6 +2004,123 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
         discount: "%20,45",
         salesMethod: "Sabit Fiyatla Talep Toplama",
         highThreshold: "450.045 TL"
+      }
+    });
+  }
+
+  if (sym === 'SOHO') {
+    return res.json({
+      title: "Soho Giyim ve Enerji A.Ş.",
+      symbol: "SOHO",
+      status: "active",
+      logo: "/logos/SOHO.png",
+      date: "Hazırlanıyor...",
+      price: "15,00 TL",
+      distribution: "Eşit Dağıtım **",
+      lots: "100.000.000 Lot",
+      manager: "İntegral Yatırım Menkul Değerler A.Ş.",
+      market: "Ana Pazar",
+      size: "~ 1,5 Milyar TL",
+      method: {
+        capitalIncrease: "Sermaye Artırımı : 100.000.000 Lot. * SPK Bülteni, 2026/41.",
+        partnerSale: "Yoktur",
+        total: "100.000.000 Lot",
+        partners: []
+      },
+      balanceSheet: [
+        { year: "2024/6", revenue: "712,2 Milyon TL", profit: "129,3 Milyon TL" },
+        { year: "2023", revenue: "1,2 Milyar TL", profit: "246,1 Milyon TL" },
+        { year: "2022 * Taslak İzahname, Sayfa 112.", revenue: "1,1 Milyar TL", profit: "167,0 Milyon TL" }
+      ],
+      fundUsage: [
+        { area: "Mağazalaşma yatırımları. * Taslak İzahname, Sayfa 174.", ratio: 30 },
+        { area: "Markalaşma yatırımları.", ratio: 10 },
+        { area: "Kreasyon Yatırımları.", ratio: 40 },
+        { area: "Finansal borçların ödenmesi.", ratio: 20 }
+      ],
+      allocation: [
+        { group: "Yoktur", ratio: 100, lot: "Yoktur. * Tamamen Eşit Dağıtım." }
+      ],
+      t1t2: "*** T1-T2 Uygun.",
+      stability: "30 gün. * Brüt halka arz gelirinin %20'si. * Taslak İzahname, Sayfa 172.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar. * Taslak İzahname, Sayfa 173.",
+      index: "Açıklanmadı",
+      extra: {
+        float: "%31,08. * Taslak İzahname, Sayfa 161.",
+        discount: "Açıklanmadı",
+        salesMethod: "Açıklanmadı"
+      }
+    });
+  }
+
+  if (sym === 'GOLDA') {
+    return res.json({
+      title: "Golda Gıda San. ve Tic. A.Ş.",
+      symbol: "GOLDA",
+      status: "active",
+      logo: "/logos/GOLDA.png",
+      date: "Hazırlanıyor...",
+      price: "9,20 TL",
+      distribution: "Eşit Dağıtım",
+      lots: "87.499.998 Lot",
+      manager: "Gedik Yatırım Menkul Değerler A.Ş. / Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
+      market: "Ana Pazar",
+      size: "~ 804 Milyon TL",
+      method: {
+        capitalIncrease: "50.000.000 Lot",
+        partnerSale: "37.499.998 Lot (Bera Holding A.Ş.)",
+        total: "87.499.998 Lot",
+        partners: [
+          { name: "Bera Holding A.Ş.", lot: "37.499.998" }
+        ]
+      },
+      balanceSheet: [],
+      fundUsage: [],
+      allocation: [
+        { group: "Yurt İçi Bireysel", ratio: 100, lot: "Açıklanmadı" }
+      ],
+      t1t2: "Açıklanmadı",
+      stability: "Planlanmamaktadır",
+      index: "Açıklanmadı",
+      extra: {
+        float: "Açıklanmadı",
+        discount: "Açıklanmadı",
+        salesMethod: "Açıklanmadı"
+      }
+    });
+  }
+
+  if (sym === 'ISVEA') {
+    return res.json({
+      title: "Isvea Seramik ve Banyo Ürünleri Sanayi A.Ş.",
+      symbol: "ISVEA",
+      status: "active",
+      logo: "/logos/ISVEA.png",
+      date: "Hazırlanıyor...",
+      price: "20,90 TL",
+      distribution: "Eşit Dağıtım",
+      lots: "67.000.000 Lot",
+      manager: "Halk Yatırım Menkul Değerler A.Ş. & Ahlatcı Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+      market: "Yıldız Pazar",
+      size: "~ 1,4 Milyar TL",
+      method: {
+        capitalIncrease: "67.000.000 Lot",
+        partnerSale: "Yoktur",
+        total: "67.000.000 Lot",
+        partners: []
+      },
+      balanceSheet: [],
+      fundUsage: [],
+      allocation: [
+        { group: "Yurt İçi Bireysel", ratio: 100, lot: "Açıklanmadı" }
+      ],
+      t1t2: "Açıklanmadı",
+      stability: "Planlanmamaktadır",
+      index: "Açıklanmadı",
+      extra: {
+        float: "Açıklanmadı",
+        discount: "Açıklanmadı",
+        salesMethod: "Açıklanmadı"
       }
     });
   }

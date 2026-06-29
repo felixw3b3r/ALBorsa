@@ -10,7 +10,7 @@ export const INDEX_COMPONENTS: { [key: string]: string[] } = {
     'GESAN.IS', 'SMRTG.IS', 'BRYAT.IS', 'CANTE.IS', 'AKFGY.IS', 'KAYSE.IS', 'ENERY.IS', 'TATEN.IS', 'EBEBK.IS', 'TABGD.IS',
     'VAKFN.IS', 'IZMDC.IS', 'BTCIM.IS', 'OYYAT.IS', 'KFEIN.IS', 'ARDYZ.IS', 'FORMT.IS', 'BVSAN.IS',
     'MHRGY.IS', 'BORLS.IS', 'AVPGY.IS', 'SURGY.IS', 'MEGMT.IS', 'LMKDC.IS', 'MOGAN.IS', 'ENTRA.IS', 'KOTON.IS',
-    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'LKMNH.IS', 'PKENT.IS'
+    'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'LKMNH.IS', 'PKENT.IS', 'TERA.IS'
   ],
   // ... (Other indexes if needed)
 };

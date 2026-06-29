@@ -34,6 +34,26 @@ export default function IndexDetailsPage() {
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
 
+  const parseJsonResponse = async <T,>(res: Response): Promise<T> => {
+    const readJsonFromResponse = async (response: Response): Promise<T> => {
+      const text = await response.text();
+      if (!text) return [] as unknown as T;
+      return JSON.parse(text) as T;
+    };
+
+    if (!res.bodyUsed) {
+      return readJsonFromResponse(res);
+    }
+
+    const retryRes = await fetch(res.url, {
+      headers: { 'X-Bypass-API-Cache': '1' }
+    });
+    if (!retryRes.ok) {
+      return [] as unknown as T;
+    }
+    return readJsonFromResponse(retryRes);
+  };
+
   /* Commented out new state for now
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -84,9 +104,11 @@ export default function IndexDetailsPage() {
         const cachedKap = getCachedValue<any[]>(kapCacheKey);
         if (cachedKap !== undefined) kapData = cachedKap;
         if (!kapData.length) {
-          const res = await fetch(`${API_URL}/stocks/${symbol}/kap`);
+          const res = await fetch(`${API_URL}/stocks/${symbol}/kap`, {
+            headers: { 'X-Bypass-API-Cache': '1' }
+          });
           if (res.ok) {
-            const data = await res.json();
+            const data = await parseJsonResponse<any>(res);
             kapData = data?.data || [];
             setCachedValue(kapCacheKey, kapData, { ttlMs: CACHE_TTL_MS });
           }
@@ -108,9 +130,11 @@ export default function IndexDetailsPage() {
         const cachedNews = getCachedValue<any[]>(newsCacheKey);
         if (cachedNews !== undefined) newsData = cachedNews;
         if (!newsData.length) {
-          const res = await fetch(`${API_URL}/stocks/${symbol}/news`);
+          const res = await fetch(`${API_URL}/stocks/${symbol}/news`, {
+            headers: { 'X-Bypass-API-Cache': '1' }
+          });
           if (res.ok) {
-            const data = await res.json();
+            const data = await parseJsonResponse<any>(res);
             newsData = data || [];
             setCachedValue(newsCacheKey, newsData, { ttlMs: CACHE_TTL_MS });
           }
