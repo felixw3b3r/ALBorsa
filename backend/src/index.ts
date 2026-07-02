@@ -17,7 +17,7 @@ import {
   getLastFetchTime,
   syncFinancialReportAttachmentsBySymbol
 } from './services/kapService';
-import { updateBist100Analysis, getBist100Analysis } from './services/analysisService';
+import { updateBist100Analysis, getBist100Analysis, updateNasdaq100Analysis, getNasdaq100Analysis } from './services/analysisService';
 import {
   backfillDailyBars,
   buildFeatureSnapshots,
@@ -1815,11 +1815,62 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 app.get('/api/halkaarz', (req, res) => {
   const ipoData = [
     {
-      name: "Soho Giyim ve Enerji A.Ş.",
-      symbol: "SOHO",
+      name: "Isvea Seramik ve Banyo Ürünleri Sanayi A.Ş.",
+      symbol: "ISVEA",
       status: "active",
-      date: "Hazırlanıyor...",
-      logo: "/logos/SOHO.png",
+      date: "1-2-3 Temmuz 2026",
+      logo: "/logos/ISVEA.png",
+      details: {
+        price: "20,90 TL",
+        distribution: "Eşit Dağıtım **",
+        lots: "67.000.000 Lot",
+        manager: "Halk Yatırım Menkul Değerler A.Ş. & Ahlatcı Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+        market: "Ana Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
+      name: "Ekim Turizm Tic. ve San. A.Ş. (Intercity)",
+      symbol: "EKIM",
+      status: "active",
+      date: "1-2-3 Temmuz 2026",
+      logo: "/logos/EKIM.png",
+      details: {
+        price: "30,26 TL",
+        distribution: "Eşit Dağıtım **",
+        lots: "161.999.998 Lot",
+        manager: "Ak Yatırım Menkul Değerler A.Ş. & Vakıf Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+        market: "Yıldız Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
+      name: "Golda Gıda San. ve Tic. A.Ş.",
+      symbol: "GOLDA",
+      status: "active",
+      date: "1-2 Temmuz 2026",
+      logo: "/logos/GOLDA.png",
+      details: {
+        price: "9,20 TL",
+        distribution: "Eşit Dağıtım **",
+        lots: "87.499.998 Lot",
+        manager: "Gedik Yatırım Menkul Değerler A.Ş. / Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
+        market: "Ana Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
+      name: "Soho Giyim ve Enerji A.Ş.",
+      symbol: "SOHOE",
+      status: "active",
+      date: "30 Haziran, 1 Temmuz 2026",
+      logo: "/logos/SOHOE.png",
       details: {
         price: "15,00 TL",
         distribution: "Eşit Dağıtım **",
@@ -1832,34 +1883,18 @@ app.get('/api/halkaarz', (req, res) => {
       }
     },
     {
-      name: "Isvea Seramik ve Banyo Ürünleri Sanayi A.Ş.",
-      symbol: "ISVEA",
+      name: "Orzaks İlaç ve Kimya San. Tic. A.Ş. (Orzax)",
+      symbol: "ORZAX",
       status: "active",
-      date: "Hazırlanıyor...",
-      logo: "/logos/ISVEA.png",
+      statusText: "Talep toplanıyor",
+      date: "29-30 Haziran, 1 Temmuz 2026",
+      logo: "/logos/ORZAX.png",
       details: {
-        price: "20,90 TL",
-        distribution: "Eşit Dağıtım",
-        lots: "67.000.000 Lot",
-        manager: "Halk Yatırım Menkul Değerler A.Ş. & Ahlatcı Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+        price: "69,00 TL",
+        distribution: "Eşit Dağıtım **",
+        lots: "52.500.000 Lot",
+        manager: "İnfo Yatırım Menkul Değerler A.Ş.",
         market: "Yıldız Pazar",
-        listingDate: "Hazırlanıyor...",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
-      }
-    },
-    {
-      name: "Golda Gıda San. ve Tic. A.Ş.",
-      symbol: "GOLDA",
-      status: "active",
-      date: "Hazırlanıyor...",
-      logo: "/logos/GOLDA.png",
-      details: {
-        price: "9,20 TL",
-        distribution: "Eşit Dağıtım",
-        lots: "87.499.998 Lot",
-        manager: "Gedik Yatırım Menkul Değerler A.Ş. / Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
-        market: "Ana Pazar",
         listingDate: "Hazırlanıyor...",
         participants: "Açıklanmadı",
         perPerson: "Açıklanmadı"
@@ -1868,7 +1903,7 @@ app.get('/api/halkaarz', (req, res) => {
     {
       name: "Beta Enerji ve Teknoloji A.Ş.",
       symbol: "BETAE",
-      status: "active",
+      status: "completed",
       date: "23-24-25 Haziran 2026",
       logo: "/logos/BETAE.png",
       details: {
@@ -1877,7 +1912,7 @@ app.get('/api/halkaarz', (req, res) => {
         lots: "60.750.000 Lot",
         manager: "TSKB & Ziraat & Yatırım Finansman",
         market: "Yıldız Pazar",
-        listingDate: "Hazırlanıyor...",
+        listingDate: "1 Temmuz 2026",
         participants: "1.100.000 Kişi",
         perPerson: "28 Lot"
       }
@@ -1954,7 +1989,7 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     return res.json({
       title: "Beta Enerji ve Teknoloji A.Ş.",
       symbol: "BETAE",
-      status: "active",
+      status: "completed",
       logo: "/logos/BETAE.png",
       date: "23-24-25 Haziran 2026",
       price: "40,00 TL",
@@ -2008,13 +2043,14 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     });
   }
 
-  if (sym === 'SOHO') {
+  if (sym === 'SOHOE') {
     return res.json({
       title: "Soho Giyim ve Enerji A.Ş.",
-      symbol: "SOHO",
+      symbol: "SOHOE",
       status: "active",
-      logo: "/logos/SOHO.png",
-      date: "Hazırlanıyor...",
+      logo: "/logos/SOHOE.png",
+      date: "30 Haziran, 1 Temmuz 2026",
+      hours: "10:30 - 13:00",
       price: "15,00 TL",
       distribution: "Eşit Dağıtım **",
       lots: "100.000.000 Lot",
@@ -2022,33 +2058,42 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
       market: "Ana Pazar",
       size: "~ 1,5 Milyar TL",
       method: {
-        capitalIncrease: "Sermaye Artırımı : 100.000.000 Lot. * SPK Bülteni, 2026/41.",
+        capitalIncrease: "100.000.000 Lot. * SPK Bülteni, 2026/41.",
         partnerSale: "Yoktur",
         total: "100.000.000 Lot",
         partners: []
       },
       balanceSheet: [
-        { year: "2024/6", revenue: "712,2 Milyon TL", profit: "129,3 Milyon TL" },
-        { year: "2023", revenue: "1,2 Milyar TL", profit: "246,1 Milyon TL" },
-        { year: "2022 * Taslak İzahname, Sayfa 112.", revenue: "1,1 Milyar TL", profit: "167,0 Milyon TL" }
+        { year: "2026/3", revenue: "709,6 Milyon TL", profit: "274,0 Milyon TL" },
+        { year: "2025", revenue: "3,0 Milyar TL", profit: "988,6 Milyon TL" },
+        { year: "2024", revenue: "2,6 Milyar TL", profit: "532,8 Milyon TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "750 Lot", amount: "9.000 TL" },
+        { participants: "250 Bin", lots: "400 Lot", amount: "6.000 TL" },
+        { participants: "350 Bin", lots: "285 Lot", amount: "4.275 TL" },
+        { participants: "500 Bin", lots: "200 Lot", amount: "3.000 TL" },
+        { participants: "700 Bin", lots: "143 Lot", amount: "2.145 TL" },
+        { participants: "1,1 Milyon", lots: "90 Lot", amount: "1.350 TL" },
+        { participants: "1,6 Milyon", lots: "63 Lot", amount: "945 TL" },
+        { participants: "2,2 Milyon", lots: "45 Lot", amount: "675 TL" }
       ],
       fundUsage: [
-        { area: "Mağazalaşma yatırımları. * Taslak İzahname, Sayfa 174.", ratio: 30 },
-        { area: "Markalaşma yatırımları.", ratio: 10 },
-        { area: "Kreasyon Yatırımları.", ratio: 40 },
-        { area: "Finansal borçların ödenmesi.", ratio: 20 }
+        { area: "Mağazalaşma yatırımları", ratio: 30 },
+        { area: "Markalaşma yatırımları", ratio: 10 },
+        { area: "Kreasyon Yatırımları", ratio: 60 }
       ],
       allocation: [
         { group: "Yoktur", ratio: 100, lot: "Yoktur. * Tamamen Eşit Dağıtım." }
       ],
       t1t2: "*** T1-T2 Uygun.",
-      stability: "30 gün. * Brüt halka arz gelirinin %20'si. * Taslak İzahname, Sayfa 172.",
-      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar. * Taslak İzahname, Sayfa 173.",
-      index: "Açıklanmadı",
+      stability: "30 gün. * Brüt halka arz gelirinin %10'u.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar.",
+      index: "Uygundur (Katılım Endeksine Uygun)",
       extra: {
-        float: "%31,08. * Taslak İzahname, Sayfa 161.",
-        discount: "Açıklanmadı",
-        salesMethod: "Açıklanmadı"
+        float: "%32,60",
+        discount: "%37",
+        salesMethod: "Borsa'da Satış - Sabit Fiyatla Talep Toplama."
       }
     });
   }
@@ -2059,33 +2104,52 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
       symbol: "GOLDA",
       status: "active",
       logo: "/logos/GOLDA.png",
-      date: "Hazırlanıyor...",
+      date: "1-2 Temmuz 2026",
+      hours: "10:30 - 13:00",
       price: "9,20 TL",
-      distribution: "Eşit Dağıtım",
+      distribution: "Eşit Dağıtım **",
       lots: "87.499.998 Lot",
-      manager: "Gedik Yatırım Menkul Değerler A.Ş. / Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
+      manager: "Gedik Yatırım Menkul Değerler A.Ş. & Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
       market: "Ana Pazar",
       size: "~ 804 Milyon TL",
       method: {
-        capitalIncrease: "50.000.000 Lot",
+        capitalIncrease: "50.000.000 Lot. * SPK Bülteni, 2026/41.",
         partnerSale: "37.499.998 Lot (Bera Holding A.Ş.)",
         total: "87.499.998 Lot",
         partners: [
           { name: "Bera Holding A.Ş.", lot: "37.499.998" }
         ]
       },
-      balanceSheet: [],
-      fundUsage: [],
-      allocation: [
-        { group: "Yurt İçi Bireysel", ratio: 100, lot: "Açıklanmadı" }
+      balanceSheet: [
+        { year: "2026/3", revenue: "685,4 Milyon TL", profit: "90,9 Milyon TL" },
+        { year: "2025", revenue: "2,5 Milyar TL", profit: "362,6 Milyon TL" },
+        { year: "2024", revenue: "2,9 Milyar TL", profit: "411,8 Milyon TL" }
       ],
-      t1t2: "Açıklanmadı",
-      stability: "Planlanmamaktadır",
-      index: "Açıklanmadı",
+      estimates: [
+        { participants: "150 Bin", lots: "583 Lot", amount: "5.363 TL" },
+        { participants: "250 Bin", lots: "350 Lot", amount: "3.220 TL" },
+        { participants: "350 Bin", lots: "250 Lot", amount: "2.300 TL" },
+        { participants: "500 Bin", lots: "175 Lot", amount: "1.610 TL" },
+        { participants: "700 Bin", lots: "125 Lot", amount: "1.150 TL" },
+        { participants: "1,1 Milyon", lots: "80 Lot", amount: "736 TL" },
+        { participants: "1,6 Milyon", lots: "55 Lot", amount: "506 TL" },
+        { participants: "2,2 Milyon", lots: "40 Lot", amount: "368 TL" }
+      ],
+      fundUsage: [
+        { area: "Kapasite artışı, modernizasyon. * İzahname, Sayfa 243.", ratio: 55 },
+        { area: "İşletme sermayesi.", ratio: 45 }
+      ],
+      allocation: [
+        { group: "Yoktur", ratio: 100, lot: "Yoktur. * Tamamen Eşit Dağıtım." }
+      ],
+      t1t2: "*** T1-T2 Uygun.",
+      stability: "30 gün. * Brüt halka arz gelirinin %20'si.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar.",
+      index: "Uygundur (Katılım Endeksine Uygun)",
       extra: {
-        float: "Açıklanmadı",
-        discount: "Açıklanmadı",
-        salesMethod: "Açıklanmadı"
+        float: "%35. * İzahname, Sayfa 229.",
+        discount: "%30,7",
+        salesMethod: "Borsa'da Satış - Sabit Fiyatla Talep Toplama."
       }
     });
   }
@@ -2096,31 +2160,54 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
       symbol: "ISVEA",
       status: "active",
       logo: "/logos/ISVEA.png",
-      date: "Hazırlanıyor...",
+      date: "1-2-3 Temmuz 2026",
+      hours: "09:00 - 17:00",
       price: "20,90 TL",
-      distribution: "Eşit Dağıtım",
+      distribution: "Eşit Dağıtım **",
       lots: "67.000.000 Lot",
       manager: "Halk Yatırım Menkul Değerler A.Ş. & Ahlatcı Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
-      market: "Yıldız Pazar",
+      market: "Ana Pazar",
       size: "~ 1,4 Milyar TL",
       method: {
-        capitalIncrease: "67.000.000 Lot",
-        partnerSale: "Yoktur",
+        capitalIncrease: "60.000.000 Lot. * SPK Bülteni, 2026/41.",
+        partnerSale: "7.000.000 Lot",
         total: "67.000.000 Lot",
         partners: []
       },
-      balanceSheet: [],
-      fundUsage: [],
-      allocation: [
-        { group: "Yurt İçi Bireysel", ratio: 100, lot: "Açıklanmadı" }
+      balanceSheet: [
+        { year: "2026/3", revenue: "584,2 Milyon TL", profit: "158,7 Milyon TL" },
+        { year: "2025", revenue: "2,3 Milyar TL", profit: "830,8 Milyon TL" },
+        { year: "2024", revenue: "2,7 Milyar TL", profit: "890,6 Milyon TL" }
       ],
-      t1t2: "Açıklanmadı",
-      stability: "Planlanmamaktadır",
-      index: "Açıklanmadı",
+      estimates: [
+        { participants: "150 Bin", lots: "268 Lot", amount: "5.601 TL" },
+        { participants: "250 Bin", lots: "160 Lot", amount: "3.344 TL" },
+        { participants: "350 Bin", lots: "114 Lot", amount: "2.382 TL" },
+        { participants: "500 Bin", lots: "80 Lot", amount: "1.672 TL" },
+        { participants: "700 Bin", lots: "57 Lot", amount: "1.191 TL" },
+        { participants: "1,1 Milyon", lots: "36 Lot", amount: "752 TL" },
+        { participants: "1,6 Milyon", lots: "25 Lot", amount: "522 TL" },
+        { participants: "2,2 Milyon", lots: "18 Lot", amount: "376 TL" }
+      ],
+      fundUsage: [
+        { area: "Öztüketime yönelik yenilenebilir enerji yatırımları. * İzahname, Sayfa 271.", ratio: 15 },
+        { area: "Makine ve ekipman yatırımları.", ratio: 30 },
+        { area: "Kiralama yoluyla elde edilen makine ve teçhizatların satın alma yatırımları.", ratio: 15 },
+        { area: "Finansal borçluluğun azaltılması.", ratio: 20 },
+        { area: "İşletme sermayesi.", ratio: 20 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel Yatırımcı", ratio: 60, lot: "40.200.000. * İzahname, Sayfa 252." },
+        { group: "Yurt İçi Kurumsal Yatırımcı", ratio: 40, lot: "26.800.000." }
+      ],
+      t1t2: "*** T1-T2 Kullanılamaz.",
+      stability: "30 gün. * Brüt halka arz gelirinin %20'si.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar.",
+      index: "Katılım Endeksine uygun değildir.",
       extra: {
-        float: "Açıklanmadı",
-        discount: "Açıklanmadı",
-        salesMethod: "Açıklanmadı"
+        float: "%23,93",
+        discount: "%27,03",
+        salesMethod: "Sabit Fiyatla Talep Toplama - En İyi Gayret Aracılığı."
       }
     });
   }
@@ -2181,6 +2268,123 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
         discount: "%37,72",
         salesMethod: "Sabit Fiyatla Talep Toplama",
         highThreshold: "450.045 TL (10.001 Lot ve üzeri)"
+      }
+    });
+  }
+
+  if (sym === 'EKIM') {
+    return res.json({
+      title: "(Intercity) Ekim Turizm Tic. ve San. A.Ş.",
+      symbol: "EKIM",
+      status: "active",
+      logo: "/logos/EKIM.png",
+      date: "1-2-3 Temmuz 2026",
+      hours: "09:00 - 17:00",
+      price: "30,26 TL",
+      distribution: "Eşit Dağıtım **",
+      lots: "161.999.998 Lot",
+      manager: "Ak Yatırım Menkul Değerler A.Ş. & Vakıf Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+      market: "Yıldız Pazar",
+      size: "~ 4,9 Milyar TL",
+      method: {
+        capitalIncrease: "132.000.000 Lot. * SPK Bülteni, 2026/41.",
+        partnerSale: "30.000.000 Lot (Ali Vural Ak)",
+        total: "161.999.998 Lot",
+        partners: [
+          { name: "Ali Vural Ak", lot: "30.000.000" }
+        ]
+      },
+      balanceSheet: [
+        { year: "2026/3", revenue: "2,9 Milyar TL", profit: "799,0 Milyon TL" },
+        { year: "2025", revenue: "15,3 Milyar TL", profit: "959,6 Milyon TL" },
+        { year: "2024", revenue: "15,9 Milyar TL", profit: "881,2 Milyon TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "756 Lot", amount: "22.876 TL" },
+        { participants: "250 Bin", lots: "454 Lot", amount: "13.738 TL" },
+        { participants: "350 Bin", lots: "324 Lot", amount: "9.804 TL" },
+        { participants: "500 Bin", lots: "227 Lot", amount: "6.869 TL" },
+        { participants: "700 Bin", lots: "162 Lot", amount: "4.902 TL" },
+        { participants: "1,1 Milyon", lots: "104 Lot", amount: "3.147 TL" },
+        { participants: "1,6 Milyon", lots: "71 Lot", amount: "2.148 TL" },
+        { participants: "2,2 Milyon", lots: "52 Lot", amount: "1.573 TL" }
+      ],
+      fundUsage: [
+        { area: "Kiralamada kullanılacak kara araçlarının satın alınması. * İzahname, Sayfa 300.", ratio: 100 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel Yatırımcı", ratio: 70, lot: "113.400.000. * İzahname, Sayfa 280." },
+        { group: "Yurt İçi Kurumsal Yatırımcı", ratio: 20, lot: "32.400.000." },
+        { group: "Yüksek Başvurulu Yatırımcı", ratio: 10, lot: "16.200.000." }
+      ],
+      t1t2: "*** T1-T2 Kullanılamaz.",
+      stability: "15 gün.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar.",
+      index: "Katılım Endeksine uygun değildir.",
+      extra: {
+        float: "%19,47",
+        discount: "%20",
+        salesMethod: "Sabit Fiyatla Talep Toplama - En İyi Gayret Aracılığı."
+      }
+    });
+  }
+
+  if (sym === 'ORZAX') {
+    return res.json({
+      title: "(Orzax) Orzaks İlaç ve Kimya San. Tic. A.Ş.",
+      symbol: "ORZAX",
+      status: "active",
+      logo: "/logos/ORZAX.png",
+      date: "29-30 Haziran, 1 Temmuz 2026",
+      hours: "09:00 - 17:00",
+      price: "69,00 TL",
+      distribution: "Eşit Dağıtım **",
+      lots: "52.500.000 Lot",
+      manager: "İnfo Yatırım Menkul Değerler A.Ş.",
+      market: "Yıldız Pazar",
+      size: "~ 3,6 Milyar TL",
+      method: {
+        capitalIncrease: "31.500.000 Lot. * SPK Bülteni, 2026/41.",
+        partnerSale: "21.000.000 Lot (Yunus Emre Alimoğlu)",
+        total: "52.500.000 Lot",
+        partners: [
+          { name: "Yunus Emre Alimoğlu", lot: "21.000.000" }
+        ]
+      },
+      balanceSheet: [
+        { year: "2026/3", revenue: "2,6 Milyar TL", profit: "1,7 Milyar TL" },
+        { year: "2025", revenue: "7,3 Milyar TL", profit: "4,7 Milyar TL" },
+        { year: "2024", revenue: "5,7 Milyar TL", profit: "3,7 Milyar TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "199 Lot", amount: "13.731 TL" },
+        { participants: "250 Bin", lots: "120 Lot", amount: "8.280 TL" },
+        { participants: "350 Bin", lots: "86 Lot", amount: "5.934 TL" },
+        { participants: "500 Bin", lots: "61 Lot", amount: "4.209 TL" },
+        { participants: "700 Bin", lots: "43 Lot", amount: "2.967 TL" },
+        { participants: "1,1 Milyon", lots: "27 Lot", amount: "1.863 TL" },
+        { participants: "1,6 Milyon", lots: "19 Lot", amount: "1.311 TL" },
+        { participants: "2,2 Milyon", lots: "14 Lot", amount: "966 TL" }
+      ],
+      fundUsage: [
+        { area: "Devam eden ve yeni yatırımların finansmanında. * İzahname, Sayfa 285.", ratio: 50 },
+        { area: "Finansal borç anapara ve faiz ödemelerinde.", ratio: 30 },
+        { area: "İşletme sermayesi.", ratio: 20 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel Yatırımcı", ratio: 57, lot: "29.925.000. * İzahname, Sayfa 269." },
+        { group: "Şirket Çalışanları", ratio: 3, lot: "1.575.000." },
+        { group: "Yurt İçi Kurumsal Yatırımcı", ratio: 30, lot: "15.750.000." },
+        { group: "Yurt Dışı Kurumsal Yatırımcı", ratio: 10, lot: "5.250.000." }
+      ],
+      t1t2: "*** T1-T2 Kullanılamaz.",
+      stability: "Planlanmamaktadır.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar. * Günlük Alım Emri Taahhüdü: 5 Gün, 2.625.000 adet.",
+      index: "Katılım Endeksine uygun değildir.",
+      extra: {
+        float: "%15,51",
+        discount: "%20",
+        salesMethod: "Sabit Fiyatla Talep Toplama - En İyi Gayret Aracılığı."
       }
     });
   }
@@ -2528,11 +2732,27 @@ app.get('/api/analysis/bist100', (req, res) => {
   res.json(getBist100Analysis());
 });
 
+app.get('/api/analysis/nasdaq100', (req, res) => {
+  res.json(getNasdaq100Analysis());
+});
+
 // Arka Plan Analiz Görevi (30 dakikada bir)
 setInterval(updateBist100Analysis, 30 * 60 * 1000);
 setTimeout(updateBist100Analysis, 10000); // Başlangıçta 10sn sonra çalıştır
+
+setInterval(updateNasdaq100Analysis, 30 * 60 * 1000);
+setTimeout(updateNasdaq100Analysis, 20000); // Başlangıçta 20sn sonra çalıştır (staggered)
 
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
+
+// Saniyede bir anlık toplam bellek kullanımını (Memory Usage) konsola yazdır
+setInterval(() => {
+  const memory = process.memoryUsage();
+  const toMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  console.log(
+    `⚙️ [MEM LOG] RSS: ${toMB(memory.rss)} | Heap Total: ${toMB(memory.heapTotal)} | Heap Used: ${toMB(memory.heapUsed)} | External: ${toMB(memory.external)}`
+  );
+}, 10000);

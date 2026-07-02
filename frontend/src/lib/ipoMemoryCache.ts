@@ -2,6 +2,7 @@ export type IPOSummary = {
   name: string;
   symbol: string;
   status?: string;
+  statusText?: string;
   date: string;
   logo: string;
   details?: Record<string, string>;
@@ -12,6 +13,7 @@ export type IPODetail = Record<string, unknown> & {
   title: string;
   logo: string;
   date: string;
+  hours?: string;
   price: string;
   distribution: string;
   lots: string;
@@ -58,7 +60,7 @@ type CacheEntry<T> = {
   expiresAt: number;
 };
 
-const IPO_TTL_MS = 10 * 60_000;
+const IPO_TTL_MS = 24 * 60 * 60_000; // 24 Hours (Persistent session cache)
 
 let listCache: CacheEntry<IPOSummary[]> | null = null;
 let listRequest: Promise<IPOSummary[]> | null = null;

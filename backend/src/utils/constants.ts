@@ -12,5 +12,15 @@ export const INDEX_COMPONENTS: { [key: string]: string[] } = {
     'MHRGY.IS', 'BORLS.IS', 'AVPGY.IS', 'SURGY.IS', 'MEGMT.IS', 'LMKDC.IS', 'MOGAN.IS', 'ENTRA.IS', 'KOTON.IS',
     'AGROT.IS', 'BEGYO.IS', 'CATES.IS', 'SKYMD.IS', 'LKMNH.IS', 'PKENT.IS', 'TERA.IS'
   ],
-  // ... (Other indexes if needed)
+  'NASDAQ100': [
+    'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AVGO', 'COST', 'NFLX',
+    'AMD', 'QCOM', 'TMUS', 'INTC', 'TXN', 'AMGN', 'ISRG', 'HON', 'CMG', 'VRTX',
+    'BKNG', 'ADI', 'PANW', 'MDLZ', 'MU', 'LRCX', 'REGN', 'KLAC', 'ADP', 'MELI',
+    'PDD', 'SNPS', 'CDNS', 'INTU', 'CSCO', 'MAR', 'CTAS', 'ORLY', 'ASML', 'NXPI',
+    'AMAT', 'ADBE', 'GILD', 'KDP', 'MNST', 'LULU', 'PAYX', 'ADSK', 'EXC', 'AEP',
+    'WDAY', 'SBUX', 'FTNT', 'PCAR', 'ROST', 'ODFL', 'MCHP', 'IDXX', 'CPRT', 'FAST',
+    'MRVL', 'VRSK', 'DXCM', 'CTSH', 'KHC', 'TEAM', 'CSX', 'EXPE', 'BIIB', 'ANSS',
+    'DDOG', 'ILMN', 'GEHC', 'WBD', 'ZS', 'ON', 'MDB', 'BKR', 'TTWO', 'AZN', 'EBAY',
+    'MRNA', 'OKTA', 'ZM', 'LNT', 'PAYC', 'EXPD', 'JKHY', 'FMC', 'CHRW', 'ALNY'
+  ]
 };

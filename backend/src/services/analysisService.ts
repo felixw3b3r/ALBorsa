@@ -42,8 +42,11 @@ export interface AnalysisResult {
 }
 
 let bist100Cache: AnalysisResult[] = [];
+let nasdaq100Cache: AnalysisResult[] = [];
 let lastBatchUpdateTime = 0;
+let lastNasdaqBatchUpdateTime = 0;
 let isUpdating = false;
+let isNasdaqUpdating = false;
 
 // DeepSeek Analiz Kuyruğu ve Cache'i
 let deepseekResults: Record<string, DeepSeekAnalysis> = {};
@@ -229,7 +232,7 @@ async function enrichTopQuantNarratives(results: AnalysisResult[]) {
 
 export async function updateBist100Analysis() {
   if (isUpdating) {
-    console.log(`[BATCH ANALYSIS] Already in progress, skipping...`);
+    console.log(`[BATCH ANALYSIS BIST] Already in progress, skipping...`);
     return;
   }
 
@@ -237,7 +240,7 @@ export async function updateBist100Analysis() {
   if (!symbols || symbols.length === 0) return;
 
   isUpdating = true;
-  console.log(`[BATCH ANALYSIS] Starting incremental update...`);
+  console.log(`[BATCH ANALYSIS BIST] Starting incremental update...`);
 
   const results: AnalysisResult[] = [];
   const failedSymbols: string[] = [];
@@ -262,7 +265,7 @@ export async function updateBist100Analysis() {
         try {
           const period1 = new Date();
           period1.setMonth(period1.getMonth() - 6);
-          const data: any = await withYahooSlot(() => yf.chart(symbol, { period1, interval: '1d' }, { validateResult: false }));
+          const data: any = await withYahooSlot(() => yf.chart(symbol, { period1: period1, interval: '1d' }, { validateResult: false }));
 
           if (!data || !data.quotes || data.quotes.length < 20) return null;
           const quotes = data.quotes.filter((q: any) => q.close != null);
@@ -308,7 +311,7 @@ export async function updateBist100Analysis() {
           };
         } catch (err: any) {
           failedSymbols.push(symbol);
-          console.warn(`[BATCH ANALYSIS] ${symbol} skipped:`, err?.message || err);
+          console.warn(`[BATCH ANALYSIS BIST] ${symbol} skipped:`, err?.message || err);
           return null;
         }
       }))).filter((result): result is AnalysisResult => result !== null);
@@ -331,48 +334,174 @@ export async function updateBist100Analysis() {
       try {
         const mongoose = require('mongoose');
         const DailyAnalysis = mongoose.model('DailyAnalysis');
-        await DailyAnalysis.findOneAndUpdate({ date: today }, { results: bist100Cache, timestamp: new Date() }, { upsert: true });
+        await DailyAnalysis.findOneAndUpdate({ date: today + '-bist100' }, { results: bist100Cache, timestamp: new Date() }, { upsert: true });
       } catch (dbErr: any) {
-        console.error(`[BATCH ANALYSIS] DailyAnalysis save failed:`, dbErr?.message || dbErr);
+        console.error(`[BATCH ANALYSIS BIST] DailyAnalysis save failed:`, dbErr?.message || dbErr);
       }
-      console.log(`[BATCH ANALYSIS] Complete. ${results.length} stocks processed in ${Date.now() - startTime}ms.`);
+      console.log(`[BATCH ANALYSIS BIST] Complete. ${results.length} stocks processed in ${Date.now() - startTime}ms.`);
     }
 
     if (failedSymbols.length > 0) {
-      console.warn(`[BATCH ANALYSIS] ${failedSymbols.length} symbols failed: ${failedSymbols.join(', ')}`);
+      console.warn(`[BATCH ANALYSIS BIST] ${failedSymbols.length} symbols failed: ${failedSymbols.join(', ')}`);
     }
   } catch (globalErr: any) {
-    console.error(`[BATCH ANALYSIS] Critical Failure:`, globalErr.message);
+    console.error(`[BATCH ANALYSIS BIST] Critical Failure:`, globalErr.message);
   } finally {
     isUpdating = false;
   }
 }
-// Veritabanından en son günlük analizi yükle
-async function loadDailyAnalysisFromDB() {
+
+export async function updateNasdaq100Analysis() {
+  if (isNasdaqUpdating) {
+    console.log(`[BATCH ANALYSIS NASDAQ] Already in progress, skipping...`);
+    return;
+  }
+
+  const symbols = INDEX_COMPONENTS['NASDAQ100'];
+  if (!symbols || symbols.length === 0) return;
+
+  isNasdaqUpdating = true;
+  console.log(`[BATCH ANALYSIS NASDAQ] Starting incremental update...`);
+
+  const results: AnalysisResult[] = [];
+  const failedSymbols: string[] = [];
+  const startTime = Date.now();
+
+  try {
+    let indexQuotes: any[] = [];
+    try {
+      const indexPeriod = new Date();
+      indexPeriod.setFullYear(indexPeriod.getFullYear() - 1);
+      const indexData: any = await withYahooSlot(() => yf.chart('^NDX', { period1: indexPeriod, interval: '1d' }, { validateResult: false }));
+      indexQuotes = (indexData?.quotes || []).filter((q: any) => q.close != null);
+    } catch (indexErr: any) {
+      console.warn('[QUANT] ^NDX regime data unavailable:', indexErr?.message || indexErr);
+    }
+
+    const chunkSize = 5;
+    for (let i = 0; i < symbols.length; i += chunkSize) {
+      const chunk = symbols.slice(i, i + chunkSize);
+
+      const chunkResults = (await Promise.all(chunk.map(async (symbol): Promise<AnalysisResult | null> => {
+        try {
+          const period1 = new Date();
+          period1.setMonth(period1.getMonth() - 6);
+          const data: any = await withYahooSlot(() => yf.chart(symbol, { period1: period1, interval: '1d' }, { validateResult: false }));
+
+          if (!data || !data.quotes || data.quotes.length < 20) return null;
+          const quotes = data.quotes.filter((q: any) => q.close != null);
+          if (quotes.length < 20) return null;
+
+          const highs = quotes.map((q: any) => q.high);
+          const lows = quotes.map((q: any) => q.low);
+          const closes = quotes.map((q: any) => q.close);
+          const volumes = quotes.map((q: any) => q.volume);
+          const lastQuote = quotes[quotes.length - 1];
+          const prevQuote = quotes[quotes.length - 2];
+          const currentPrice = lastQuote.close;
+          const changePercent = prevQuote ? ((currentPrice - prevQuote.close) / prevQuote.close) * 100 : 0;
+
+          const sma20 = calculateSMA(closes, 20);
+          const ema50 = calculateEMA(closes, 50);
+          const rsi = calculateRSI(closes, 14);
+          const macd = calculateMACD(closes);
+          const mom = calculateMOM(closes, 10);
+          const atr = calculateATR(highs, lows, closes, 14);
+          const adx = calculateADX(highs, lows, closes, 14);
+          const vwap = calculateVWAP(highs, lows, closes, volumes);
+          const obv = calculateOBV(closes, volumes);
+          const cmf = calculateCMF(highs, lows, closes, volumes, 20);
+          const avgVolume = volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20;
+
+          const sADX = scoreADX(adx || 0);
+          const sVWAP = scoreVWAP(currentPrice, vwap || currentPrice);
+          const sVol = scoreVolume(lastQuote.volume, avgVolume);
+          const sRSI = scoreRSI(rsi || 50);
+          const totalScore = calculateTotalScore({ adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI });
+
+          const symClean = symbol.replace('.IS', '');
+          const quant = buildQuantSignal({ symbol: symClean, quotes, indexQuotes });
+          return {
+            symbol: symClean,
+            price: currentPrice,
+            changePercent,
+            indicators: { sma20, ema50, rsi, macd, mom, atr, adx, vwap, obv, cmf },
+            scores: { adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI, total: quant.opportunityScore || totalScore },
+            quant,
+            deepseek: quantToDeepSeekResult(quant)
+          };
+        } catch (err: any) {
+          failedSymbols.push(symbol);
+          console.warn(`[BATCH ANALYSIS NASDAQ] ${symbol} skipped:`, err?.message || err);
+          return null;
+        }
+      }))).filter((result): result is AnalysisResult => result !== null);
+
+      if (chunkResults.length > 0) {
+        results.push(...chunkResults);
+        nasdaq100Cache = [...results].sort((a, b) => b.scores.total - a.scores.total);
+        lastNasdaqBatchUpdateTime = Date.now();
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    if (results.length > 0) {
+      nasdaq100Cache = [...results].sort((a, b) => b.quant.opportunityScore - a.quant.opportunityScore);
+      await enrichTopQuantNarratives(nasdaq100Cache);
+      lastNasdaqBatchUpdateTime = Date.now();
+
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const mongoose = require('mongoose');
+        const DailyAnalysis = mongoose.model('DailyAnalysis');
+        await DailyAnalysis.findOneAndUpdate({ date: today + '-nasdaq100' }, { results: nasdaq100Cache, timestamp: new Date() }, { upsert: true });
+      } catch (dbErr: any) {
+        console.error(`[BATCH ANALYSIS NASDAQ] DailyAnalysis save failed:`, dbErr?.message || dbErr);
+      }
+      console.log(`[BATCH ANALYSIS NASDAQ] Complete. ${results.length} stocks processed in ${Date.now() - startTime}ms.`);
+    }
+
+    if (failedSymbols.length > 0) {
+      console.warn(`[BATCH ANALYSIS NASDAQ] ${failedSymbols.length} symbols failed: ${failedSymbols.join(', ')}`);
+    }
+  } catch (globalErr: any) {
+    console.error(`[BATCH ANALYSIS NASDAQ] Critical Failure:`, globalErr.message);
+  } finally {
+    isNasdaqUpdating = false;
+  }
+}
+
+async function loadDailyAnalysisFromDB(index: 'bist100' | 'nasdaq100') {
   try {
     const mongoose = require('mongoose');
     const DailyAnalysis = mongoose.model('DailyAnalysis');
-    const latest = await DailyAnalysis.findOne().sort({ timestamp: -1 });
+    const latest = await DailyAnalysis.findOne({ date: { $regex: new RegExp(`-${index}$`) } }).sort({ timestamp: -1 });
     if (latest && latest.results) {
       const first = latest.results[0];
       if (!first?.quant?.modelVersion) {
-        console.log('[DATABASE] Legacy analysis cache ignored; quant model refresh required.');
-        updateBist100Analysis();
+        console.log(`[DATABASE] Legacy analysis cache for ${index} ignored; quant model refresh required.`);
+        if (index === 'bist100') updateBist100Analysis();
+        else updateNasdaq100Analysis();
         return;
       }
-      bist100Cache = latest.results;
-      lastBatchUpdateTime = latest.timestamp.getTime();
-      console.log(`📥 [DATABASE] Loaded ${latest.results.length} stocks from last daily analysis (${latest.date}).`);
+      if (index === 'bist100') {
+        bist100Cache = latest.results;
+        lastBatchUpdateTime = latest.timestamp.getTime();
+      } else {
+        nasdaq100Cache = latest.results;
+        lastNasdaqBatchUpdateTime = latest.timestamp.getTime();
+      }
+      console.log(`📥 [DATABASE] Loaded ${latest.results.length} stocks from last daily analysis for ${index} (${latest.date}).`);
     }
   } catch (err: any) {
-    console.error('❌ [DATABASE] Load Error:', err.message);
+    console.error(`❌ [DATABASE] Load Error for ${index}:`, err.message);
   }
 }
 
 export function getBist100Analysis() {
-  // Eğer cache boşsa ve güncelleme çalışmıyorsa arka planda tetikle ve DB'den yüklemeyi dene
   if (bist100Cache.length === 0 && !isUpdating) {
-    loadDailyAnalysisFromDB().then(() => {
+    loadDailyAnalysisFromDB('bist100').then(() => {
       if (bist100Cache.length === 0) updateBist100Analysis();
     });
   }
@@ -380,5 +509,18 @@ export function getBist100Analysis() {
     data: bist100Cache,
     lastUpdate: lastBatchUpdateTime,
     isUpdating
+  };
+}
+
+export function getNasdaq100Analysis() {
+  if (nasdaq100Cache.length === 0 && !isNasdaqUpdating) {
+    loadDailyAnalysisFromDB('nasdaq100').then(() => {
+      if (nasdaq100Cache.length === 0) updateNasdaq100Analysis();
+    });
+  }
+  return {
+    data: nasdaq100Cache,
+    lastUpdate: lastNasdaqBatchUpdateTime,
+    isUpdating: isNasdaqUpdating
   };
 }

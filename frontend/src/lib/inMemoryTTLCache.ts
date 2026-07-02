@@ -12,9 +12,9 @@ type CacheEntry<T> = {
   sizeBytes: number;
 };
 
-const DEFAULT_TTL_MS = 60_000;
-const DEFAULT_MAX_ENTRIES = 180;
-const DEFAULT_MAX_BYTES = 24 * 1024 * 1024; // 24 MB
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 Hours (Persistent session cache)
+const DEFAULT_MAX_ENTRIES = Infinity;
+const DEFAULT_MAX_BYTES = Infinity;
 
 const cacheStore = new Map<string, CacheEntry<unknown>>();
 let totalBytes = 0;

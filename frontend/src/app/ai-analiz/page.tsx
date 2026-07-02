@@ -68,6 +68,7 @@ interface AnalysisResult {
 
 export default function AiAnalizPage() {
   const router = useRouter();
+  const [market, setMarket] = useState<'bist' | 'nasdaq'>('bist');
   const [data, setData] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -77,14 +78,15 @@ export default function AiAnalizPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000); // 30 saniyede bir kontrol et
+    fetchData(market);
+    const interval = setInterval(() => fetchData(market), 30000); // 30 saniyede bir kontrol et
     return () => clearInterval(interval);
-  }, []);
+  }, [market]);
 
-  const fetchData = async () => {
+  const fetchData = async (currentMarket: 'bist' | 'nasdaq') => {
     try {
-      const res = await fetch(`${API_URL}/analysis/bist100`);
+      const endpoint = currentMarket === 'bist' ? 'bist100' : 'nasdaq100';
+      const res = await fetch(`${API_URL}/analysis/${endpoint}`);
       const json = await res.json();
       if (json) {
         setData(json.data || []);
@@ -101,41 +103,6 @@ export default function AiAnalizPage() {
   const filteredData = data
     .filter(item => item.symbol.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => (b.quant?.opportunityScore ?? b.scores.total) - (a.quant?.opportunityScore ?? a.scores.total));
-
-  /*
-      if (sortBy === 'total') return (b.quant?.opportunityScore ?? b.scores.total) - (a.quant?.opportunityScore ?? a.scores.total);
-      if (sortBy === 'change') return b.changePercent - a.changePercent;
-      if (sortBy === 'deepseek') {
-        const getDecisionWeight = (item: any) => {
-          const k = String(item.deepseek?.karar || item.quant?.decision || '');
-          if (k === 'GUCLU_AL') return 4;
-          if (k === 'KADEMELI_AL') return 3;
-          if (k === 'IZLE') return 2;
-          if (k === 'AZALT') return 1;
-          if (k === 'GÜÇLÜ_AL' || k === 'AL') return 3;
-          if (k === 'BEKLE') return 2;
-          if (k === 'SAT') return 1;
-          return 0;
-        };
-
-        const getProfitPotential = (item: any) => {
-          if (!item.deepseek || !item.deepseek.take_profit) return -1000;
-          return ((item.deepseek.take_profit - item.price) / item.price) * 100;
-        };
-
-        const weightA = getDecisionWeight(a);
-        const weightB = getDecisionWeight(b);
-
-        // 1. Önce Karar Hiyerarşisi (AL > BEKLE > SAT)
-        if (weightA !== weightB) return weightB - weightA;
-
-        // 2. Kararlar aynıysa kendi içlerinde Kâr Potansiyeline (%) bak
-        return getProfitPotential(b) - getProfitPotential(a);
-      }
-      return 0;
-    });
-
-  */
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return 'text-emerald-400';
@@ -199,14 +166,22 @@ export default function AiAnalizPage() {
               )}
             </motion.div>
             <motion.h1 
+              key={market}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-5xl font-black tracking-tight"
             >
-              BIST 100 <span className="text-gray-500">Rejim Bazli Model</span>
+              {market === 'bist' ? (
+                <>BIST 100 <span className="text-gray-500">Rejim Bazlı Model</span></>
+              ) : (
+                <>NASDAQ 100 <span className="text-gray-500">Rejim Bazlı Analiz</span></>
+              )}
             </motion.h1>
             <p className="text-gray-400 max-w-xl">
-              Rejim, relatif guc, momentum, hacim ve risk katmanlariyla BIST 100 hisselerinin olasilikli analizi.
+              {market === 'bist' 
+                ? 'Rejim, relatif guc, momentum, hacim ve risk katmanlariyla BIST 100 hisselerinin olasilikli analizi.'
+                : 'Rejim, relatif guc, momentum, hacim ve risk katmanlariyla NASDAQ 100 hisselerinin olasilikli analizi.'
+              }
             </p>
           </div>
 
@@ -218,10 +193,46 @@ export default function AiAnalizPage() {
               </p>
             </div>
             <button 
-              onClick={() => { setLoading(true); fetchData(); }}
+              onClick={() => { setLoading(true); fetchData(market); }}
               className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
             >
               <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        </div>
+
+        {/* Market Toggle (BIST / NASDAQ) */}
+        <div className="flex justify-center mb-8">
+          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
+            <button
+              onClick={() => { setLoading(true); setMarket('bist'); }}
+              className={`relative flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-black transition-all ${
+                market === 'bist' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {market === 'bist' && (
+                <motion.div
+                  layoutId="market-nav-bg"
+                  className="absolute inset-0 bg-neon-purple rounded-xl shadow-[0_0_20px_rgba(188,19,254,0.5)]"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10">BIST</span>
+            </button>
+            <button
+              onClick={() => { setLoading(true); setMarket('nasdaq'); }}
+              className={`relative flex items-center gap-2 px-8 py-3 rounded-xl text-xs font-black transition-all ${
+                market === 'nasdaq' ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {market === 'nasdaq' && (
+                <motion.div
+                  layoutId="market-nav-bg"
+                  className="absolute inset-0 bg-neon-purple rounded-xl shadow-[0_0_20px_rgba(188,19,254,0.5)]"
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10">NASDAQ</span>
             </button>
           </div>
         </div>
@@ -232,27 +243,11 @@ export default function AiAnalizPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
             <input 
               type="text" 
-              placeholder="Hisse ara... (Örn: THYAO)" 
+              placeholder={market === 'bist' ? "Hisse ara... (Örn: THYAO)" : "Hisse ara... (Örn: AAPL)"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-neon-purple/50 transition-all"
             />
-          </div>
-          
-          <div className="hidden">
-            {(['total', 'change', 'deepseek'] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => undefined}
-                className={`px-6 py-4 rounded-2xl border font-bold text-sm transition-all ${
-                  false
-                    ? 'bg-neon-purple border-neon-purple text-white shadow-[0_0_20px_rgba(139,0,232,0.3)]' 
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                }`}
-              >
-                {type === 'total' ? 'Skora Göre' : type === 'change' ? 'Değişime Göre' : 'DeepSeek'}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -286,7 +281,10 @@ export default function AiAnalizPage() {
                     <div>
                       <h3 className="text-3xl font-black group-hover:text-neon-purple transition-colors">{item.symbol}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xl font-mono font-medium">₺{item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                        <span className="text-xl font-mono font-medium">
+                          {market === 'bist' ? '₺' : '$'}
+                          {item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        </span>
                         <span className={`text-sm font-bold flex items-center ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {item.changePercent >= 0 ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
                           %{Math.abs(item.changePercent).toFixed(2)}
@@ -368,7 +366,10 @@ export default function AiAnalizPage() {
                               %{(((item.deepseek.stop_loss - item.price) / item.price) * 100).toFixed(1)}
                             </div>
                           </div>
-                          <div className="text-sm font-mono font-black text-rose-400">₺{item.deepseek.stop_loss}</div>
+                          <div className="text-sm font-mono font-black text-rose-400">
+                            {market === 'bist' ? '₺' : '$'}
+                            {item.deepseek.stop_loss}
+                          </div>
                         </div>
                         <div className="flex-1 bg-black/60 p-3 rounded-xl border border-white/10 shadow-lg">
                           <div className="flex justify-between items-center mb-1">
@@ -377,7 +378,10 @@ export default function AiAnalizPage() {
                               +%{(((item.deepseek.take_profit - item.price) / item.price) * 100).toFixed(1)}
                             </div>
                           </div>
-                          <div className="text-sm font-mono font-black text-emerald-400">₺{item.deepseek.take_profit}</div>
+                          <div className="text-sm font-mono font-black text-emerald-400">
+                            {market === 'bist' ? '₺' : '$'}
+                            {item.deepseek.take_profit}
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -111,11 +111,26 @@ function IPOListItem({ ipo, idx, isExpanded, onToggle }: { ipo: IPOSummary, idx:
               />
             </div>
             <div className="min-w-0">
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider mb-1 inline-block ${
-                isPremium ? "bg-turquoise text-black" : "bg-neon-purple text-white"
-              }`}>
-                {ipo.symbol}
-              </span>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider inline-block transition-all ${
+                  isActive 
+                    ? "bg-neon-purple text-white shadow-[0_0_15px_#bc13fe] border border-neon-purple/50" 
+                    : "bg-white/5 text-gray-500 border border-white/10"
+                }`}>
+                  {ipo.symbol}
+                </span>
+                {ipo.status === 'active' && (
+                  <span className="text-[10px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
+                    Yeni!
+                  </span>
+                )}
+                {ipo.statusText && (
+                  <span className="flex items-center gap-1 text-[10px] text-green-400 font-bold bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    {ipo.statusText}
+                  </span>
+                )}
+              </div>
               <h3 className={`font-bold text-xl leading-tight truncate ${
                 isPremium ? "text-white" : "text-white group-hover:text-neon-purple transition-colors"
               }`}>

@@ -151,14 +151,14 @@ function StockWheelPicker({ stocks, hoveredStock, setHoveredStock }: StockWheelP
 
   const itemHeight = 72;
   const gap = 12;
-  const itemSpacingHeight = itemHeight + gap;
   const spacingAngle = 26;
-  const angleRatio = spacingAngle / itemSpacingHeight;
+  const scrollStepHeight = 160; // Decoupled from visual item height to prevent wheel scroll skipping on Windows
+  const angleRatio = spacingAngle / scrollStepHeight;
   const radius = 175;
   const containerHeight = 360;
 
   const totalItems = stocks.length;
-  const maxScroll = totalItems > 0 ? (totalItems - 1) * itemSpacingHeight : 0;
+  const maxScroll = totalItems > 0 ? (totalItems - 1) * scrollStepHeight : 0;
 
   if (totalItems === 0) {
     return (
@@ -269,8 +269,8 @@ function StockWheelPicker({ stocks, hoveredStock, setHoveredStock }: StockWheelP
               key={`snap-${i}`}
               className="absolute left-0 w-full snap-center"
               style={{
-                top: `${i * itemSpacingHeight + (containerHeight / 2) - (itemSpacingHeight / 2)}px`,
-                height: `${itemSpacingHeight}px`,
+                top: `${i * scrollStepHeight + (containerHeight / 2) - (scrollStepHeight / 2)}px`,
+                height: `${scrollStepHeight}px`,
               }}
             />
           ))}
@@ -295,6 +295,7 @@ export default function PortfolioPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState("BIST 100");
   const [usdRate, setUsdRate] = useState<number>(0);
+  const [historicalRates, setHistoricalRates] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -558,6 +559,26 @@ export default function PortfolioPage() {
           return p.name;
         });
         fetchLivePrices(symbols);
+
+        // Fetch historical USD rates for each purchase date
+        const histRates: Record<string, number> = {};
+        await Promise.all(data.map(async (item: any) => {
+          if (item.purchaseDate) {
+            const date = item.purchaseDate.split('T')[0];
+            try {
+              const res = await fetch(`${API_URL}/historical?symbol=USDTRY=X&date=${date}&market=GLOBAL`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const json = await res.json();
+              if (json.success) {
+                histRates[item._id] = json.price;
+              }
+            } catch (e) {
+              console.error('Error fetching historical USD rate for portfolio item:', e);
+            }
+          }
+        }));
+        setHistoricalRates(histRates);
       }
     } catch (error) {
       console.error('Portfolio fetch error:', error);
@@ -667,7 +688,8 @@ export default function PortfolioPage() {
     const plValueOriginal = currentValueOriginal - costValueOriginal;
 
     // TL equivalents for calculations and display of plValue in TL
-    const costTL = isForeignStock && usdRate > 0 ? costOriginal * usdRate : item.cost;
+    const histUSD = historicalRates[item._id] || usdRate || 1;
+    const costTL = isForeignStock && histUSD > 0 ? costOriginal * histUSD : item.cost;
     let currentPriceTL = costTL;
     if (liveStock) {
       let price = liveStock.price || 0;
@@ -680,6 +702,23 @@ export default function PortfolioPage() {
     const costValueTL = (item.amount || 0) * costTL;
     const currentValueTL = (item.amount || 0) * currentPriceTL;
     const plValueTL = currentValueTL - costValueTL;
+
+    // Matematiksel model: Alım tarihine ve günlük değişim oranına göre net günlük değişim hesaplama
+    const purchase = new Date(item.purchaseDate || Date.now());
+    const today = new Date();
+    const pDate = new Date(purchase.getFullYear(), purchase.getMonth(), purchase.getDate());
+    const tDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const isBoughtToday = pDate.getTime() === tDate.getTime();
+
+    const dailyRate = liveStock ? liveStock.rate : 0;
+    let dailyChangeTL = 0;
+    if (isBoughtToday) {
+      // Bugün alındıysa günlük kâr/zarar, alım anından bugüne kadarki kâr/zarardır (maliyete göre)
+      dailyChangeTL = plValueTL;
+    } else if (dailyRate !== 0) {
+      // Bugün alınmadıysa, dünkü kapanış değerine göre net günlük değişim
+      dailyChangeTL = (100 + dailyRate !== 0) ? currentValueTL * (dailyRate / (100 + dailyRate)) : 0;
+    }
 
     return {
       ...item,
@@ -696,13 +735,14 @@ export default function PortfolioPage() {
       color: item.color && item.color !== "#00f2ff" ? item.color : getStockColor(item.name, index),
       plValue: plValueOriginal,
       plPercentage: costOriginal > 0 ? ((currentPriceOriginal - costOriginal) / costOriginal) * 100 : 0,
-      dailyRate: liveStock ? liveStock.rate : 0,
+      dailyRate: dailyRate,
       updatedAt: liveStock ? liveStock.updatedAt : null,
 
       // Kept for global TL stats
       valueTL: currentValueTL,
       costValueTL,
-      plValueTL
+      plValueTL,
+      dailyChangeTL
     };
   });
 
@@ -710,16 +750,14 @@ export default function PortfolioPage() {
   const totalCost = processedData.reduce((acc, curr) => acc + curr.costValueTL, 0);
   const totalPL = totalValue - totalCost;
 
-  // Ağırlıklı günlük değişim hesaplama (TL bazlı ağırlıklandırma)
-  const totalDailyChangePercent = processedData.reduce((acc, curr) => {
-    const weight = curr.valueTL / (totalValue || 1);
-    return acc + (curr.dailyRate * weight);
+  // Toplam günlük TL bazlı değişim (Matematiksel olarak doğru toplam)
+  const totalDailyChangeTL = processedData.reduce((acc, curr) => {
+    return acc + curr.dailyChangeTL;
   }, 0);
 
-  // Toplam günlük TL bazlı değişim
-  const totalDailyChangeTL = processedData.reduce((acc, curr) => {
-    return acc + (curr.valueTL * (curr.dailyRate / 100));
-  }, 0);
+  // Ağırlıklı günlük yüzde değişim (Dünkü kapanış/baz değer üzerinden)
+  const totalBaseValue = totalValue - totalDailyChangeTL;
+  const totalDailyChangePercent = totalBaseValue > 0 ? (totalDailyChangeTL / totalBaseValue) * 100 : 0;
 
   const processedWithPercentage = processedData.map(item => ({
     ...item,

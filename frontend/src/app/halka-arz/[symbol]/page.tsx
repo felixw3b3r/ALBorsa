@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Navbar from "@/components/Navbar";
 import { 
   Rocket, Calendar, Tag, ArrowLeft, TrendingUp, Users, 
-  Briefcase, PieChart, Info, CheckCircle2, AlertCircle 
+  Briefcase, PieChart, Info, CheckCircle2, AlertCircle, Clock
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -100,9 +100,15 @@ export default function HalkaArzDetailPage() {
             <h1 className="text-4xl md:text-6xl font-bold tracking-tighter mb-4 leading-none">
               {data.title}
             </h1>
-            <p className="text-gray-400 text-lg flex items-center justify-center md:justify-start gap-2">
+            <p className="text-gray-400 text-lg flex items-center justify-center md:justify-start gap-2 flex-wrap">
               <Calendar size={18} className="text-neon-purple" />
-              {data.date}
+              <span>{data.date}</span>
+              {data.hours && (
+                <span className="flex items-center gap-1.5 text-gray-500 font-bold bg-white/5 px-2.5 py-0.5 rounded-lg border border-white/5 text-sm ml-2">
+                  <Clock size={14} className="text-neon-purple" />
+                  {data.hours}
+                </span>
+              )}
             </p>
           </div>
         </section>
@@ -271,6 +277,7 @@ export default function HalkaArzDetailPage() {
               
               <TechnicalItem label="Aracı Kurum" value={data.manager} />
               <TechnicalItem label="Pazar" value={data.market} />
+              {data.hours && <TechnicalItem label="Talep Toplama Saatleri" value={data.hours} />}
               
               <div className="space-y-2 pt-2">
                 <div className="text-[10px] uppercase tracking-widest text-gray-500 font-black">Halka Arz Şekli</div>

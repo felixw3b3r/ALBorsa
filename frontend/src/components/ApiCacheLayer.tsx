@@ -23,14 +23,14 @@ type GlobalCacheOptions = {
 
 const GLOBAL_CACHE_PREFIX = 'api-cache:';
 const GLOBAL_CACHE_OPTIONS: GlobalCacheOptions = {
-  ttlMs: 60_000,
-  maxEntries: 180,
-  maxBytes: 24 * 1024 * 1024
+  ttlMs: 24 * 60 * 60 * 1000, // 24 Hours
+  maxEntries: Infinity,
+  maxBytes: Infinity
 };
 const IPO_CACHE_OPTIONS: GlobalCacheOptions = {
-  ttlMs: 10 * 60_000,
-  maxEntries: 220,
-  maxBytes: 24 * 1024 * 1024
+  ttlMs: 24 * 60 * 60 * 1000, // 24 Hours
+  maxEntries: Infinity,
+  maxBytes: Infinity
 };
 
 let isPatched = false;
