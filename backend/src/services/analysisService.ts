@@ -338,6 +338,13 @@ export async function updateBist100Analysis() {
       } catch (dbErr: any) {
         console.error(`[BATCH ANALYSIS BIST] DailyAnalysis save failed:`, dbErr?.message || dbErr);
       }
+      
+      // AI Portfolio integration
+      for (const item of results) {
+        await processStockSignal('bist', item.symbol, item.price, item.quant);
+      }
+      await updateAiPortfolioSignals('bist', results);
+
       console.log(`[BATCH ANALYSIS BIST] Complete. ${results.length} stocks processed in ${Date.now() - startTime}ms.`);
     }
 
@@ -459,6 +466,13 @@ export async function updateNasdaq100Analysis() {
       } catch (dbErr: any) {
         console.error(`[BATCH ANALYSIS NASDAQ] DailyAnalysis save failed:`, dbErr?.message || dbErr);
       }
+      
+      // AI Portfolio integration
+      for (const item of results) {
+        await processStockSignal('nasdaq', item.symbol, item.price, item.quant);
+      }
+      await updateAiPortfolioSignals('nasdaq', results);
+
       console.log(`[BATCH ANALYSIS NASDAQ] Complete. ${results.length} stocks processed in ${Date.now() - startTime}ms.`);
     }
 
@@ -469,6 +483,87 @@ export async function updateNasdaq100Analysis() {
     console.error(`[BATCH ANALYSIS NASDAQ] Critical Failure:`, globalErr.message);
   } finally {
     isNasdaqUpdating = false;
+  }
+}
+
+async function processStockSignal(market: 'nasdaq' | 'bist', symbol: string, currentPrice: number, quant: any) {
+  try {
+    if (quant && quant.opportunityScore >= 65) {
+      const mongoose = require('mongoose');
+      const AiSignalModel = mongoose.model('AiSignal');
+      
+      const activeSignal = await AiSignalModel.findOne({ symbol, market, status: 'ACTIVE' });
+      if (!activeSignal) {
+        const newSignal = new AiSignalModel({
+          symbol,
+          market,
+          entryPrice: currentPrice,
+          entryDate: new Date(),
+          takeProfit: quant.takeProfit,
+          stopLoss: quant.stopLoss,
+          opportunityScore: quant.opportunityScore,
+          status: 'ACTIVE'
+        });
+        await newSignal.save();
+        console.log(`[AI PORTFOLIO] Created new ${market.toUpperCase()} signal for ${symbol} at ${currentPrice} (TP: ${quant.takeProfit}, SL: ${quant.stopLoss})`);
+      }
+    }
+  } catch (err: any) {
+    console.error(`❌ [AI PORTFOLIO] Error creating signal for ${symbol}:`, err.message);
+  }
+}
+
+async function updateAiPortfolioSignals(market: 'nasdaq' | 'bist', currentResults: AnalysisResult[]) {
+  try {
+    const mongoose = require('mongoose');
+    const AiSignalModel = mongoose.model('AiSignal');
+    
+    // Get active signals
+    const activeSignals = await AiSignalModel.find({ market, status: 'ACTIVE' });
+    if (activeSignals.length === 0) return;
+    
+    console.log(`[AI PORTFOLIO] Checking ${activeSignals.length} active ${market.toUpperCase()} signals...`);
+    
+    for (const signal of activeSignals) {
+      const result = currentResults.find(r => r.symbol === signal.symbol);
+      if (!result) continue;
+      
+      const currentPrice = result.price;
+      let shouldClose = false;
+      let closeStatus: 'TAKE_PROFIT' | 'STOP_LOSS' = 'TAKE_PROFIT';
+      
+      if (currentPrice >= signal.takeProfit) {
+        shouldClose = true;
+        closeStatus = 'TAKE_PROFIT';
+      } else if (currentPrice <= signal.stopLoss) {
+        shouldClose = true;
+        closeStatus = 'STOP_LOSS';
+      }
+      
+      if (shouldClose) {
+        signal.status = closeStatus;
+        signal.closePrice = currentPrice;
+        signal.closeDate = new Date();
+        await signal.save();
+        console.log(`[AI PORTFOLIO] Signal CLOSED (${closeStatus}) for ${signal.symbol} at ${currentPrice} (Entry: ${signal.entryPrice})`);
+      }
+    }
+  } catch (err: any) {
+    console.error(`❌ [AI PORTFOLIO] Error updating active signals:`, err.message);
+  }
+}
+
+async function initializeSignalsFromCache(market: 'nasdaq' | 'bist', results: AnalysisResult[]) {
+  try {
+    console.log(`🚀 [AI PORTFOLIO] Initializing signals from cached data for ${market.toUpperCase()}...`);
+    for (const item of results) {
+      if (item.quant && item.quant.opportunityScore >= 65) {
+        await processStockSignal(market, item.symbol, item.price, item.quant);
+      }
+    }
+    await updateAiPortfolioSignals(market, results);
+  } catch (err: any) {
+    console.error(`❌ [AI PORTFOLIO] Init signals error for ${market}:`, err.message);
   }
 }
 
@@ -493,6 +588,7 @@ async function loadDailyAnalysisFromDB(index: 'bist100' | 'nasdaq100') {
         lastNasdaqBatchUpdateTime = latest.timestamp.getTime();
       }
       console.log(`📥 [DATABASE] Loaded ${latest.results.length} stocks from last daily analysis for ${index} (${latest.date}).`);
+      initializeSignalsFromCache(index === 'bist100' ? 'bist' : 'nasdaq', latest.results);
     }
   } catch (err: any) {
     console.error(`❌ [DATABASE] Load Error for ${index}:`, err.message);

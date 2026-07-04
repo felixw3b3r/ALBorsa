@@ -807,6 +807,22 @@ newsEventScoreSchema.index({ symbol: 1, publishedAt: -1 });
 newsEventScoreSchema.index({ eventType: 1, impactScore: -1 });
 const NewsEventScore = mongoose.model('NewsEventScore', newsEventScoreSchema);
 
+const aiSignalSchema = new mongoose.Schema({
+  symbol: { type: String, required: true },
+  market: { type: String, required: true }, // 'bist' or 'nasdaq'
+  entryPrice: { type: Number, required: true },
+  entryDate: { type: Date, default: Date.now },
+  takeProfit: { type: Number, required: true },
+  stopLoss: { type: Number, required: true },
+  status: { type: String, enum: ['ACTIVE', 'TAKE_PROFIT', 'STOP_LOSS'], default: 'ACTIVE' },
+  closePrice: { type: Number },
+  closeDate: { type: Date },
+  opportunityScore: { type: Number }
+}, { timestamps: true });
+
+aiSignalSchema.index({ symbol: 1, market: 1, status: 1 });
+const AiSignal = mongoose.model('AiSignal', aiSignalSchema);
+
 app.get('/api/stocks/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -902,12 +918,49 @@ app.get('/api/stocks/:symbol', async (req, res) => {
         const usdPrice = usdData.regularMarketPrice || 32.5;
         let onsQuotes = (onsData.quotes || []).filter((q: any) => q.close != null);
 
-        // STRICT ROLLING FILTER (Gram/Çeyrek için de son 24/48/72 saat kesimi)
-        if (isGlobal && (r === '1d' || r === '1g' || r === '2g' || r === '3g') && onsQuotes.length > 0) {
-          const now = new Date();
-          const hoursBack = r === '1g' || r === '1d' ? 24 : (r === '2g' ? 48 : 72);
-          const startTime = now.getTime() - (hoursBack * 60 * 60 * 1000);
-          onsQuotes = onsQuotes.filter((q: any) => new Date(q.date).getTime() >= startTime);
+        // AKILLI İŞLEM GÜNÜ FİLTRESİ (Gram/Çeyrek için de son 24/48/72 saat kesimi veya kapalı piyasa fallback)
+        if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && onsQuotes.length > 0) {
+          const uniqueDays = [...new Set(onsQuotes.map((q: any) => {
+            const d = new Date(q.date);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+          }))].sort((a, b) => b - a);
+
+          let daysToKeep = 1;
+          if (r === '2g') daysToKeep = 2;
+          else if (r === '3g') daysToKeep = 3;
+
+          let dayOffset = 0;
+          const minBarsThreshold = 5;
+
+          while (dayOffset < uniqueDays.length) {
+            const candidateDay = uniqueDays[dayOffset];
+            const barsInDay = onsQuotes.filter((q: any) => {
+              const d = new Date(q.date);
+              d.setHours(0, 0, 0, 0);
+              return d.getTime() === candidateDay;
+            }).length;
+
+            if (barsInDay >= minBarsThreshold) {
+              break;
+            }
+            dayOffset++;
+          }
+
+          const targetDays = uniqueDays.slice(dayOffset, dayOffset + daysToKeep);
+          if (targetDays.length > 0) {
+            onsQuotes = onsQuotes.filter((q: any) => {
+              const d = new Date(q.date);
+              d.setHours(0, 0, 0, 0);
+              return targetDays.includes(d.getTime());
+            });
+            console.log(`📊 Gold onsQuotes filtered to ${onsQuotes.length} bars across ${targetDays.length} trading day(s)`);
+          }
+
+          if (onsQuotes.length === 0) {
+            console.log(`⚠️ Gold filtering removed all bars, using all available data.`);
+            onsQuotes = (onsData.quotes || []).filter((q: any) => q.close != null);
+          }
         }
 
         const multiplier = formattedSymbol === 'GRAM_ALTIN' ? (1 / 31.1035) : (1 / 31.1035 * 1.6065);
@@ -1815,9 +1868,46 @@ app.get('/api/stocks/:symbol/components', async (req, res) => {
 app.get('/api/halkaarz', (req, res) => {
   const ipoData = [
     {
+      name: "Şa-Ra Enerji İnşaat Tic. ve San. A.Ş.",
+      symbol: "SARAE",
+      status: "active",
+      statusText: "Yeni!",
+      date: "8-9-10 Temmuz 2026",
+      logo: "/logos/SARAE.png",
+      details: {
+        price: "70,00 TL",
+        distribution: "Bireysel Eşit / Oransal **",
+        lots: "89.000.000 Lot",
+        manager: "Tera Yatırım Menkul Değerler A.Ş.",
+        market: "Yıldız Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
+      name: "Saat ve Saat San. ve Tic. A.Ş.",
+      symbol: "SSAAT",
+      status: "active",
+      statusText: "Yeni!",
+      date: "6-7-8 Temmuz 2026",
+      logo: "/logos/SSAAT.png",
+      details: {
+        price: "56,00 TL",
+        distribution: "Eşit Dağıtım **",
+        lots: "66.944.955 Lot (+13.388.991 Lot Ek Pay)",
+        manager: "Garanti Yatırım Menkul Kıymetler A.Ş. & Halk Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+        market: "Yıldız Pazar",
+        listingDate: "Hazırlanıyor...",
+        participants: "Açıklanmadı",
+        perPerson: "Açıklanmadı"
+      }
+    },
+    {
       name: "Isvea Seramik ve Banyo Ürünleri Sanayi A.Ş.",
       symbol: "ISVEA",
-      status: "active",
+      status: "completed",
+      statusText: "",
       date: "1-2-3 Temmuz 2026",
       logo: "/logos/ISVEA.png",
       details: {
@@ -1826,15 +1916,16 @@ app.get('/api/halkaarz', (req, res) => {
         lots: "67.000.000 Lot",
         manager: "Halk Yatırım Menkul Değerler A.Ş. & Ahlatcı Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
         market: "Ana Pazar",
-        listingDate: "Hazırlanıyor...",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
+        listingDate: "",
+        participants: "",
+        perPerson: ""
       }
     },
     {
       name: "Ekim Turizm Tic. ve San. A.Ş. (Intercity)",
       symbol: "EKIM",
-      status: "active",
+      status: "completed",
+      statusText: "",
       date: "1-2-3 Temmuz 2026",
       logo: "/logos/EKIM.png",
       details: {
@@ -1843,15 +1934,16 @@ app.get('/api/halkaarz', (req, res) => {
         lots: "161.999.998 Lot",
         manager: "Ak Yatırım Menkul Değerler A.Ş. & Vakıf Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
         market: "Yıldız Pazar",
-        listingDate: "Hazırlanıyor...",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
+        listingDate: "",
+        participants: "",
+        perPerson: ""
       }
     },
     {
       name: "Golda Gıda San. ve Tic. A.Ş.",
       symbol: "GOLDA",
-      status: "active",
+      status: "completed",
+      statusText: "",
       date: "1-2 Temmuz 2026",
       logo: "/logos/GOLDA.png",
       details: {
@@ -1861,14 +1953,15 @@ app.get('/api/halkaarz', (req, res) => {
         manager: "Gedik Yatırım Menkul Değerler A.Ş. / Misyon Yatırım Bankası A.Ş. (Konsorsiyum)",
         market: "Ana Pazar",
         listingDate: "Hazırlanıyor...",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
+        participants: "749.674 Kişi",
+        perPerson: "117 Lot"
       }
     },
     {
       name: "Soho Giyim ve Enerji A.Ş.",
       symbol: "SOHOE",
-      status: "active",
+      status: "completed",
+      statusText: "",
       date: "30 Haziran, 1 Temmuz 2026",
       logo: "/logos/SOHOE.png",
       details: {
@@ -1877,16 +1970,16 @@ app.get('/api/halkaarz', (req, res) => {
         lots: "100.000.000 Lot",
         manager: "İntegral Yatırım Menkul Değerler A.Ş.",
         market: "Ana Pazar",
-        listingDate: "Hazırlanıyor...",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
+        listingDate: "6 Temmuz 2026",
+        participants: "660.121 Kişi",
+        perPerson: "121 Lot"
       }
     },
     {
       name: "Orzaks İlaç ve Kimya San. Tic. A.Ş. (Orzax)",
       symbol: "ORZAX",
-      status: "active",
-      statusText: "Talep toplanıyor",
+      status: "completed",
+      statusText: "",
       date: "29-30 Haziran, 1 Temmuz 2026",
       logo: "/logos/ORZAX.png",
       details: {
@@ -1895,9 +1988,9 @@ app.get('/api/halkaarz', (req, res) => {
         lots: "52.500.000 Lot",
         manager: "İnfo Yatırım Menkul Değerler A.Ş.",
         market: "Yıldız Pazar",
-        listingDate: "Hazırlanıyor...",
-        participants: "Açıklanmadı",
-        perPerson: "Açıklanmadı"
+        listingDate: "7 Temmuz 2026",
+        participants: "973.805 Kişi",
+        perPerson: "30 Lot"
       }
     },
     {
@@ -1985,6 +2078,128 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
   const { symbol } = req.params;
   const sym = symbol.toUpperCase();
 
+  if (sym === 'SARAE') {
+    return res.json({
+      title: "Şa-Ra Enerji İnşaat Tic. ve San. A.Ş.",
+      symbol: "SARAE",
+      status: "active",
+      statusText: "Yeni!",
+      logo: "/logos/SARAE.png",
+      date: "8-9-10 Temmuz 2026",
+      hours: "09:00 - 17:00",
+      price: "70,00 TL",
+      distribution: "Eşit Dağıtım **",
+      lots: "89.000.000 Lot",
+      manager: "Tera Yatırım Menkul Değerler A.Ş.",
+      market: "Yıldız Pazar",
+      size: "~ 6,2 Milyar TL",
+      method: {
+        capitalIncrease: "44.500.000 Lot. * SPK Bülteni, 2026/43.",
+        partnerSale: "44.500.000 Lot (35.600.000 Lot Şadi Türk, 8.900.000 Lot Hilkat Mor)",
+        total: "89.000.000 Lot",
+        partners: [
+          { name: "Şadi Türk", lot: "35.600.000" },
+          { name: "Hilkat Mor", lot: "8.900.000" }
+        ]
+      },
+      balanceSheet: [
+        { year: "2026/3", revenue: "3,3 Milyar TL", profit: "904,9 Milyon TL" },
+        { year: "2025", revenue: "7,0 Milyar TL", profit: "1,9 Milyar TL" },
+        { year: "2024", revenue: "14,3 Milyar TL", profit: "3,4 Milyar TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "225 Lot", amount: "15.750 TL" },
+        { participants: "250 Bin", lots: "135 Lot", amount: "9.450 TL" },
+        { participants: "350 Bin", lots: "96 Lot", amount: "6.720 TL" },
+        { participants: "500 Bin", lots: "67 Lot", amount: "4.690 TL" },
+        { participants: "700 Bin", lots: "48 Lot", amount: "3.360 TL" },
+        { participants: "1,1 Milyon", lots: "31 Lot", amount: "2.170 TL" },
+        { participants: "1,6 Milyon", lots: "21 Lot", amount: "1.470 TL" },
+        { participants: "2,2 Milyon", lots: "16 Lot", amount: "1.120 TL" }
+      ],
+      fundUsage: [
+        { area: "Yatırım harcamaları", ratio: 15 },
+        { area: "İşletme sermayesi", ratio: 55 },
+        { area: "Finansal borç ödemesi", ratio: 30 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel Yatırımcı", ratio: 38, lot: "33.820.000 Lot" },
+        { group: "Şirket Çalışanları", ratio: 2, lot: "1.780.000 Lot" },
+        { group: "Yüksek Başvurulu Yatırımcı", ratio: 10, lot: "8.900.000 Lot" },
+        { group: "Yurt İçi Kurumsal Yatırımcı", ratio: 25, lot: "22.250.000 Lot" },
+        { group: "Yurt Dışı Kurumsal Yatırımcı", ratio: 25, lot: "22.250.000 Lot" }
+      ],
+      t1t2: "*** T1-T2 Kullanılamaz.",
+      stability: "Planlanmamaktadır.",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar.",
+      index: "Katılım Endeksine uygun değildir.",
+      extra: {
+        float: "%20,02",
+        discount: "%20",
+        salesMethod: "Sabit Fiyatla Talep Toplama."
+      }
+    });
+  }
+
+  if (sym === 'SSAAT') {
+    return res.json({
+      title: "Saat ve Saat San. ve Tic. A.Ş.",
+      symbol: "SSAAT",
+      status: "active",
+      statusText: "Yeni!",
+      logo: "/logos/SSAAT.png",
+      date: "6-7-8 Temmuz 2026",
+      hours: "09:00 - 17:00",
+      price: "56,00 TL",
+      distribution: "Bireysele Eşit Dağıtım **",
+      lots: "66.944.955 Lot (+13.388.991 Lot Ek Pay)",
+      manager: "Garanti Yatırım Menkul Kıymetler A.Ş. & Halk Yatırım Menkul Değerler A.Ş. (Konsorsiyum)",
+      market: "Yıldız Pazar",
+      size: "~ 4,5 Milyar TL (Ek satış dahil)",
+      method: {
+        capitalIncrease: "40.166.973 Lot. * SPK Bülteni, 2026/43.",
+        partnerSale: "26.777.982 Lot",
+        total: "66.944.955 Lot",
+        partners: [
+          { name: "Ortak Satışı", lot: "26.777.982" },
+          { name: "Ek Ortak Satışı", lot: "13.388.991" }
+        ]
+      },
+      balanceSheet: [
+        { year: "2026/3", revenue: "3,3 Milyar TL", profit: "1,9 Milyar TL" },
+        { year: "2025", revenue: "13,0 Milyar TL", profit: "7,7 Milyar TL" },
+        { year: "2024", revenue: "11,5 Milyar TL", profit: "6,7 Milyar TL" }
+      ],
+      estimates: [
+        { participants: "150 Bin", lots: "267 Lot", amount: "14.952 TL" },
+        { participants: "250 Bin", lots: "161 Lot", amount: "9.016 TL" },
+        { participants: "350 Bin", lots: "114 Lot", amount: "6.384 TL" },
+        { participants: "500 Bin", lots: "80 Lot", amount: "4.480 TL" },
+        { participants: "700 Bin", lots: "57 Lot", amount: "3.192 TL" },
+        { participants: "1,1 Milyon", lots: "36 Lot", amount: "2.016 TL" },
+        { participants: "1,6 Milyon", lots: "25 Lot", amount: "1.400 TL" },
+        { participants: "2,2 Milyon", lots: "19 Lot", amount: "1.064 TL" }
+      ],
+      fundUsage: [
+        { area: "Finansal borçların ödenmesi", ratio: 20 },
+        { area: "İşletme sermayesi", ratio: 80 }
+      ],
+      allocation: [
+        { group: "Yurt İçi Bireysel Yatırımcı", ratio: 60, lot: "40.166.973 Lot" },
+        { group: "Yurt İçi Kurumsal Yatırımcı", ratio: 40, lot: "26.777.982 Lot" }
+      ],
+      t1t2: "*** T1-T2 Kullanılamaz.",
+      stability: "30 gün. * Brüt halka arz gelirinin %20'si (Halk Yatırım Menkul Değerler A.Ş.)",
+      satmama: "1 Yıl, İhraççı. 1 Yıl, Ortaklar.",
+      index: "Uygundur (Katılım Endeksine Uygun - XKTUM)",
+      extra: {
+        float: "%12,3",
+        discount: "%37,01",
+        salesMethod: "Sabit Fiyatla Talep Toplama."
+      }
+    });
+  }
+
   if (sym === 'BETAE') {
     return res.json({
       title: "Beta Enerji ve Teknoloji A.Ş.",
@@ -2047,7 +2262,7 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     return res.json({
       title: "Soho Giyim ve Enerji A.Ş.",
       symbol: "SOHOE",
-      status: "active",
+      status: "completed",
       logo: "/logos/SOHOE.png",
       date: "30 Haziran, 1 Temmuz 2026",
       hours: "10:30 - 13:00",
@@ -2102,7 +2317,7 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     return res.json({
       title: "Golda Gıda San. ve Tic. A.Ş.",
       symbol: "GOLDA",
-      status: "active",
+      status: "completed",
       logo: "/logos/GOLDA.png",
       date: "1-2 Temmuz 2026",
       hours: "10:30 - 13:00",
@@ -2158,7 +2373,7 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     return res.json({
       title: "Isvea Seramik ve Banyo Ürünleri Sanayi A.Ş.",
       symbol: "ISVEA",
-      status: "active",
+      status: "completed",
       logo: "/logos/ISVEA.png",
       date: "1-2-3 Temmuz 2026",
       hours: "09:00 - 17:00",
@@ -2276,7 +2491,7 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     return res.json({
       title: "(Intercity) Ekim Turizm Tic. ve San. A.Ş.",
       symbol: "EKIM",
-      status: "active",
+      status: "completed",
       logo: "/logos/EKIM.png",
       date: "1-2-3 Temmuz 2026",
       hours: "09:00 - 17:00",
@@ -2333,7 +2548,7 @@ app.get('/api/halkaarz/:symbol', (req, res) => {
     return res.json({
       title: "(Orzax) Orzaks İlaç ve Kimya San. Tic. A.Ş.",
       symbol: "ORZAX",
-      status: "active",
+      status: "completed",
       logo: "/logos/ORZAX.png",
       date: "29-30 Haziran, 1 Temmuz 2026",
       hours: "09:00 - 17:00",
@@ -2734,6 +2949,16 @@ app.get('/api/analysis/bist100', (req, res) => {
 
 app.get('/api/analysis/nasdaq100', (req, res) => {
   res.json(getNasdaq100Analysis());
+});
+
+app.get('/api/analysis/ai-portfolio', async (req, res) => {
+  try {
+    const market = req.query.market as string || 'nasdaq';
+    const signals = await AiSignal.find({ market }).sort({ createdAt: -1 });
+    res.json({ success: true, data: signals });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // Arka Plan Analiz Görevi (30 dakikada bir)
