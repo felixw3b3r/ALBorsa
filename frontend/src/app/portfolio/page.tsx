@@ -303,9 +303,15 @@ export default function PortfolioPage() {
       router.push('/login');
       return;
     }
-    setMounted(true);
-    fetchPortfolio();
-    fetchUsdRate();
+    
+    // Fetch USD rate and Portfolio in parallel, then set mounted & loading states
+    const initData = async () => {
+      setLoading(true);
+      await Promise.all([fetchUsdRate(), fetchPortfolio()]);
+      setMounted(true);
+      setLoading(false);
+    };
+    initData();
 
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -314,12 +320,11 @@ export default function PortfolioPage() {
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchPortfolio();
-        fetchUsdRate();
+        Promise.all([fetchUsdRate(), fetchPortfolio()]);
       }
     };
 
-    const interval = setInterval(refreshWhenVisible, 30000);
+    const interval = setInterval(refreshWhenVisible, 5000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
@@ -395,18 +400,22 @@ export default function PortfolioPage() {
   };
 
   const fetchLivePrices = async (symbols: string[]) => {
-    if (symbols.length === 0) return;
+    if (symbols.length === 0) return [];
     try {
       const response = await fetch(`${API_URL}/stocks?symbols=${symbols.join(',')}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'X-Bypass-API-Cache': '1'
+        }
       });
       const data = await response.json();
       if (data.success && data.result) {
-        setLivePrices(data.result);
+        return data.result;
       }
     } catch (error) {
       console.error('Live prices error:', error);
     }
+    return [];
   };
 
   const fetchUsdRate = async () => {
@@ -544,27 +553,46 @@ export default function PortfolioPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      let data = [];
-      if (response.ok) {
-        data = await response.json();
-        setPortfolio(Array.isArray(data) ? data : []);
-      } else {
+      if (!response.ok) {
         setPortfolio([]);
+        return;
       }
 
-      if (data && data.length > 0) {
-        const symbols = data.map((p: any) => {
-          // BIST 100 listesindeyse sonuna .IS ekle (Yahoo için)
+      const data = await response.json();
+      const portfolioData = Array.isArray(data) ? data : [];
+
+      if (portfolioData.length > 0) {
+        const symbols = portfolioData.map((p: any) => {
           if (ALL_BIST_STOCKS.includes(p.name)) return `${p.name}.IS`;
           return p.name;
         });
-        fetchLivePrices(symbols);
 
-        // Fetch historical USD rates for each purchase date
+        // Start fetching live prices and historical rates in parallel
+        const livePricesPromise = fetchLivePrices(symbols);
+
         const histRates: Record<string, number> = {};
-        await Promise.all(data.map(async (item: any) => {
+        
+        // Read cached rates from localStorage
+        let cachedRates: Record<string, number> = {};
+        try {
+          const stored = localStorage.getItem('bistai_historical_rates');
+          if (stored) {
+            cachedRates = JSON.parse(stored);
+          }
+        } catch (e) {
+          console.error('Error reading historical rates cache:', e);
+        }
+
+        const historicalPromise = Promise.all(portfolioData.map(async (item: any) => {
           if (item.purchaseDate) {
             const date = item.purchaseDate.split('T')[0];
+            const cacheKey = `${item._id}:${date}`;
+
+            if (cachedRates[cacheKey] !== undefined) {
+              histRates[item._id] = cachedRates[cacheKey];
+              return;
+            }
+
             try {
               const res = await fetch(`${API_URL}/historical?symbol=USDTRY=X&date=${date}&market=GLOBAL`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -572,13 +600,32 @@ export default function PortfolioPage() {
               const json = await res.json();
               if (json.success) {
                 histRates[item._id] = json.price;
+                cachedRates[cacheKey] = json.price;
               }
             } catch (e) {
               console.error('Error fetching historical USD rate for portfolio item:', e);
             }
           }
-        }));
+        })).then(() => {
+          // Write updated cache to localStorage
+          try {
+            localStorage.setItem('bistai_historical_rates', JSON.stringify(cachedRates));
+          } catch (e) {
+            console.error('Error writing historical rates cache:', e);
+          }
+        });
+
+        // Await both promises concurrently
+        const [livePricesData] = await Promise.all([livePricesPromise, historicalPromise]);
+
+        // Atomically set all states together to prevent rendering intermediate/partially loaded states
+        setLivePrices(livePricesData);
         setHistoricalRates(histRates);
+        setPortfolio(portfolioData);
+      } else {
+        setPortfolio([]);
+        setLivePrices([]);
+        setHistoricalRates({});
       }
     } catch (error) {
       console.error('Portfolio fetch error:', error);
@@ -807,8 +854,7 @@ export default function PortfolioPage() {
             <button
               onClick={async () => {
                 setLoading(true);
-                await fetchPortfolio();
-                await fetchUsdRate();
+                await Promise.all([fetchUsdRate(), fetchPortfolio()]);
                 setLoading(false);
               }}
               className="bg-white/5 hover:bg-white/10 border border-white/10 p-6 rounded-2xl transition-all h-full"
@@ -1025,8 +1071,7 @@ export default function PortfolioPage() {
               <button
                 onClick={async () => {
                   setLoading(true);
-                  await fetchPortfolio();
-                  await fetchUsdRate();
+                  await Promise.all([fetchUsdRate(), fetchPortfolio()]);
                   setLoading(false);
                 }}
                 className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 font-bold text-sm text-gray-300 hover:text-white"

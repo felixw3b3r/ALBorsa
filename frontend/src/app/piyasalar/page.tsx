@@ -274,7 +274,10 @@ function PortfolioSection() {
       if (!symbols.includes('USDTRY=X')) symbols.push('USDTRY=X');
       
       const res = await fetch(`${API_URL}/stocks?symbols=${symbols.join(',')}`, {
-        headers: { Authorization: `Bearer ${t}` }
+        headers: { 
+          Authorization: `Bearer ${t}`,
+          'X-Bypass-API-Cache': '1'
+        }
       });
       if (!res.ok) return;
       const pricesData = await res.json();
@@ -398,7 +401,7 @@ export default function PiyasalarPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
   const CACHE_TTL_MS = 60_000;
 
-  const fetchPortfolioIndex = async (token: string, forceRefresh = false) => {
+  const fetchPortfolioIndex = async (token: string, forceRefresh = false, silent = false) => {
     const cacheKey = `piyasalar:portfolioIndex:${token}`;
     if (!forceRefresh) {
       const cachedPortfolioIndex = getCachedValue<any>(cacheKey);
@@ -408,7 +411,7 @@ export default function PiyasalarPage() {
       }
     }
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const portRes = await fetch(`${API_URL}/portfolio`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -422,13 +425,18 @@ export default function PiyasalarPage() {
         return isBist ? `${p.name}.IS` : p.name;
       });
 
-      // Fetch live prices & history in parallel
       const [pricesRes, histRes] = await Promise.all([
         fetch(`${API_URL}/stocks?symbols=${symbols.join(',')}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'X-Bypass-API-Cache': '1'
+          }
         }),
         fetch(`${API_URL}/portfolio/history?range=1d`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'X-Bypass-API-Cache': '1'
+          }
         })
       ]);
 
@@ -480,11 +488,11 @@ export default function PiyasalarPage() {
       console.error('Portfolio index error:', err);
       setPortfolioIndex(null);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const fetchMarkets = async (forceRefresh = false) => {
+  const fetchMarkets = async (forceRefresh = false, silent = false) => {
     const cacheKey = "piyasalar:market-summary";
     if (!forceRefresh) {
       const cachedSummary = getCachedValue<any[]>(cacheKey);
@@ -525,10 +533,11 @@ export default function PiyasalarPage() {
       }
     }
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
-      // TÜM VERİLERİ TEK SEFERDE ÇEK (SÜPER HIZLI)
-      const res = await fetch(`${API_URL}/market-summary`);
+      const res = await fetch(forceRefresh ? `${API_URL}/market-summary?refresh=true` : `${API_URL}/market-summary`, {
+        headers: { 'X-Bypass-API-Cache': '1' }
+      });
       const summaryData = await res.json();
       setCachedValue(cacheKey, summaryData, { ttlMs: CACHE_TTL_MS });
 
@@ -570,15 +579,15 @@ export default function PiyasalarPage() {
     } catch (error) {
       console.error('Data fetch error:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const refreshAllData = async (forceRefresh = false, tokenOverride?: string | null) => {
-    await fetchMarkets(forceRefresh);
+  const refreshAllData = async (forceRefresh = false, tokenOverride?: string | null, silent = false) => {
+    await fetchMarkets(forceRefresh, silent);
     const activeToken = tokenOverride ?? userToken;
     if (activeToken) {
-      await fetchPortfolioIndex(activeToken, forceRefresh);
+      await fetchPortfolioIndex(activeToken, forceRefresh, silent);
     }
   };
 
@@ -586,9 +595,16 @@ export default function PiyasalarPage() {
     setMounted(true);
     const token = localStorage.getItem('token');
     setUserToken(token);
-    const runRefresh = () => refreshAllData(false, token);
+    const runRefresh = () => refreshAllData(false, token, false);
     runRefresh().then(() => {});
-    const interval = setInterval(runRefresh, 60000);
+    
+    // Silent background updates every 5 seconds, only if visible
+    const runSilentRefresh = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAllData(true, token, true);
+      }
+    };
+    const interval = setInterval(runSilentRefresh, 5000);
     return () => clearInterval(interval);
   }, []);
 

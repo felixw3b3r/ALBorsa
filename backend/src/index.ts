@@ -1,3 +1,4 @@
+// Triggering reload
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -147,10 +148,24 @@ function yahooSlot(): Promise<() => void> {
 // Wrapper: Tüm ağır Yahoo Finance çağrıları bu üzerinden geçmeli
 export async function withYahooSlot<T>(fn: () => Promise<T>): Promise<T> {
   const release = await yahooSlot();
+  let finished = false;
+
+  const timeoutId = setTimeout(() => {
+    if (!finished) {
+      finished = true;
+      console.warn("⚠️ [withYahooSlot] İstek 15 saniyede tamamlanamadı, slot zorla serbest bırakılıyor.");
+      release();
+    }
+  }, 15000);
+
   try {
     return await fn();
   } finally {
-    release();
+    if (!finished) {
+      finished = true;
+      clearTimeout(timeoutId);
+      release();
+    }
   }
 }
 

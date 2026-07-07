@@ -187,7 +187,7 @@ export default function IPOTavanHesaplaPage() {
                       </span>
                     </td>
                     <td className="px-8 py-5 font-bold text-gray-300">
-                      {res.price.toLocaleString(undefined, { minimumFractionDigits: 2 })} TL
+                      {res.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL
                     </td>
                     <td className="px-8 py-5 font-bold text-green-400">
                       +%{ (res.day === 1 ? 10 : 10).toFixed(1) }

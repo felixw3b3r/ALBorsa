@@ -71,9 +71,14 @@ export default function IndexDetailsPage() {
 
   useEffect(() => {
     setMounted(true);
-    fetchData(true);
+    fetchData(true, false, false);
     // fetchAnalysis(); // Commented out
-    const interval = setInterval(() => fetchData(false), 60000);
+    const runSilentRefresh = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData(false, true, true);
+      }
+    };
+    const interval = setInterval(runSilentRefresh, 5000);
     return () => clearInterval(interval);
   }, [symbol, timeRange]);
 
@@ -167,9 +172,11 @@ export default function IndexDetailsPage() {
 
   const displayedComponents = filteredComponents.slice(0, visibleCount);
 
-  const fetchData = async (isRangeChange = false, forceRefresh = false) => {
-    if (isRangeChange) setChartLoading(true);
-    else setLoading(true);
+  const fetchData = async (isRangeChange = false, forceRefresh = false, silent = false) => {
+    if (!silent) {
+      if (isRangeChange) setChartLoading(true);
+      else setLoading(true);
+    }
     try {
       const indexCacheKey = `piyasalar:detail:index:${symbol}:${timeRange.id}:${timeRange.interval}`;
       let indexInfo: any = undefined;
@@ -177,13 +184,15 @@ export default function IndexDetailsPage() {
         indexInfo = getCachedValue<any>(indexCacheKey);
       }
       if (!indexInfo) {
-        const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&interval=${timeRange.interval}`);
+        const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&interval=${timeRange.interval}`, {
+          headers: { 'X-Bypass-API-Cache': '1' }
+        });
         indexInfo = await indexRes.json();
         setCachedValue(indexCacheKey, indexInfo, { ttlMs: CACHE_TTL_MS });
       }
       setIndexData(indexInfo);
 
-      if (!isRangeChange || components.length === 0) {
+      if ((!isRangeChange || components.length === 0) && !silent) {
         const componentCacheKey = `piyasalar:detail:components:${symbol}`;
         let compData: any[] = [];
         if (!forceRefresh) {
@@ -205,8 +214,10 @@ export default function IndexDetailsPage() {
     } catch (error: any) {
       console.error('Data fetch error:', error);
     } finally {
-      setLoading(false);
-      setChartLoading(false);
+      if (!silent) {
+        setLoading(false);
+        setChartLoading(false);
+      }
     }
   };
 
@@ -304,7 +315,7 @@ export default function IndexDetailsPage() {
               </h1>
               <div className="flex items-baseline gap-6">
                 <span className="text-5xl md:text-7xl font-bold tracking-tight text-white">
-                  {currentDisplayPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {currentDisplayPrice?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 {indexData?.history && indexData.history.length > 0 && (
                   (() => {
@@ -442,7 +453,7 @@ export default function IndexDetailsPage() {
                     <div className="flex items-baseline gap-2">
                       <span className="font-bold text-sm group-hover:text-neon-purple transition-colors truncate max-w-[140px]">{comp.name}</span>
                       <span className="text-xs font-medium text-gray-400 italic">
-                        {comp.price?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {comp.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>

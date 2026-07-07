@@ -327,7 +327,7 @@ export default function AiAnalizPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xl font-mono font-medium">
                           {market === 'bist' ? '₺' : '$'}
-                          {item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                          {item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                         <span className={`text-sm font-bold flex items-center ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {item.changePercent >= 0 ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
@@ -602,15 +602,15 @@ function AiPortfolioView({ signals, loading, market, data }: { signals: any[], l
                       <td className="py-4 font-black text-lg text-white">{sig.symbol}</td>
                       <td className="py-4">
                         <div className="text-xs text-cyan-400">{new Date(sig.entryDate).toLocaleDateString('tr-TR')}</div>
-                        <div className="text-white font-bold">{prefix}{sig.entryPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-white font-bold">{prefix}{sig.entryPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       </td>
                       <td className="py-4">
                         <div className="text-xs text-cyan-400">{sig.closeDate ? new Date(sig.closeDate).toLocaleDateString('tr-TR') : '--'}</div>
-                        <div className="text-white font-bold">{prefix}{(sig.closePrice || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>
+                        <div className="text-white font-bold">{prefix}{(sig.closePrice || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       </td>
                       <td className="py-4 text-xs text-cyan-400">
-                        <div>Kar Al: {prefix}{sig.takeProfit}</div>
-                        <div>Zarar Kes: {prefix}{sig.stopLoss}</div>
+                        <div>Kar Al: {prefix}{sig.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <div>Zarar Kes: {prefix}{sig.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       </td>
                       <td className="py-4 text-right">
                         <span className={`inline-block text-[10px] font-black px-2 py-1 rounded-md border mb-1 uppercase tracking-tighter ${getStatusColor(sig.status)}`}>
@@ -633,6 +633,7 @@ function AiPortfolioView({ signals, loading, market, data }: { signals: any[], l
 }
 
 function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice: number, market: 'bist' | 'nasdaq' }) {
+  const router = useRouter();
   const prefix = market === 'bist' ? '₺' : '$';
   
   // Calculate real-time profit/loss based on latestPrice
@@ -640,7 +641,10 @@ function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice:
   const profitLossPercent = (profitLoss / signal.entryPrice) * 100;
   
   return (
-    <div className="bg-[#0A0A0A] border border-neon-purple/20 shadow-[0_0_20px_rgba(188,19,254,0.05)] rounded-[2.5rem] p-8 flex flex-col justify-between relative overflow-hidden group">
+    <div 
+      onClick={() => router.push(`/piyasalar/${signal.symbol}`)}
+      className="bg-[#0A0A0A] border border-neon-purple/20 hover:border-neon-purple/40 shadow-[0_0_20px_rgba(188,19,254,0.05)] rounded-[2.5rem] p-8 flex flex-col justify-between relative overflow-hidden group cursor-pointer transition-all"
+    >
       {/* Background neon effect */}
       <div className="absolute top-0 right-0 w-24 h-24 blur-[60px] opacity-10 bg-neon-purple rounded-full" />
       
@@ -663,11 +667,11 @@ function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice:
         <div className="grid grid-cols-2 gap-4 mb-6 bg-white/5 border border-white/5 rounded-2xl p-4">
           <div>
             <div className="text-[10px] text-cyan-400 font-bold uppercase">Giriş Fiyatı</div>
-            <div className="text-lg font-black text-white">{prefix}{signal.entryPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>
+            <div className="text-lg font-black text-white">{prefix}{signal.entryPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
           <div>
             <div className="text-[10px] text-cyan-400 font-bold uppercase">Güncel Fiyat</div>
-            <div className="text-lg font-black text-white">{prefix}{latestPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>
+            <div className="text-lg font-black text-white">{prefix}{latestPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           </div>
         </div>
 
@@ -681,7 +685,7 @@ function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice:
             <div className="space-y-2 mb-6">
               <div className="flex justify-between text-xs font-bold">
                 <span className="text-red-400">ZARAR KES</span>
-                <span className="text-red-400">{prefix}{signal.stopLoss} ({slPercent.toFixed(1)}%)</span>
+                <span className="text-red-400">{prefix}{signal.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({slPercent.toFixed(1)}%)</span>
               </div>
               <div className="w-full bg-white/5 h-1.5 rounded-full relative overflow-visible">
                 {/* Static Entry Price Marker Tick */}
@@ -717,15 +721,15 @@ function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice:
                   <div 
                     className="absolute bg-rose-500 h-full transition-all duration-500 rounded-full"
                     style={{
-                      left: `${Math.max(0, Math.min(100, latestPricePct))}%`,
-                      width: `${Math.max(0, Math.min(100 - latestPricePct, entryPricePct - latestPricePct))}%`
+                      left: `${Math.max(0, Math.min(entryPricePct, latestPricePct))}%`,
+                      width: `${entryPricePct - Math.max(0, Math.min(entryPricePct, latestPricePct))}%`
                     }}
                   />
                 ) : null}
               </div>
               <div className="flex justify-between text-xs font-bold">
                 <span className="text-green-400">KAR AL HEDEFİ</span>
-                <span className="text-green-400">{prefix}{signal.takeProfit} (+{tpPercent.toFixed(1)}%)</span>
+                <span className="text-green-400">{prefix}{signal.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+{tpPercent.toFixed(1)}%)</span>
               </div>
             </div>
           );
@@ -743,6 +747,7 @@ function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice:
 }
 
 function SignalRow({ signal, latestPrice, market }: { signal: any, latestPrice: number, market: 'bist' | 'nasdaq' }) {
+  const router = useRouter();
   const prefix = market === 'bist' ? '₺' : '$';
   
   // Calculate real-time profit/loss based on latestPrice
@@ -755,7 +760,10 @@ function SignalRow({ signal, latestPrice, market }: { signal: any, latestPrice: 
   const latestPricePct = ((latestPrice - signal.stopLoss) / (signal.takeProfit - signal.stopLoss || 1)) * 100;
 
   return (
-    <div className="bg-[#0A0A0A] border border-neon-purple/20 hover:border-neon-purple/40 shadow-[0_0_20px_rgba(188,19,254,0.02)] rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all group">
+    <div 
+      onClick={() => router.push(`/piyasalar/${signal.symbol}`)}
+      className="bg-[#0A0A0A] border border-neon-purple/20 hover:border-neon-purple/40 shadow-[0_0_20px_rgba(188,19,254,0.02)] rounded-3xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all group cursor-pointer"
+    >
       {/* 1. Symbol & Market */}
       <div className="flex items-center gap-4 min-w-[150px]">
         <div>
@@ -769,11 +777,11 @@ function SignalRow({ signal, latestPrice, market }: { signal: any, latestPrice: 
       <div className="grid grid-cols-2 gap-4 md:gap-8 min-w-[200px]">
         <div>
           <div className="text-[9px] text-cyan-400 font-bold uppercase">Giriş Fiyatı</div>
-          <div className="text-base font-black text-white">{prefix}{signal.entryPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>
+          <div className="text-base font-black text-white">{prefix}{signal.entryPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </div>
         <div>
           <div className="text-[9px] text-cyan-400 font-bold uppercase">Güncel Fiyat</div>
-          <div className="text-base font-black text-white">{prefix}{latestPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</div>
+          <div className="text-base font-black text-white">{prefix}{latestPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </div>
       </div>
 
@@ -782,11 +790,11 @@ function SignalRow({ signal, latestPrice, market }: { signal: any, latestPrice: 
         <div className="flex justify-between text-[10px] font-bold mb-1">
           <div>
             <span className="text-red-400">ZARAR KES: </span>
-            <span className="text-red-400">{prefix}{signal.stopLoss} ({slPercent.toFixed(1)}%)</span>
+            <span className="text-red-400">{prefix}{signal.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({slPercent.toFixed(1)}%)</span>
           </div>
           <div>
             <span className="text-green-400">KAR AL HEDEFİ: </span>
-            <span className="text-green-400">{prefix}{signal.takeProfit} (+{tpPercent.toFixed(1)}%)</span>
+            <span className="text-green-400">{prefix}{signal.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+{tpPercent.toFixed(1)}%)</span>
           </div>
         </div>
         
@@ -822,8 +830,8 @@ function SignalRow({ signal, latestPrice, market }: { signal: any, latestPrice: 
             <div 
               className="absolute bg-rose-500 h-full transition-all duration-500 rounded-full"
               style={{
-                left: `${Math.max(0, Math.min(100, latestPricePct))}%`,
-                width: `${Math.max(0, Math.min(100 - latestPricePct, entryPricePct - latestPricePct))}%`
+                left: `${Math.max(0, Math.min(entryPricePct, latestPricePct))}%`,
+                width: `${entryPricePct - Math.max(0, Math.min(entryPricePct, latestPricePct))}%`
               }}
             />
           ) : null}
