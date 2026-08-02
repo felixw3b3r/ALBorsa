@@ -1,18 +1,34 @@
+# Dependencies
 node_modules/
+
+# Next.js
 .next/
 dist/
 build/
+
+# Storage & Logs
 backend/storage/
 .DS_Store
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# IDE & Editor
 .idea/
 .vscode/
+
+# Environment files (CRITICAL: Never commit secret keys)
+*.env
+*.env.*
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# AI Assistants
 .aider*
