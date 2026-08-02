@@ -935,7 +935,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 
         // AKILLI İŞLEM GÜNÜ FİLTRESİ (Gram/Çeyrek için de son 24/48/72 saat kesimi veya kapalı piyasa fallback)
         if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && onsQuotes.length > 0) {
-          const uniqueDays = [...new Set(onsQuotes.map((q: any) => {
+          const uniqueDays = [...new Set<number>(onsQuotes.map((q: any) => {
             const d = new Date(q.date);
             d.setHours(0, 0, 0, 0);
             return d.getTime();
@@ -1065,7 +1065,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
     // Hem BIST hem Global varlıklar için en son aktif işlem günlerini bulur.
     if ((r === '1d' || r === '1g' || r === '2g' || r === '3g') && quotes.length > 0) {
       // 1. Tüm benzersiz işlem günlerini bul, en yeniden eskiye sırala
-      const uniqueDays = [...new Set(quotes.map((q: any) => {
+      const uniqueDays = [...new Set<number>(quotes.map((q: any) => {
         const d = new Date(q.date);
         d.setHours(0, 0, 0, 0);
         return d.getTime();
@@ -1540,7 +1540,7 @@ const INDEX_COMPONENTS: { [key: string]: string[] } = {
     'ORLY', 'AJG', 'CHTR', 'PCAR', 'MNST', 'PAYX', 'ROST', 'IDXX', 'KDP', 'FAST',
     'CPRT', 'LULU', 'EXC', 'CTSH', 'GIGA', 'EA', 'KHC', 'ODFL', 'BKR', 'WBD',
     'ANSS', 'TEAM', 'ILMN', 'WDAY', 'DDOG', 'MCHP', 'AZN', 'BIIB', 'SIRI', 'EBAY',
-    'VRSK', 'LCID', 'MELI', 'ZM', 'ADP', 'PDD', 'SNPS', 'CRWD', 'ATVI', 'DXCM'
+    'VRSK', 'LCID', 'MELI', 'ZM', 'ADP', 'PDD', 'SNPS', 'CRWD', 'ATVI', 'DXCM', 'SKHYV', 'SPCX'
   ],
   '^IXIC': [
     'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'AVGO', 'TSLA', 'COST',

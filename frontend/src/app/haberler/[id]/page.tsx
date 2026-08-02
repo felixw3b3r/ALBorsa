@@ -12,7 +12,7 @@ export default function NewsDetailPage() {
   const [content, setContent] = useState<string>('');
   const [loadingContent, setLoadingContent] = useState(true);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
   const defaultNewsImage = 'https://images.unsplash.com/photo-1611974717482-58a2527e7446?auto=format&fit=crop&q=80&w=1200&h=700';
   const getPublishDate = (value: any) => {
     if (!value) return new Date();

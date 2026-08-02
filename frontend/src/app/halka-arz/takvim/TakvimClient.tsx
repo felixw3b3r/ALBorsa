@@ -15,16 +15,6 @@ export default function TakvimClient({ initialIpoList }: { initialIpoList: IPOSu
 
   return (
     <div className="space-y-6">
-      <style jsx global>{`
-        @keyframes border-rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-border-rotate {
-          animation: border-rotate 3s linear infinite;
-        }
-      `}</style>
-
       {ipoList.map((ipo, idx) => (
         <IPOListItem 
           key={ipo.symbol} 

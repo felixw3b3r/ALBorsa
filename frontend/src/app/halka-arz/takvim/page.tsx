@@ -4,7 +4,7 @@ import { type IPOSummary } from '@/lib/ipoMemoryCache';
 
 export const revalidate = 60; // Revalidate page every 60 seconds (ISR)
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 async function getIpoList(): Promise<IPOSummary[]> {
   try {

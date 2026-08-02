@@ -49,7 +49,7 @@ function safeBodyText(value: string): string {
 }
 
 function buildApiBase() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
   try {
     const parsed = new URL(apiUrl);
     return {

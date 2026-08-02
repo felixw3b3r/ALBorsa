@@ -4,11 +4,17 @@ import { buildQuantSignal } from '../services/quantModel';
 import { fetchDeepSeekQuantExplanation } from '../services/deepseekService';
 import { redisClient, withYahooSlot } from '../index';
 
+import { INDEX_COMPONENTS } from '../utils/constants';
+
 const router = Router();
 
 function normalizeAnalysisSymbol(symbol: string): string {
   const normalized = symbol.trim().toUpperCase();
   if (normalized.includes('.') || normalized.includes('-') || normalized.startsWith('^')) {
+    return normalized;
+  }
+  const isNasdaq = INDEX_COMPONENTS.NASDAQ100.includes(normalized);
+  if (isNasdaq) {
     return normalized;
   }
   return `${normalized}.IS`;

@@ -8,7 +8,7 @@ import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink 
 // import { BrainCircuit, Activity, BarChart3, Waves, Info } from 'lucide-react'; // New icons commented out
 import { getCachedValue, setCachedValue } from '@/lib/inMemoryTTLCache';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function IndexDetailsPage() {
   const params = useParams();
@@ -200,7 +200,9 @@ export default function IndexDetailsPage() {
           if (cachedComponents !== undefined) compData = cachedComponents;
         }
         if (!compData.length) {
-          const compRes = await fetch(`${API_URL}/stocks/${symbol}/components`);
+          const compRes = await fetch(`${API_URL}/stocks/${symbol}/components`, {
+            headers: { 'X-Bypass-API-Cache': '1' }
+          });
           if (compRes.ok) {
             const fetchedComponents = await compRes.json();
             compData = fetchedComponents || [];

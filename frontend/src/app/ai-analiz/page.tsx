@@ -79,7 +79,9 @@ export default function AiAnalizPage() {
   const [signals, setSignals] = useState<any[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  // signalPrices: { [symbol]: livePrice } for the AI portfolio signals
+  const [signalPrices, setSignalPrices] = useState<Record<string, number>>({});
 
   const fetchData = async (currentMarket: 'bist' | 'nasdaq') => {
     try {
@@ -113,6 +115,44 @@ export default function AiAnalizPage() {
     }
   };
 
+  // Fetch real-time prices for active signals directly from /api/stocks
+  const fetchSignalPrices = async (sigs: any[], currentMarket: 'bist' | 'nasdaq') => {
+    if (!sigs || sigs.length === 0) return;
+    // status from backend is 'ACTIVE' (uppercase) — use case-insensitive; fetch ALL signals
+    const symbols = sigs
+      .map((s: any) => {
+        // BIST symbols need .IS suffix for Yahoo Finance
+        const isBist = currentMarket === 'bist';
+        return isBist && !s.symbol.endsWith('.IS') ? `${s.symbol}.IS` : s.symbol;
+      });
+    if (symbols.length === 0) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`${API_URL}/stocks?symbols=${symbols.join(',')}`, {
+        headers: {
+          'X-Bypass-API-Cache': '1',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      const json = await res.json();
+      if (json && json.result) {
+        const priceMap: Record<string, number> = {};
+        json.result.forEach((item: any) => {
+          const ticker = item.code || item.symbol || '';
+          if (ticker) {
+            // Map both THYAO.IS -> THYAO and AAPL -> AAPL
+            const bare = ticker.replace('.IS', '');
+            priceMap[bare] = item.price;
+            priceMap[ticker] = item.price;
+          }
+        });
+        setSignalPrices(priceMap);
+      }
+    } catch (err) {
+      console.error('Signal prices fetch error:', err);
+    }
+  };
+
   useEffect(() => {
     fetchData(market);
     fetchSignals(market);
@@ -122,6 +162,24 @@ export default function AiAnalizPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [market]);
+
+  // Whenever signals or data change, fetch their live prices; also poll every 10s
+  useEffect(() => {
+    const fetchPrices = () => {
+      const symbolsToFetch = new Set<string>();
+      signals.forEach((s: any) => symbolsToFetch.add(s.symbol));
+      data.forEach((d: any) => symbolsToFetch.add(d.symbol));
+      
+      const symbolsArray = Array.from(symbolsToFetch).map(sym => ({ symbol: sym }));
+      if (symbolsArray.length > 0) {
+        fetchSignalPrices(symbolsArray, market);
+      }
+    };
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 10000);
+    return () => clearInterval(interval);
+  }, [signals, data, market]);
 
   const filteredData = data
     .filter(item => item.symbol.toLowerCase().includes(search.toLowerCase()))
@@ -295,7 +353,7 @@ export default function AiAnalizPage() {
 
         {/* Table / Grid Section */}
         {subTab === 'ai-portfolio' ? (
-          <AiPortfolioView signals={signals} loading={signalsLoading} market={market} data={data} />
+          <AiPortfolioView signals={signals} loading={signalsLoading} market={market} data={data} signalPrices={signalPrices} />
         ) : loading && data.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map(i => (
@@ -305,7 +363,11 @@ export default function AiAnalizPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
-              {filteredData.map((item, idx) => (
+              {filteredData.map((item, idx) => {
+                const livePrice = signalPrices[item.symbol] ?? item.price;
+                const liveChangePercent = item.price ? ((livePrice - item.price) / item.price) * 100 : item.changePercent;
+                
+                return (
                 <motion.div
                   layout
                   key={item.symbol}
@@ -327,11 +389,11 @@ export default function AiAnalizPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xl font-mono font-medium">
                           {market === 'bist' ? '₺' : '$'}
-                          {item.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {livePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
-                        <span className={`text-sm font-bold flex items-center ${item.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {item.changePercent >= 0 ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
-                          %{Math.abs(item.changePercent).toFixed(2)}
+                        <span className={`text-sm font-bold flex items-center ${liveChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {liveChangePercent >= 0 ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
+                          %{Math.abs(liveChangePercent).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -373,9 +435,9 @@ export default function AiAnalizPage() {
                       } 
                     />
                     <IndicatorItem label="MACD Hist" value={item.indicators.macd?.histogram?.toFixed(2) || '--'} status={item.indicators.macd && item.indicators.macd.histogram > 0 ? 'success' : 'danger'} />
-                    <IndicatorItem label="SMA (20)" value={item.indicators.sma20?.toFixed(2) || '--'} status={item.price > (item.indicators.sma20 || 0) ? 'success' : 'danger'} />
-                    <IndicatorItem label="EMA (50)" value={item.indicators.ema50?.toFixed(2) || '--'} status={item.price > (item.indicators.ema50 || 0) ? 'success' : 'danger'} />
-                    <IndicatorItem label="VWAP Sapma" value={item.indicators.vwap ? `${(((item.price - item.indicators.vwap) / item.indicators.vwap) * 100).toFixed(2)}%` : '--'} status="neutral" />
+                    <IndicatorItem label="SMA (20)" value={item.indicators.sma20?.toFixed(2) || '--'} status={livePrice > (item.indicators.sma20 || 0) ? 'success' : 'danger'} />
+                    <IndicatorItem label="EMA (50)" value={item.indicators.ema50?.toFixed(2) || '--'} status={livePrice > (item.indicators.ema50 || 0) ? 'success' : 'danger'} />
+                    <IndicatorItem label="VWAP Sapma" value={item.indicators.vwap ? `${(((livePrice - item.indicators.vwap) / item.indicators.vwap) * 100).toFixed(2)}%` : '--'} status="neutral" />
                     <IndicatorItem label="Momentum" value={item.indicators.mom?.toFixed(1) || '--'} status={item.indicators.mom && item.indicators.mom > 0 ? 'success' : 'danger'} />
                     <IndicatorItem label="CMF" value={item.indicators.cmf?.toFixed(2) || '--'} status={item.indicators.cmf && item.indicators.cmf > 0 ? 'success' : 'danger'} />
                     <IndicatorItem label="OBV" value={item.indicators.obv ? (item.indicators.obv / 1000000).toFixed(1) + 'M' : '--'} status="neutral" />
@@ -443,7 +505,7 @@ export default function AiAnalizPage() {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+              )})}
             </AnimatePresence>
           </div>
         )}
@@ -481,7 +543,7 @@ function IndicatorItem({ label, value, status = 'neutral' }: { label: string, va
   );
 }
 
-function AiPortfolioView({ signals, loading, market, data }: { signals: any[], loading: boolean, market: 'bist' | 'nasdaq', data: any[] }) {
+function AiPortfolioView({ signals, loading, market, data, signalPrices }: { signals: any[], loading: boolean, market: 'bist' | 'nasdaq', data: any[], signalPrices: Record<string, number> }) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   if (loading) {
@@ -552,7 +614,8 @@ function AiPortfolioView({ signals, loading, market, data }: { signals: any[], l
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {activeSignals.map((sig) => {
-              const latestPrice = data.find(d => d.symbol === sig.symbol)?.price || sig.entryPrice;
+              // Prefer live price from /api/stocks; fall back to analysis data, then entryPrice
+              const latestPrice = signalPrices[sig.symbol] ?? signalPrices[sig.symbol + '.IS'] ?? data.find(d => d.symbol === sig.symbol || d.symbol === sig.symbol + '.IS')?.price ?? sig.entryPrice;
               return (
                 <SignalCard key={sig._id} signal={sig} latestPrice={latestPrice} market={market} />
               );
@@ -561,7 +624,7 @@ function AiPortfolioView({ signals, loading, market, data }: { signals: any[], l
         ) : (
           <div className="space-y-4">
             {activeSignals.map((sig) => {
-              const latestPrice = data.find(d => d.symbol === sig.symbol)?.price || sig.entryPrice;
+              const latestPrice = signalPrices[sig.symbol] ?? signalPrices[sig.symbol + '.IS'] ?? data.find(d => d.symbol === sig.symbol || d.symbol === sig.symbol + '.IS')?.price ?? sig.entryPrice;
               return (
                 <SignalRow key={sig._id} signal={sig} latestPrice={latestPrice} market={market} />
               );
@@ -679,57 +742,64 @@ function SignalCard({ signal, latestPrice, market }: { signal: any, latestPrice:
         {(() => {
           const slPercent = ((signal.stopLoss - signal.entryPrice) / signal.entryPrice) * 100;
           const tpPercent = ((signal.takeProfit - signal.entryPrice) / signal.entryPrice) * 100;
+          // Bar: left=StopLoss(0%), right=TakeProfit(100%). Entry tick divides proportionally.
           const entryPricePct = ((signal.entryPrice - signal.stopLoss) / (signal.takeProfit - signal.stopLoss || 1)) * 100;
           const latestPricePct = ((latestPrice - signal.stopLoss) / (signal.takeProfit - signal.stopLoss || 1)) * 100;
+          const clampedEntry = Math.max(0, Math.min(100, entryPricePct));
+          const clampedLatest = Math.max(0, Math.min(100, latestPricePct));
           return (
-            <div className="space-y-2 mb-6">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-red-400">ZARAR KES</span>
-                <span className="text-red-400">{prefix}{signal.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({slPercent.toFixed(1)}%)</span>
+            <div className="mb-6">
+              {/* Left = ZARAR KES, Right = KAR AL HEDEFİ */}
+              <div className="flex justify-between items-end mb-1.5">
+                <div>
+                  <div className="text-[9px] text-red-400 font-black uppercase tracking-wider">← ZARAR KES</div>
+                  <div className="text-[10px] text-red-400 font-bold">{prefix}{signal.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({slPercent.toFixed(1)}%)</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] text-green-400 font-black uppercase tracking-wider">KAR AL HEDEFİ →</div>
+                  <div className="text-[10px] text-green-400 font-bold">{prefix}{signal.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+{tpPercent.toFixed(1)}%)</div>
+                </div>
               </div>
-              <div className="w-full bg-white/5 h-1.5 rounded-full relative overflow-visible">
-                {/* Static Entry Price Marker Tick */}
+
+              <div className="w-full bg-white/5 h-2 rounded-full relative overflow-visible">
+                {/* Left zone bg (stop loss zone): subtle red tint */}
+                <div className="absolute h-full rounded-l-full bg-red-500/10" style={{ left: 0, width: `${clampedEntry}%` }} />
+                {/* Right zone bg (take profit zone): subtle green tint */}
+                <div className="absolute h-full rounded-r-full bg-emerald-500/10" style={{ left: `${clampedEntry}%`, width: `${100 - clampedEntry}%` }} />
+
+                {/* Static Entry Price Marker Tick (white divider) */}
                 <div 
-                  className="absolute w-0.5 h-3 bg-white/30 -translate-y-1/2 top-1/2 z-5"
-                  style={{
-                    left: `${Math.max(0, Math.min(100, entryPricePct))}%`,
-                    transform: 'translate(-50%, -50%)'
-                  }}
+                  className="absolute w-0.5 h-4 bg-white/50 top-1/2 z-10"
+                  style={{ left: `${clampedEntry}%`, transform: 'translate(-50%, -50%)' }}
                 />
 
-                {/* Moving Current Price Purple Marker Dot (Aligned with the end of the progress bar) */}
-                <div 
-                  className="absolute w-2.5 h-2.5 rounded-full bg-neon-purple -translate-y-1/2 top-1/2 z-10 border border-black shadow-[0_0_8px_rgba(188,19,254,0.8)]"
-                  style={{
-                    left: `${Math.max(0, Math.min(100, latestPricePct))}%`,
-                    transform: 'translate(-50%, -50%)'
-                  }}
-                />
-                
-                {/* Conditional progress bars */}
-                {latestPrice > signal.entryPrice ? (
-                  // Price went up: Green bar extending right from entryPricePct to latestPricePct
+                {/* Profit: green fill from entry rightward */}
+                {latestPrice > signal.entryPrice && (
                   <div 
                     className="absolute bg-emerald-500 h-full transition-all duration-500 rounded-full"
                     style={{
-                      left: `${Math.max(0, Math.min(100, entryPricePct))}%`,
-                      width: `${Math.max(0, Math.min(100 - entryPricePct, latestPricePct - entryPricePct))}%`
+                      left: `${clampedEntry}%`,
+                      width: `${Math.max(0, clampedLatest - clampedEntry)}%`
                     }}
                   />
-                ) : latestPrice < signal.entryPrice ? (
-                  // Price went down: Red bar extending left from latestPricePct to entryPricePct
+                )}
+
+                {/* Loss: red fill from entry leftward */}
+                {latestPrice < signal.entryPrice && (
                   <div 
                     className="absolute bg-rose-500 h-full transition-all duration-500 rounded-full"
                     style={{
-                      left: `${Math.max(0, Math.min(entryPricePct, latestPricePct))}%`,
-                      width: `${entryPricePct - Math.max(0, Math.min(entryPricePct, latestPricePct))}%`
+                      left: `${Math.min(clampedEntry, clampedLatest)}%`,
+                      width: `${Math.max(0, clampedEntry - clampedLatest)}%`
                     }}
                   />
-                ) : null}
-              </div>
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-green-400">KAR AL HEDEFİ</span>
-                <span className="text-green-400">{prefix}{signal.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+{tpPercent.toFixed(1)}%)</span>
+                )}
+
+                {/* Moving Current Price Purple Dot */}
+                <div 
+                  className="absolute w-3 h-3 rounded-full bg-neon-purple top-1/2 z-20 border-2 border-black shadow-[0_0_10px_rgba(188,19,254,0.9)]"
+                  style={{ left: `${clampedLatest}%`, transform: 'translate(-50%, -50%)' }}
+                />
               </div>
             </div>
           );
@@ -787,54 +857,56 @@ function SignalRow({ signal, latestPrice, market }: { signal: any, latestPrice: 
 
       {/* 3. Stop / Target Bar (Middle) */}
       <div className="flex-1 min-w-[250px]">
-        <div className="flex justify-between text-[10px] font-bold mb-1">
+        {/* Left = ZARAR KES, Right = KAR AL HEDEFİ */}
+        <div className="flex justify-between items-end mb-1.5">
           <div>
-            <span className="text-red-400">ZARAR KES: </span>
-            <span className="text-red-400">{prefix}{signal.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({slPercent.toFixed(1)}%)</span>
+            <div className="text-[8px] text-red-400 font-black uppercase tracking-wider">← ZARAR KES</div>
+            <div className="text-[9px] text-red-400 font-bold">{prefix}{signal.stopLoss.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({slPercent.toFixed(1)}%)</div>
           </div>
-          <div>
-            <span className="text-green-400">KAR AL HEDEFİ: </span>
-            <span className="text-green-400">{prefix}{signal.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+{tpPercent.toFixed(1)}%)</span>
+          <div className="text-right">
+            <div className="text-[8px] text-green-400 font-black uppercase tracking-wider">KAR AL HEDEFİ →</div>
+            <div className="text-[9px] text-green-400 font-bold">{prefix}{signal.takeProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (+{tpPercent.toFixed(1)}%)</div>
           </div>
         </div>
-        
-        <div className="w-full bg-white/5 h-1.5 rounded-full relative overflow-visible my-2">
+
+        <div className="w-full bg-white/5 h-2 rounded-full relative overflow-visible">
+          {/* Zone backgrounds */}
+          <div className="absolute h-full rounded-l-full bg-red-500/10" style={{ left: 0, width: `${Math.max(0, Math.min(100, entryPricePct))}%` }} />
+          <div className="absolute h-full rounded-r-full bg-emerald-500/10" style={{ left: `${Math.max(0, Math.min(100, entryPricePct))}%`, width: `${100 - Math.max(0, Math.min(100, entryPricePct))}%` }} />
+
           {/* Static Entry Price Marker Tick */}
           <div 
-            className="absolute w-0.5 h-3 bg-white/30 -translate-y-1/2 top-1/2 z-5"
-            style={{
-              left: `${Math.max(0, Math.min(100, entryPricePct))}%`,
-              transform: 'translate(-50%, -50%)'
-            }}
+            className="absolute w-0.5 h-4 bg-white/50 top-1/2 z-10"
+            style={{ left: `${Math.max(0, Math.min(100, entryPricePct))}%`, transform: 'translate(-50%, -50%)' }}
           />
 
-          {/* Moving Current Price Purple Marker Dot */}
-          <div 
-            className="absolute w-2.5 h-2.5 rounded-full bg-neon-purple -translate-y-1/2 top-1/2 z-10 border border-black shadow-[0_0_8px_rgba(188,19,254,0.8)]"
-            style={{
-              left: `${Math.max(0, Math.min(100, latestPricePct))}%`,
-              transform: 'translate(-50%, -50%)'
-            }}
-          />
-          
-          {/* Conditional progress bars */}
-          {latestPrice > signal.entryPrice ? (
+          {/* Profit: green fill from entry rightward */}
+          {latestPrice > signal.entryPrice && (
             <div 
               className="absolute bg-emerald-500 h-full transition-all duration-500 rounded-full"
               style={{
                 left: `${Math.max(0, Math.min(100, entryPricePct))}%`,
-                width: `${Math.max(0, Math.min(100 - entryPricePct, latestPricePct - entryPricePct))}%`
+                width: `${Math.max(0, Math.min(100, latestPricePct) - Math.max(0, Math.min(100, entryPricePct)))}%`
               }}
             />
-          ) : latestPrice < signal.entryPrice ? (
+          )}
+
+          {/* Loss: red fill from entry leftward */}
+          {latestPrice < signal.entryPrice && (
             <div 
               className="absolute bg-rose-500 h-full transition-all duration-500 rounded-full"
               style={{
-                left: `${Math.max(0, Math.min(entryPricePct, latestPricePct))}%`,
-                width: `${entryPricePct - Math.max(0, Math.min(entryPricePct, latestPricePct))}%`
+                left: `${Math.min(Math.max(0, Math.min(100, entryPricePct)), Math.max(0, Math.min(100, latestPricePct)))}%`,
+                width: `${Math.max(0, Math.max(0, Math.min(100, entryPricePct)) - Math.max(0, Math.min(100, latestPricePct)))}%`
               }}
             />
-          ) : null}
+          )}
+
+          {/* Moving Current Price Purple Dot */}
+          <div 
+            className="absolute w-3 h-3 rounded-full bg-neon-purple top-1/2 z-20 border-2 border-black shadow-[0_0_10px_rgba(188,19,254,0.9)]"
+            style={{ left: `${Math.max(0, Math.min(100, latestPricePct))}%`, transform: 'translate(-50%, -50%)' }}
+          />
         </div>
       </div>
 

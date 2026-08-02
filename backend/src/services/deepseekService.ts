@@ -54,7 +54,7 @@ ATR: ${data.indikatorler.atr}
 
   try {
     const response = await axios.post('https://api.deepseek.com/chat/completions', {
-      model: 'deepseek-chat',
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-pro',
       messages: [
         { role: 'system', content: 'Sen bir kantitatif finans asistanisin. Sadece JSON dondurursun.' },
         { role: 'user', content: prompt }
@@ -114,7 +114,7 @@ STRICT JSON:
 
   try {
     const response = await axios.post('https://api.deepseek.com/chat/completions', {
-      model: 'deepseek-chat',
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-pro',
       messages: [
         { role: 'system', content: 'Sen kantitatif modeli aciklayan bir finans asistanisin. Sadece JSON dondurursun; yatirim tavsiyesi dili kullanmazsin.' },
         { role: 'user', content: prompt }

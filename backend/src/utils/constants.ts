@@ -21,6 +21,6 @@ export const INDEX_COMPONENTS: { [key: string]: string[] } = {
     'WDAY', 'SBUX', 'FTNT', 'PCAR', 'ROST', 'ODFL', 'MCHP', 'IDXX', 'CPRT', 'FAST',
     'MRVL', 'VRSK', 'DXCM', 'CTSH', 'KHC', 'TEAM', 'CSX', 'EXPE', 'BIIB', 'ANSS',
     'DDOG', 'ILMN', 'GEHC', 'WBD', 'ZS', 'ON', 'MDB', 'BKR', 'TTWO', 'AZN', 'EBAY',
-    'MRNA', 'OKTA', 'ZM', 'LNT', 'PAYC', 'EXPD', 'JKHY', 'FMC', 'CHRW', 'ALNY'
+    'MRNA', 'OKTA', 'ZM', 'LNT', 'PAYC', 'EXPD', 'JKHY', 'FMC', 'CHRW', 'ALNY', 'SKHYV', 'SPCX'
   ]
 };
