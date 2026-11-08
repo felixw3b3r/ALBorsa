@@ -5,16 +5,23 @@ import Navbar from "@/components/Navbar";
 import { ArrowRight, BarChart3, ShieldCheck, Zap, ArrowDown, Cpu, Globe2, FileText, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
+import WarmLanding from "@/components/WarmLanding";
 
 const HeroBackground = dynamic(() => import("@/components/HeroBackground"), { ssr: false });
 
 export default function Home() {
+  const [warm, setWarm] = useState(false);
+  useEffect(() => { setWarm(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (next: boolean) => { setWarm(next); localStorage.setItem('alborsa-landing-theme', next ? 'warm' : 'dark'); };
+  if (warm) return <WarmLanding onDark={() => changeTheme(false)} />;
   return (
     <div className="min-h-screen bg-black text-white font-sans relative">
       {/* Full Screen Global Background Glow (Subtle Cyan) */}
       <div className={styles.globalGlow} />
       
       <Navbar />
+      <button type="button" onClick={() => changeTheme(true)} aria-label="Sıcak temaya geç" style={{position:'fixed', right: 20, bottom: 20, zIndex: 100, padding:'10px 16px', borderRadius:999, background:'#e7e2da', color:'#252a2d', fontSize:13, fontWeight:700, boxShadow:'0 4px 18px #0004'}}>◐ Sıcak tema</button>
 
       {/* Hero Section */}
       <section className={`relative pt-32 pb-20 px-6 overflow-hidden ${styles.heroSection}`}>
@@ -71,16 +78,19 @@ export default function Home() {
       <section className="py-20 px-6 bg-white/[0.02] border-y border-white/5">
         <div className={`max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 ${styles.featuresGrid}`}>
           <FeatureCard 
+            index={0}
             icon={<BarChart3 />} 
             title="Portföy Takibi" 
             desc="Tüm yatırımlarınızı tek bir panelden izleyin. Hisselerinizin performansını anlık grafiklerle takip edin." 
           />
           <FeatureCard 
+            index={1}
             icon={<Zap />} 
             title="Reel Kar/Zarar" 
             desc="Enflasyondan arındırılmış gerçek kazancınızı görün. Temettü ve maliyet hesaplamalarıyla net kârınızı bilin." 
           />
           <FeatureCard 
+            index={2}
             icon={<ShieldCheck />} 
             title="AI Strateji Raporu" 
             desc="Her hisse için özel üretilen 'Al/Sat/Tut' stratejileri. Teknik verileri yapay zekaya yorumlatın." 
@@ -101,7 +111,7 @@ export default function Home() {
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
               onClick={() => document.getElementById('services-list')?.scrollIntoView({ behavior: 'smooth' })}
-              className={`cursor-pointer bg-neon-purple p-3 rounded-full hover:scale-110 transition-transform shadow-[0_0_20px_rgba(139,0,232,0.5)] mb-8 ${styles.scrollArrow}`}
+              className={`cursor-pointer bg-neon-purple p-3 rounded-full hover:scale-110 transition-transform shadow-[0_0_20px_rgba(124,58,237,0.5)] mb-8 ${styles.scrollArrow}`}
             >
               <ArrowDown size={20} className="text-black" />
             </motion.div>
@@ -179,12 +189,13 @@ export default function Home() {
   );
 }
 
-function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
+function FeatureCard({ icon, title, desc, index }: { icon: React.ReactNode, title: string, desc: string, index: number }) {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.25, delay: index * 0.055 }}
       whileHover={{ y: -10 }}
       className={`p-8 rounded-3xl border border-white/5 bg-black hover:border-neon-purple/50 transition-all group ${styles.featureCard}`}
     >

@@ -70,6 +70,13 @@ export interface QuantSignal {
 
 const MODEL_VERSION = 'REGIME_FACTOR_V1';
 
+export function adjustNasdaqStopDistance(distance: number, price: number): number {
+  if (!(price > 0) || !(distance > 0)) return distance;
+  const percent = distance / price * 100;
+  const reduction = percent <= 3 ? 0.10 : percent <= 5 ? 0.20 : percent <= 8 ? 0.30 : 0.40;
+  return distance * (1 - reduction);
+}
+
 function clamp(value: number, min = 0, max = 100): number {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
@@ -194,6 +201,7 @@ export function buildQuantSignal(params: {
   symbol: string;
   quotes: QuoteLike[];
   indexQuotes?: QuoteLike[];
+  market?: 'bist' | 'nasdaq';
 }): QuantSignal {
   const quotes = params.quotes.filter(q => q.close != null);
   const closes = closeSeries(quotes);
@@ -315,8 +323,15 @@ export function buildQuantSignal(params: {
   const atrValue = indicators.atr || currentPrice * 0.03;
   const stopDistance = Math.max(atrValue * 1.8, currentPrice * (riskScore > 65 ? 0.045 : 0.035));
   const rewardMultiplier = decision === 'GUCLU_AL' ? 2.25 : decision === 'KADEMELI_AL' ? 1.85 : 1.35;
-  const stopLoss = currentPrice > 0 ? round(currentPrice - stopDistance, 2) : 0;
-  const takeProfit = currentPrice > 0 ? round(currentPrice + stopDistance * rewardMultiplier, 2) : 0;
+  // NASDAQ: bring the original stop closer according to its percentage distance.
+  // These are monitoring thresholds, not guaranteed execution prices.
+  const nasdaq = params.market === 'nasdaq';
+  const effectiveStopDistance = nasdaq ? adjustNasdaqStopDistance(stopDistance, currentPrice) : stopDistance;
+  const targetDistance = nasdaq
+    ? stopDistance * rewardMultiplier * 1.1
+    : stopDistance * rewardMultiplier;
+  const stopLoss = currentPrice > 0 ? round(currentPrice - effectiveStopDistance, 2) : 0;
+  const takeProfit = currentPrice > 0 ? round(currentPrice + targetDistance, 2) : 0;
 
   const diagnostics = {
     return5d: round(return5d, 2),
@@ -348,7 +363,7 @@ export function buildQuantSignal(params: {
   });
 
   return {
-    modelVersion: MODEL_VERSION,
+    modelVersion: nasdaq ? 'REGIME_FACTOR_NASDAQ_EXITS_V3' : MODEL_VERSION,
     symbol: params.symbol,
     decision,
     probability: round(probability, 0),

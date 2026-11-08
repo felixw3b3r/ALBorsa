@@ -1,0 +1,24 @@
+.themeButton{position:fixed;right:20px;bottom:20px;z-index:100;padding:10px 16px;border-radius:999px;background:#e7e2da;color:#252a2d;font-size:13px;font-weight:700;box-shadow:0 4px 18px #0004}
+.warm{background:#e7e2da!important;color:#252a2d!important;--neon-purple:#c96a35;--neon-purple-hover:#a8532c}
+.warm > :global(.fixed.inset-0.pointer-events-none){display:none}
+.warm > :global(.relative.z-10){padding-top:5rem}
+.warm :global(.text-white),.warm :global(.text-gray-300){color:#252a2d!important}
+.warm :global(.text-gray-400),.warm :global(.text-gray-500),.warm :global(.text-gray-600){color:#6f6861!important}
+.warm :global(.text-transparent){color:#252a2d!important;background:none!important}
+.warm :global(.text-neon-purple),.warm :global(.text-cyan-400),.warm :global(.text-cyan-400\/70){color:#aa582d!important}
+.warm :global(.text-green-400),.warm :global(.text-green-400\/60){color:#126b4e!important}
+.warm :global(.text-red-400),.warm :global(.text-red-400\/60){color:#c44747!important}
+.warm :global(.bg-white\/5){background-color:#f1eee8!important}
+.warm :global(.bg-white\/10){background-color:#e0d8ce!important}
+.warm :global(.border-white\/10),.warm :global(.border-white\/5){border-color:#d4cbc0!important}
+.warm :global(.bg-neon-purple\/20),.warm :global(.bg-neon-purple\/40){background-color:#c96a3524!important}
+.warm :global(.bg-black),.warm :global(.bg-\[\#0a0a0a\]){background-color:#f1eee8!important}
+.warm :global(.bg-black\/80){background-color:#252a2dbb!important}
+.warm :global([class*="shadow-"]){box-shadow:0 12px 35px #594a3912!important}
+.warm :global(input),.warm :global(select){color:#252a2d}
+.warm :global(input::placeholder){color:#8c847b}
+.warm :global(option){background:#f1eee8;color:#252a2d}
+.warm .wheelItem{background:#e5ded4!important;border-color:#d2c6ba!important;color:#252a2d;box-shadow:0 3px 12px #594a3910!important}
+.warm .wheelItem:hover{background:#f5ede4!important;border-color:#b78d6b!important}
+@media(min-width:601px){.warm > :global(.relative.z-10){margin-left:auto;margin-right:auto;position:relative;left:38px;width:calc(100% - 100px)}}
+@media(max-width:600px){.warm > :global(.relative.z-10){padding-top:6rem}}

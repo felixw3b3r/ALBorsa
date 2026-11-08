@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Navbar from "@/components/Navbar";
+import PortfolioWarmNav from '@/components/PortfolioWarmNav';
+import styles from '../portfolio/portfolio-warm.module.css';
+import marketStyles from './markets-warm.module.css';
 import SymbolLogo from "@/components/SymbolLogo";
 import { TrendingUp, TrendingDown, RefreshCw, Activity, Search, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -40,7 +43,7 @@ function Sparkline({ data, color, isHovered }: { data: number[], color: string, 
   }).join(' ');
 
   return (
-    <div className="w-full h-16 mt-4 opacity-40 group-hover:opacity-100 transition-opacity">
+    <motion.div className="w-full h-16 mt-4" initial={{ opacity: 1 }} animate={{ opacity: isHovered ? 1 : 0.4 }} transition={{ duration: isHovered ? 0.2 : 7, ease: "easeOut" }}>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
         <defs>
           <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
@@ -49,14 +52,13 @@ function Sparkline({ data, color, isHovered }: { data: number[], color: string, 
           </linearGradient>
         </defs>
         <motion.path
-          key={isHovered ? 'active' : 'idle'}
           d={`M ${points}`}
           fill="none"
           stroke={color}
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          initial={{ pathLength: isHovered ? 0 : 1 }}
+          initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 1.2, ease: "easeInOut" }}
           className="drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]"
@@ -65,12 +67,12 @@ function Sparkline({ data, color, isHovered }: { data: number[], color: string, 
           d={`M 0,${height} L ${points} L ${width},${height} Z`}
           fill={`url(#gradient-${color})`}
           stroke="none"
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: isHovered ? 1 : 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: isHovered ? 0.2 : 7, ease: "easeOut" }}
         />
       </svg>
-    </div>
+    </motion.div>
   );
 }
 
@@ -391,6 +393,10 @@ function PortfolioSection() {
 
 
 export default function PiyasalarPage() {
+  const [warmTheme, setWarmTheme] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setWarmTheme(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (warm: boolean) => { localStorage.setItem('alborsa-landing-theme', warm ? 'warm' : 'dark'); setWarmTheme(warm); };
   const [mounted, setMounted] = useState(false);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -614,8 +620,8 @@ export default function PiyasalarPage() {
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30">
-      <Navbar />
+    <main className={`min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30 ${warmTheme ? `${styles.warm} ${marketStyles.marketWarm}` : ''}`}>
+      {warmTheme ? <PortfolioWarmNav onDark={() => changeTheme(false)} /> : <><Navbar /><button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button></>}
       
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none">

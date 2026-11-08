@@ -1,0 +1,9 @@
+.realWarm :global(.text-green-400\/80){color:#126b4e!important}
+.realWarm :global(.text-red-400\/80){color:#c44747!important}
+.realWarm :global(.text-cyan-500),.realWarm :global(.text-purple-400),.realWarm :global(.text-blue-400),.realWarm :global(.text-yellow-400){color:#9f572e!important}
+.realWarm :global(.bg-cyan-400){background-color:#c96a35!important;color:#fff!important}
+.realWarm :global(.bg-cyan-500\/20),.realWarm :global(.bg-blue-500\/20),.realWarm :global(.bg-purple-500\/20),.realWarm :global(.bg-yellow-500\/20){background-color:#b78d6b30!important}
+.realWarm :global(.bg-gradient-to-r){background:#eee8e0!important}
+.realWarm :global(.bg-green-500\/20){background-color:#126b4e1c!important}
+.realWarm :global(.bg-red-500\/20){background-color:#c447471c!important}
+.realWarm :global(.bg-\[\#0a0a0a\]){background:#f1eee8!important}

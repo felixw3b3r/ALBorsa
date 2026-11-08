@@ -7,8 +7,8 @@
   --panel-bg: #111111;
   --panel-border: #333333;
   
-  --neon-purple: #8b00e8;
-  --neon-purple-hover: #a000d6;
+  --neon-purple: #7c3aed;
+  --neon-purple-hover: #6d28d9;
   --neon-red: #ff003c;
 }
 
@@ -20,6 +20,9 @@
   --color-neon-purple: var(--neon-purple);
   --color-neon-purple-hover: var(--neon-purple-hover);
   --color-neon-red: var(--neon-red);
+  --color-purple-400: #7c3aed;
+  --color-purple-500: #7c3aed;
+  --color-purple-600: #7c3aed;
   --font-sans: var(--font-geist-sans), Arial, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 }

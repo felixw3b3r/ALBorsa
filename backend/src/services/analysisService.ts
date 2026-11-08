@@ -317,7 +317,7 @@ async function runMarketBatchAnalysis(config: MarketBatchConfig) {
           const totalScore = calculateTotalScore({ adx: sADX, vwap: sVWAP, volume: sVol, rsi: sRSI });
 
           const symClean = symbol.replace('.IS', '');
-          const quant = buildQuantSignal({ symbol: symClean, quotes, indexQuotes });
+          const quant = buildQuantSignal({ symbol: symClean, quotes, indexQuotes, market: config.marketTag });
           return {
             symbol: symClean,
             price: currentPrice,
@@ -508,7 +508,8 @@ async function loadDailyAnalysisFromDB(index: 'bist100' | 'nasdaq100') {
         lastNasdaqBatchUpdateTime = latest.timestamp.getTime();
       }
       console.log(`📥 [DATABASE] Loaded ${latest.results.length} stocks from last daily analysis for ${index} (${latest.date}).`);
-      initializeSignalsFromCache(index === 'bist100' ? 'bist' : 'nasdaq', latest.results);
+      // Cached NASDAQ prices can be old; wait for a fresh batch before creating or closing signals.
+      if (index === 'bist100') initializeSignalsFromCache('bist', latest.results);
     }
   } catch (err: any) {
     console.error(`❌ [DATABASE] Load Error for ${index}:`, err.message);

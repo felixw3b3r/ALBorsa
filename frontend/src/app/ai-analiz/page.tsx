@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Brain, Search, ArrowLeft, TrendingUp, TrendingDown, 
@@ -8,6 +8,9 @@ import {
   LayoutGrid, List
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import PortfolioWarmNav from '@/components/PortfolioWarmNav';
+import styles from '../portfolio/portfolio-warm.module.css';
+import aiStyles from './ai-warm.module.css';
 import { useRouter } from 'next/navigation';
 
 interface AnalysisResult {
@@ -68,50 +71,71 @@ interface AnalysisResult {
 }
 
 export default function AiAnalizPage() {
+  const [warmTheme, setWarmTheme] = useState(false);
+  // Restore the browser preference after hydration.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setWarmTheme(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (warm: boolean) => { localStorage.setItem('alborsa-landing-theme', warm ? 'warm' : 'dark'); setWarmTheme(warm); };
   const router = useRouter();
   const [market, setMarket] = useState<'bist' | 'nasdaq'>('bist');
   const [data, setData] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [analysisError, setAnalysisError] = useState(false);
+  const requestVersion = useRef(0);
+  const signalRequestVersion = useRef(0);
   const [isUpdating, setIsUpdating] = useState(false);
   const [search, setSearch] = useState('');
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const [subTab, setSubTab] = useState<'all' | 'ai-portfolio'>('all');
   const [signals, setSignals] = useState<any[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(false);
+  const [signalsError, setSignalsError] = useState(false);
+  const [pricesError, setPricesError] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
   // signalPrices: { [symbol]: livePrice } for the AI portfolio signals
   const [signalPrices, setSignalPrices] = useState<Record<string, number>>({});
 
   const fetchData = async (currentMarket: 'bist' | 'nasdaq') => {
+    const version = ++requestVersion.current;
     try {
       const endpoint = currentMarket === 'bist' ? 'bist100' : 'nasdaq100';
-      const res = await fetch(`${API_URL}/analysis/${endpoint}`);
+      const res = await fetch(`${API_URL}/analysis/${endpoint}`, { headers: { 'X-Bypass-API-Cache': '1' } });
+      if (!res.ok) throw new Error(`Analiz isteği başarısız (${res.status})`);
       const json = await res.json();
-      if (json) {
+      if (version === requestVersion.current && json && Array.isArray(json.data)) {
         setData(json.data || []);
         setLastUpdate(json.lastUpdate || 0);
         setIsUpdating(json.isUpdating || false);
+        setAnalysisError(false);
+      } else if (version === requestVersion.current) {
+        throw new Error('Geçersiz analiz yanıtı');
       }
     } catch (err) {
-      console.error('Fetch error:', err);
+      if (!(err instanceof TypeError)) console.warn('Analiz isteği başarısız:', err);
+      if (version === requestVersion.current) setAnalysisError(true);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
   const fetchSignals = async (currentMarket: 'bist' | 'nasdaq') => {
+    const version = ++signalRequestVersion.current;
     setSignalsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/analysis/ai-portfolio?market=${currentMarket}`);
+      const res = await fetch(`${API_URL}/analysis/ai-portfolio?market=${currentMarket}`, { headers: { 'X-Bypass-API-Cache': '1' } });
+      if (!res.ok) throw new Error(`Portföy isteği başarısız (${res.status})`);
       const json = await res.json();
-      if (json && json.success) {
+      if (!json?.success || !Array.isArray(json.data)) throw new Error('Geçersiz portföy yanıtı');
+      if (version === signalRequestVersion.current) {
         setSignals(json.data || []);
+        setSignalsError(false);
       }
     } catch (err) {
-      console.error('Fetch signals error:', err);
+      if (!(err instanceof TypeError)) console.warn('Portföy isteği başarısız:', err);
+      if (version === signalRequestVersion.current) setSignalsError(true);
     } finally {
-      setSignalsLoading(false);
+      if (version === signalRequestVersion.current) setSignalsLoading(false);
     }
   };
 
@@ -134,7 +158,9 @@ export default function AiAnalizPage() {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
+      if (!res.ok) throw new Error(`Fiyat isteği başarısız (${res.status})`);
       const json = await res.json();
+      if (!json?.success || !Array.isArray(json.result)) throw new Error('Geçersiz fiyat yanıtı');
       if (json && json.result) {
         const priceMap: Record<string, number> = {};
         json.result.forEach((item: any) => {
@@ -147,20 +173,30 @@ export default function AiAnalizPage() {
           }
         });
         setSignalPrices(priceMap);
+        setPricesError(false);
       }
     } catch (err) {
-      console.error('Signal prices fetch error:', err);
+      if (!(err instanceof TypeError)) console.warn('Fiyat isteği başarısız:', err);
+      setPricesError(true);
     }
   };
 
   useEffect(() => {
+    setLoading(true);
+    setData([]);
+    setSignals([]);
+    setSignalPrices({});
+    setSignalsError(false);
+    setPricesError(false);
+    setLastUpdate(0);
+    setAnalysisError(false);
     fetchData(market);
     fetchSignals(market);
     const interval = setInterval(() => {
       fetchData(market);
       fetchSignals(market);
     }, 30000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); requestVersion.current++; signalRequestVersion.current++; };
   }, [market]);
 
   // Whenever signals or data change, fetch their live prices; also poll every 10s
@@ -217,14 +253,14 @@ export default function AiAnalizPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30">
+    <div className={`min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30 ${warmTheme ? `${styles.warm} ${aiStyles.aiWarm}` : ''}`}>
       {/* Arka Plan Glow Efektleri */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-neon-purple/5 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px]" />
       </div>
 
-      <Navbar />
+      {warmTheme ? <PortfolioWarmNav onDark={() => changeTheme(false)} /> : <><Navbar /><button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button></>}
 
       <main className="relative z-10 pt-28 pb-20 px-4 md:px-8 max-w-7xl mx-auto">
         {/* Header Section */}
@@ -274,13 +310,20 @@ export default function AiAnalizPage() {
               </p>
             </div>
             <button 
-              onClick={() => { setLoading(true); fetchData(market); }}
+              onClick={() => { setLoading(true); fetchData(market); fetchSignals(market); }}
               className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
             >
               <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
+
+        {(analysisError || signalsError || pricesError) && (
+          <div role="status" className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500">
+            {analysisError || signalsError ? 'Sunucuya ulaşılamadı veya veriler alınamadı. Gösterilen veriler güncel olmayabilir.' : 'Güncel fiyatlar alınamadı. Gösterilen fiyatlar eski olabilir.'}
+            <button type="button" className="ml-3 font-bold underline" onClick={() => { fetchData(market); fetchSignals(market); fetchSignalPrices(signals.filter(s => s.status === 'ACTIVE'), market); }}>Tekrar dene</button>
+          </div>
+        )}
 
         {/* Market Toggle (BIST / NASDAQ) */}
         <div className="flex justify-center mb-8">
@@ -353,7 +396,7 @@ export default function AiAnalizPage() {
 
         {/* Table / Grid Section */}
         {subTab === 'ai-portfolio' ? (
-          <AiPortfolioView signals={signals} loading={signalsLoading} market={market} data={data} signalPrices={signalPrices} />
+          <AiPortfolioView signals={signals} loading={signalsLoading} error={signalsError} market={market} data={data} signalPrices={signalPrices} />
         ) : loading && data.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map(i => (
@@ -510,10 +553,11 @@ export default function AiAnalizPage() {
           </div>
         )}
 
-        {filteredData.length === 0 && !loading && (
+        {subTab === 'all' && filteredData.length === 0 && !loading && (
           <div className="text-center py-20 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
             <Search size={48} className="mx-auto text-gray-600 mb-4" />
-            <h3 className="text-xl font-bold text-gray-400">Aramanıza uygun hisse bulunamadı.</h3>
+            <h3 className="text-xl font-bold text-gray-400">{analysisError ? 'Analiz verileri alınamadı.' : data.length === 0 ? (isUpdating ? 'Analizler hazırlanıyor.' : 'Henüz analiz verisi bulunmuyor.') : 'Aramanıza uygun hisse bulunamadı.'}</h3>
+            {data.length === 0 && <p className="text-sm text-gray-500 mt-3">{analysisError ? 'Sunucu bağlantısını kontrol edip yeniden deneyin.' : 'Veriler hazır olduğunda liste otomatik olarak güncellenir.'}</p>}
           </div>
         )}
       </main>
@@ -543,7 +587,7 @@ function IndicatorItem({ label, value, status = 'neutral' }: { label: string, va
   );
 }
 
-function AiPortfolioView({ signals, loading, market, data, signalPrices }: { signals: any[], loading: boolean, market: 'bist' | 'nasdaq', data: any[], signalPrices: Record<string, number> }) {
+function AiPortfolioView({ signals, loading, error, market, data, signalPrices }: { signals: any[], loading: boolean, error: boolean, market: 'bist' | 'nasdaq', data: any[], signalPrices: Record<string, number> }) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   if (loading) {
@@ -609,7 +653,7 @@ function AiPortfolioView({ signals, loading, market, data, signalPrices }: { sig
 
         {activeSignals.length === 0 ? (
           <div className="bg-white/5 border border-white/5 rounded-[2rem] p-12 text-center text-cyan-400 font-medium">
-            Şu an aktif tavsiye pozisyonu bulunmuyor.
+            {error ? 'Pozisyonlar alınamadı.' : 'Şu an aktif tavsiye pozisyonu bulunmuyor.'}
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -642,7 +686,7 @@ function AiPortfolioView({ signals, loading, market, data, signalPrices }: { sig
 
         {closedSignals.length === 0 ? (
           <div className="bg-white/5 border border-white/5 rounded-[2rem] p-12 text-center text-cyan-400 font-medium">
-            Henüz sonlanan işlem geçmişi bulunmuyor.
+            {error ? 'İşlem geçmişi alınamadı.' : 'Henüz sonlanan işlem geçmişi bulunmuyor.'}
           </div>
         ) : (
           <div className="overflow-x-auto bg-[#0A0A0A] border border-white/5 rounded-[2.5rem] p-6">

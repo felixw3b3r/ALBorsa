@@ -1,6 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import PortfolioWarmNav from '@/components/PortfolioWarmNav';
+import styles from '../portfolio/portfolio-warm.module.css';
+import ipoStyles from './ipo-warm.module.css';
 import { usePathname } from 'next/navigation';
 import Navbar from "@/components/Navbar";
 import IPONavbar from "@/components/IPONavbar";
@@ -12,20 +15,25 @@ export default function IPOLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [warmTheme, setWarmTheme] = useState(false);
+  // Restore the browser-only preference after hydration.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setWarmTheme(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (warm: boolean) => { localStorage.setItem('alborsa-landing-theme', warm ? 'warm' : 'dark'); setWarmTheme(warm); };
 
   // Detay sayfasında mıyız kontrol edelim
-  const isDetailPage = pathname !== '/halka-arz' && 
-                       pathname !== '/halka-arz/takvim' && 
+  const isDetailPage = pathname !== '/halka-arz' &&
+                       pathname !== '/halka-arz/takvim' &&
                        pathname !== '/halka-arz/tavan-hesapla';
 
   if (isDetailPage) {
-    return <>{children}</>;
+    return <div className={warmTheme ? `${styles.warm} ${ipoStyles.ipoWarm}` : ''}>{warmTheme ? <PortfolioWarmNav onDark={() => changeTheme(false)} /> : <button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button>}{children}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30 overflow-x-hidden">
-      <Navbar />
-      
+    <div className={`min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30 overflow-x-hidden ${warmTheme ? `${styles.warm} ${ipoStyles.ipoWarm}` : ''}`}>
+      {warmTheme ? <PortfolioWarmNav onDark={() => changeTheme(false)} /> : <><Navbar /><button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button></>}
+
       <main className="pt-32 px-6 max-w-6xl mx-auto pb-20">
         <header className="mb-16 text-center">
           <motion.div

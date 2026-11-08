@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Globe, User, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -33,44 +35,44 @@ export default function Navbar() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   return (
     <nav className="fixed top-0 w-full z-50 bg-black/50 backdrop-blur-xl border-b border-white/10 px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
-        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => window.location.href = '/'}>
+        <Link href="/" className="flex items-center gap-2 group cursor-pointer">
           <div className="bg-neon-purple p-2 rounded-xl group-hover:rotate-12 transition-transform">
             <TrendingUp className="text-black w-6 h-6" />
           </div>
           <span className="text-2xl font-bold tracking-tighter text-white">
             AL<span className="text-white group-hover:text-neon-purple transition-colors">Borsa</span>
           </span>
-        </div>
+        </Link>
 
         {/* Dynamic Links */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
-              <a
+              <Link
                 key={link.name}
                 href={link.href}
                 className={`transition-all duration-300 relative pb-1 ${
-                  isActive 
-                    ? "text-white font-bold" 
+                  isActive
+                    ? "text-white font-bold"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
                 {link.name}
                 {isActive && (
-                  <motion.div 
+                  <motion.div
                     layoutId="nav-underline"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-purple shadow-[0_0_10px_rgba(139,0,232,0.8)]"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-neon-purple shadow-[0_0_10px_rgba(124,58,237,0.8)]"
                   />
                 )}
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -90,7 +92,7 @@ export default function Navbar() {
                 </div>
                 <span className="text-sm font-bold text-gray-200">{user.name}</span>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="text-xs font-black text-gray-500 hover:text-red-400 transition-colors uppercase tracking-widest"
               >
@@ -98,13 +100,13 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <button 
-              onClick={() => window.location.href = '/login'}
+            <Link
+              href="/login"
               className="notranslate flex items-center gap-2 bg-white text-black px-5 py-2 rounded-full font-bold text-sm hover:bg-neon-purple hover:text-white hover:scale-105 transition-all shadow-[0_0_15px_rgba(255,255,255,0.2)]"
             >
               <User size={18} />
               Giriş Yap
-            </button>
+            </Link>
           )}
         </div>
       </div>

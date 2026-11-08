@@ -53,7 +53,7 @@ export default function HeroBackground() {
                 <defs>
                   <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="transparent" />
-                    <stop offset="20%" stopColor="#8b00e8" />
+                    <stop offset="20%" stopColor="#7c3aed" />
                     <stop offset="80%" stopColor="#06b6d4" />
                     <stop offset="100%" stopColor="transparent" />
                   </linearGradient>
@@ -81,12 +81,12 @@ export default function HeroBackground() {
                       key={i}
                       animate={{ height: [h * 0.8, h * 1.1, h * 0.9] }}
                       transition={{ duration: 5 + i * 0.3, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-                      className="w-4 md:w-8 bg-gradient-to-t from-neon-purple to-cyan-400 rounded-t-lg relative shadow-[0_0_15px_rgba(139,0,232,0.4)]"
+                      className="w-4 md:w-8 bg-gradient-to-t from-neon-purple to-cyan-400 rounded-t-lg relative shadow-[0_0_15px_rgba(124,58,237,0.4)]"
                     />
                   ))}
                 </div>
                 <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90 drop-shadow-[0_0_15px_rgba(139,0,232,0.3)]">
+                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90 drop-shadow-[0_0_15px_rgba(124,58,237,0.3)]">
                     {[
                       { d: "M 50 50 L 50 0 A 50 50 0 0 1 90 20 Z", color: "#9d00ff", dur: 3 },
                       { d: "M 50 50 L 90 20 A 50 50 0 0 1 100 50 Z", color: "#c400ff", dur: 4 },
@@ -169,7 +169,7 @@ export default function HeroBackground() {
                   opacity: [0, 1, 0]
                 }}
                 transition={{ duration: 7, times: [0, 0.6, 1] }}
-                className="absolute z-40 text-6xl md:text-9xl font-black tracking-tighter text-neon-purple flex items-center justify-center drop-shadow-[0_0_30px_rgba(139,0,232,1)]"
+                className="absolute z-40 text-6xl md:text-9xl font-black tracking-tighter text-neon-purple flex items-center justify-center drop-shadow-[0_0_30px_rgba(124,58,237,1)]"
               >
                 YOUR STOCK
               </motion.div>

@@ -23,7 +23,8 @@ function normalizeAnalysisSymbol(symbol: string): string {
 router.get('/analyze/:symbol', async (req, res) => {
   const formattedSymbol = normalizeAnalysisSymbol(req.params.symbol);
   const cleanSymbol = formattedSymbol.replace('.IS', '');
-  const cacheKey = `quant-analysis:${formattedSymbol}`;
+  const isNasdaq = INDEX_COMPONENTS.NASDAQ100.includes(formattedSymbol);
+  const cacheKey = `quant-analysis-v3:${formattedSymbol}`;
 
   try {
     try {
@@ -37,13 +38,14 @@ router.get('/analyze/:symbol', async (req, res) => {
 
     const [stockData, indexData] = await Promise.all([
       withYahooSlot(() => fetchStockData(formattedSymbol)),
-      withYahooSlot(() => fetchStockData('XU100.IS'))
+      withYahooSlot(() => fetchStockData(isNasdaq ? '^NDX' : 'XU100.IS'))
     ]);
 
     const quant = buildQuantSignal({
       symbol: cleanSymbol,
       quotes: stockData.ohlc,
-      indexQuotes: indexData.ohlc
+      indexQuotes: indexData.ohlc,
+      market: isNasdaq ? 'nasdaq' : 'bist'
     });
 
     const deepSeekExplanation = await fetchDeepSeekQuantExplanation({

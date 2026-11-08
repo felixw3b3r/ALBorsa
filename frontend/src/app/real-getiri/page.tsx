@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, DollarSign, Activity, RefreshCw, BarChart3, ShieldAlert, Search, X, Wallet } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import PortfolioWarmNav from '@/components/PortfolioWarmNav';
+import TurnusolCompare from './TurnusolCompare';
+import styles from '../portfolio/portfolio-warm.module.css';
+import warmStyles from './real-getiri-warm.module.css';
 import { useRouter } from 'next/navigation';
 
 const BIST100_STOCKS = [
@@ -38,6 +42,10 @@ const isUsdPricedBenchmark = (ticker: string, currency: string) => {
 };
 
 export default function RealGetiriPage() {
+  const [warmTheme, setWarmTheme] = useState(false);
+  const [turnusolOpen, setTurnusolOpen] = useState(false);
+  useEffect(() => { setWarmTheme(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (warm: boolean) => { localStorage.setItem('alborsa-landing-theme', warm ? 'warm' : 'dark'); setWarmTheme(warm); };
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [portfolio, setPortfolio] = useState<any[]>([]);
@@ -45,6 +53,9 @@ export default function RealGetiriPage() {
   const [usdRate, setUsdRate] = useState<number>(0);
   const [eurRate, setEurRate] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadedTicker, setLoadedTicker] = useState<string | null>(null);
+  const requestId = useRef(0);
   const [historicalRates, setHistoricalRates] = useState<{[key: string]: {usd: number, eur: number}}>({});
 
   const [benchmarkTicker, setBenchmarkTicker] = useState<string>("USDTRY=X");
@@ -60,99 +71,126 @@ export default function RealGetiriPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000/api';
 
   const handleUpdate = async (targetAsset?: string) => {
+    const currentRequest = ++requestId.current;
     try {
       setLoading(true);
+      setLoadError(false);
       const activeTicker = targetAsset || benchmarkTicker;
 
-      const [portRes, rateRes] = await Promise.all([
-        fetch(`${API_URL}/portfolio`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }),
-        fetch(`${API_URL}/exchange-rate`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      // Keep the rate request running while portfolio-dependent requests start.
+      const rateRequest = fetch(`${API_URL}/exchange-rate`, { headers: { ...headers, 'X-Bypass-API-Cache': '1' } })
+        .then(async response => response.ok ? await response.json() : null)
+        .catch(() => null);
+      const portRes = await fetch(`${API_URL}/portfolio`, { headers });
+      if (!portRes.ok) throw new Error('Portföy verisi alınamadı');
+      const portData = await portRes.json();
+      if (!Array.isArray(portData)) throw new Error('Portföy verisi geçersiz');
+      // setPortfolio(portData); // Kısmi veriyle geçici getiri hesaplanmasın.
+      let nextUsdRate = 0;
+      let nextEurRate = 0;
+      let nextBenchmarkPrice = 0;
+      let nextBenchmarkCurrency = 'TRY';
+      let nextLivePrices: any[] = [];
+      const histRates: any = {};
+      const benchHist: any = {};
+
+      const searchTicker = BIST100_STOCKS.includes(activeTicker) && !activeTicker.endsWith('.IS')
+        ? `${activeTicker}.IS`
+        : activeTicker;
+      const portfolioSymbols = portData.map((p: any) => {
+        const sym = p.name.toUpperCase();
+        if (!NASDAQ500_STOCKS.includes(sym) && !sym.includes('.') && sym.length <= 5 && !['BTC', 'ETH', 'USDT'].includes(sym)) {
+          return `${sym}.IS`;
+        }
+        return sym;
+      });
+      const symbols = [...new Set([searchTicker, ...portfolioSymbols])].join(',');
+      const historicalRequests = new Map<string, Promise<any>>();
+      const getHistorical = (symbol: string, date: string, market: string) => {
+        const params = new URLSearchParams({ symbol, date, market });
+        const key = params.toString();
+        let request = historicalRequests.get(key);
+        if (!request) {
+          request = fetch(`${API_URL}/historical?${key}`, { headers }).then(r => r.json());
+          historicalRequests.set(key, request);
+        }
+        return request;
+      };
+      const dates = [...new Set<string>(portData
+        .filter((item: any) => item.purchaseDate)
+        .map((item: any) => item.purchaseDate.split('T')[0]))];
+      const benchmarkMarket = BIST100_STOCKS.includes(activeTicker) ? 'BIST 100' : 'GLOBAL';
+
+      // Güncel fiyatlar ve tekil tarihler için geçmiş veriler aynı anda yüklenir.
+      const [stockData, dateResults, rateData] = await Promise.all([
+        fetch(`${API_URL}/stocks?symbols=${encodeURIComponent(symbols)}`, { headers }).then(r => r.json()),
+        Promise.all(dates.map(async date => {
+          const [usd, eur, benchmark] = await Promise.all([
+            getHistorical('USDTRY=X', date, 'GLOBAL'),
+            getHistorical('EURTRY=X', date, 'GLOBAL'),
+            getHistorical(activeTicker, date, benchmarkMarket)
+          ]);
+          return { date, usd, eur, benchmark };
+        })),
+        rateRequest
       ]);
-
-      const portData = portRes.ok ? await portRes.json() : [];
-      const rateData = rateRes.ok ? await rateRes.json() : { success: false };
-      setPortfolio(Array.isArray(portData) ? portData : []);
-
-      if (rateData.success) {
-        const usd = rateData.result.find((r: any) => r.code === "USD" || r.name.includes("Dolar"));
-        if (usd) setUsdRate(typeof usd.selling === 'string' ? parseFloat(usd.selling.replace(',', '.')) : usd.selling);
-
-        const eur = rateData.result.find((r: any) => r.code === "EUR");
-        if (eur) setEurRate(typeof eur.selling === 'string' ? parseFloat(eur.selling.replace(',', '.')) : eur.selling);
+      if (!rateData?.success || !Array.isArray(rateData.result)) throw new Error('Kur verisi alınamadı');
+      const usd = rateData.result.find((r: any) => r.code === 'USD' || r.name?.includes('Dolar'));
+      const eur = rateData.result.find((r: any) => r.code === 'EUR');
+      if (usd) nextUsdRate = typeof usd.selling === 'string' ? parseFloat(usd.selling.replace(',', '.')) : usd.selling;
+      if (eur) nextEurRate = typeof eur.selling === 'string' ? parseFloat(eur.selling.replace(',', '.')) : eur.selling;
+      if (!(nextUsdRate > 0) || !(nextEurRate > 0)) throw new Error('Güncel döviz kurları alınamadı');
+      if (!stockData.success || !Array.isArray(stockData.result)) throw new Error('Güncel portföy fiyatları alınamadı');
+      nextLivePrices = stockData.result;
+      const match = nextLivePrices.find((r: any) =>
+        r.code?.toUpperCase() === searchTicker.toUpperCase() || r.code?.toUpperCase() === activeTicker.toUpperCase()
+      );
+      if (match) {
+        nextBenchmarkPrice = match.price || match.regularMarketPrice;
+        nextBenchmarkCurrency = BIST100_STOCKS.includes(activeTicker) ? 'TRY' : (match.currency || 'TRY');
       }
-
-      // 1. Güncel Benchmark Fiyatı
-      try {
-        let searchTicker = activeTicker;
-        if (BIST100_STOCKS.includes(activeTicker) && !activeTicker.endsWith('.IS')) {
-          searchTicker = `${activeTicker}.IS`;
-        }
-
-        const benchRes = await fetch(`${API_URL}/stocks?symbols=${searchTicker}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const missingPrice = portData.some((item: any) => {
+        const name = String(item.name || '').trim().toUpperCase();
+        const stock = nextLivePrices.find((s: any) => {
+          const code = String(s.code || '').trim().toUpperCase();
+          return code === name || code === `${name}.IS` || name === `${code}.IS`;
         });
-        const benchData = await benchRes.json();
+        return !stock || !(Number(stock.regularMarketPrice || stock.price) > 0);
+      });
+      if (missingPrice) throw new Error('Bazı portföy fiyatları alınamadı');
 
-        if (benchData.success && benchData.result?.length > 0) {
-          // BIST hissesi ise tam eşleşme ara veya gelen ilk sonucu al
-          const match = benchData.result.find((r: any) =>
-            r.code.toUpperCase() === searchTicker.toUpperCase() ||
-            r.code.toUpperCase() === activeTicker.toUpperCase()
-          ) || benchData.result[0];
-
-          setBenchmarkCurrentPrice(match.price || match.regularMarketPrice);
-          setBenchmarkCurrency(BIST100_STOCKS.includes(activeTicker) ? "TRY" : (match.currency || "TRY"));
-        }
-      } catch (e) { console.error("Benchmark fetch error", e); }
-
-      // 2. Portföy Fiyatları ve 3. Geçmiş Veriler
-      if (Array.isArray(portData) && portData.length > 0) {
-        const symbols = portData.map((p: any) => {
-          const sym = p.name.toUpperCase();
-          if (!NASDAQ500_STOCKS.includes(sym) && !sym.includes('.') && sym.length <= 5 && !['BTC', 'ETH', 'USDT'].includes(sym)) {
-            return `${sym}.IS`;
-          }
-          return sym;
-        }).join(',');
-
-        const stockRes = await fetch(`${API_URL}/stocks?symbols=${symbols}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const ratesByDate = new Map<string, { usd: number, eur: number }>();
+      for (const { date, usd, eur, benchmark } of dateResults) {
+        ratesByDate.set(date, {
+          usd: usd.success ? usd.price : nextUsdRate,
+          eur: eur.success ? eur.price : nextEurRate
         });
-        const stockData = await stockRes.json();
-        if (stockData.success) setLivePrices(stockData.result || []);
-
-        const histRates: any = {};
-        const benchHist: any = {};
-
-        await Promise.all(portData.map(async (item: any) => {
-          if (item.purchaseDate) {
-            const date = item.purchaseDate.split('T')[0];
-            const isBIST = BIST100_STOCKS.includes(activeTicker);
-            const mkt = isBIST ? "BIST 100" : "GLOBAL";
-
-            const [usdH, eurH, benchH] = await Promise.all([
-              fetch(`${API_URL}/historical?symbol=USDTRY=X&date=${date}&market=GLOBAL`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()),
-              fetch(`${API_URL}/historical?symbol=EURTRY=X&date=${date}&market=GLOBAL`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()),
-              fetch(`${API_URL}/historical?symbol=${activeTicker}&date=${date}&market=${mkt}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json())
-            ]);
-
-            histRates[item._id] = {
-              usd: usdH.success ? usdH.price : usdRate,
-              eur: eurH.success ? eurH.price : eurRate
-            };
-            if (benchH.success) {
-              const usesRawUsdPrice = isUsdPricedBenchmark(activeTicker, benchH.currency || "");
-              benchHist[date] = (usesRawUsdPrice && benchH.rawPrice != null) ? benchH.rawPrice : benchH.price;
-            }
-          }
-        }));
-        setHistoricalRates(histRates);
-        setBenchmarkHistoricalPrices(benchHist);
+        if (benchmark.success) {
+          const usesRawUsdPrice = isUsdPricedBenchmark(activeTicker, benchmark.currency || '');
+          benchHist[date] = usesRawUsdPrice && benchmark.rawPrice != null ? benchmark.rawPrice : benchmark.price;
+        }
       }
+      for (const item of portData) {
+        const date = item.purchaseDate?.split('T')[0];
+        if (date && ratesByDate.has(date)) histRates[item._id] = ratesByDate.get(date);
+      }
+      if (currentRequest !== requestId.current) return;
+      setPortfolio(portData);
+      setUsdRate(nextUsdRate);
+      setEurRate(nextEurRate);
+      setLivePrices(nextLivePrices);
+      setHistoricalRates(histRates);
+      setBenchmarkHistoricalPrices(benchHist);
+      setBenchmarkCurrentPrice(nextBenchmarkPrice);
+      setBenchmarkCurrency(nextBenchmarkCurrency);
+      setLoadedTicker(activeTicker);
     } catch (error) {
       console.error('Update error:', error);
+      if (currentRequest === requestId.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   };
 
@@ -258,6 +296,7 @@ export default function RealGetiriPage() {
       benchValueTL,
       benchGainTL,
       benchHistPrice,
+      hasBenchmarkData,
       costUSDAtPurchase: costTL / histUSD,
       costEURAtPurchase: costTL / histEUR,
       benchmarkAssetName: benchmarkLabel
@@ -287,8 +326,8 @@ export default function RealGetiriPage() {
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen bg-black text-white font-sans selection:bg-cyan-500/30">
-      <Navbar />
+    <main className={`min-h-screen bg-black text-white font-sans selection:bg-cyan-500/30 ${warmTheme ? `${styles.warm} ${warmStyles.realWarm}` : ''}`}>
+      {warmTheme ? <PortfolioWarmNav tucked={turnusolOpen} onDark={() => changeTheme(false)} /> : <><Navbar /><button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button></>}
 
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-500/10 blur-[120px] rounded-full" />
@@ -318,7 +357,7 @@ export default function RealGetiriPage() {
               <div className="p-3 bg-cyan-500/20 rounded-xl"><DollarSign className="text-cyan-400 w-5 h-5" /></div>
               <div>
                 <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest leading-none mb-1">USD/TRY</p>        
-                <h2 className="text-lg font-black text-white">₺{usdRate.toFixed(2)}</h2>
+                <h2 className="text-lg font-black text-white">{loading || loadError || loadedTicker !== benchmarkTicker ? '—' : `₺${usdRate.toFixed(2)}`}</h2>
               </div>
             </div>
 
@@ -328,6 +367,12 @@ export default function RealGetiriPage() {
           </div>
         </div>
 
+        <TurnusolCompare warm={warmTheme} onOpenChange={setTurnusolOpen} />
+        {loadError ? (
+          <p role="alert" className="text-red-400 text-sm">Veriler alınamadı. Yenile düğmesiyle tekrar deneyin.</p>
+        ) : loading || loadedTicker !== benchmarkTicker ? (
+          <p role="status" className="text-gray-400 text-sm">Veriler hazırlanıyor...</p>
+        ) : (<>
         {/* Real Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/5 border border-white/10 rounded-[2rem] p-6 backdrop-blur-xl">
@@ -467,13 +512,13 @@ export default function RealGetiriPage() {
                   <div className="text-right min-w-[220px]">
                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">EĞER {stock.benchmarkAssetName} ALSAYDIN</p>
                     <p className="font-black text-2xl text-gray-400 tracking-tighter">
-                      {stock.isNasdaqStock ? "$" : "₺"}{stock.benchValue.toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })}
+                      {stock.hasBenchmarkData ? `${stock.isNasdaqStock ? '$' : '₺'}${stock.benchValue.toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })}` : '—'}
                     </p>
-                    <div className={`text-[11px] font-black flex items-center justify-end gap-1 mt-1 ${stock.benchGainPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {stock.benchGainPercent >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      {stock.isNasdaqStock ? "$" : "₺"}{Math.abs(stock.benchGain).toLocaleString(undefined, { maximumFractionDigits: stock.isNasdaqStock ? 2 : 0 })}
-                      (%{stock.benchGainPercent.toFixed(1)})
-                    </div>
+                    {stock.hasBenchmarkData ? (
+                      <div className={`text-[11px] font-black mt-1 ${stock.benchGain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {stock.benchmarkAssetName} getirisi: {stock.benchGain >= 0 ? '+' : '-'}{stock.isNasdaqStock ? '$' : '₺'}{Math.abs(stock.benchGain).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (%{stock.benchGainPercent.toFixed(1)})
+                      </div>
+                    ) : <div className="text-[11px] text-gray-500 mt-1">Karşılaştırma verisi yok</div>}
                     <div className="flex items-center justify-end gap-2 mt-2">
                       <div className="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-md border border-white/5">
                         <span className="text-[9px] text-gray-500 font-bold uppercase">H:</span>
@@ -496,6 +541,7 @@ export default function RealGetiriPage() {
             ))}
           </div>
         </div>
+        </>)}
       </div>
 
       <AnimatePresence>

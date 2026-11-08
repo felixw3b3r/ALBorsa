@@ -1,0 +1,18 @@
+.marketWarm :global(.bg-black\/40){background:#e7e2da!important}
+.marketWarm :global(.bg-black\/80){background:#f1eee8!important;color:#252a2d!important}
+.marketWarm :global(.bg-neon-purple){background:#a86740!important}
+.marketWarm :global(.bg-cyan-400){background:#a86740!important}
+.marketWarm :global(.text-cyan-400),.marketWarm :global(.text-blue-400),.marketWarm :global(.text-purple-400){color:#965b39!important}
+.marketWarm :global(.bg-green-500){background:#126b4e!important}
+.marketWarm :global(.bg-red-500){background:#c44747!important}
+.marketWarm :global([stroke="#4ade80"]){stroke:#126b4e!important}
+.marketWarm :global([stroke="#f87171"]){stroke:#c44747!important}
+.marketWarm :global([fill="#4ade80"]){fill:#126b4e!important}
+.marketWarm :global([fill="#f87171"]){fill:#c44747!important}
+.marketWarm :global([style*="color: rgb(74, 222, 128)"]){color:#126b4e!important}
+.marketWarm :global([style*="color: rgb(248, 113, 113)"]){color:#c44747!important}
+.detail{background:#e7e2da!important}
+@media(min-width:601px){.detail{padding-left:110px!important}}
+@media(max-width:600px){.detail{padding-top:85px!important}}
+.marketWarm :global(stop[stop-color="#4ade80"]){stop-color:#126b4e!important}
+.marketWarm :global(stop[stop-color="#f87171"]){stop-color:#c44747!important}

@@ -1,0 +1,55 @@
+.ipoWarm :global(nav.fixed){display:none}
+.ipoWarm > :global(.min-h-screen.bg-black){background:#e7e2da!important;color:#252a2d!important}
+.ipoWarm :global(.bg-black\/40){background:#e7e2da!important}
+.ipoWarm :global(.bg-neon-purple){background-color:#c96a35!important}
+.ipoWarm :global(.bg-neon-purple\/10),.ipoWarm :global(.bg-neon-purple\/20),.ipoWarm :global(.bg-cyan-500\/10){background-color:#b78d6b30!important}
+.ipoWarm :global(.text-cyan-400),.ipoWarm :global(.text-cyan-400\/60){color:#aa582d!important}
+.ipoWarm :global(.text-green-400){color:#126b4e!important}
+.ipoWarm :global(.text-red-500){color:#c44747!important}
+.ipoWarm :global(.text-black){color:#fff!important}
+.ipoWarm :global(.bg-white\/\[0\.02\]){background:#e7e2da!important}
+@media(min-width:601px){.ipoWarm > main,.ipoWarm > :global(.min-h-screen) > main{position:relative;left:38px;width:calc(100% - 100px)}}
+
+/* Calendar cards: readable light text on anthracite surfaces. */
+.ipoWarm :global(.bg-black\/95){background-color:#3b4042!important;color:#f6f4f0!important;border-color:#555a5b!important}
+.ipoWarm :global(.bg-black\/95 .text-white),
+.ipoWarm :global(.bg-black\/95 .text-gray-300),
+.ipoWarm :global(.bg-black\/95 .text-gray-200){color:#f6f4f0!important}
+.ipoWarm :global(.bg-black\/95 .text-gray-400),
+.ipoWarm :global(.bg-black\/95 .text-gray-500){color:#d0cac2!important}
+.ipoWarm :global(.bg-black\/95 button){color:#f1eee8!important;border-color:#96938d!important}
+.ipoWarm :global(.bg-black\/95 a.bg-white){background:#f1eee8!important;color:#252a2d!important}
+.ipoWarm :global(.bg-black\/95 .bg-black\/40){background:#4b5051!important}
+.ipoWarm :global(.bg-black\/95 .bg-white\/\[0\.02\]){background:#34393b!important}
+.ipoWarm :global(.bg-black\/95 .bg-white\/5),
+.ipoWarm :global(.bg-black\/95 .bg-white\/10){background:#55595a!important}
+.ipoWarm :global(.bg-black\/95 .text-green-400){color:#8fd2ad!important}
+
+/* Warm cream calendar cards */
+.ipoWarm :global(.bg-black\/95){background-color:#f1eee8!important;color:#252a2d!important;border-color:#d2c8bc!important}
+.ipoWarm :global(.bg-black\/95 .text-white),
+.ipoWarm :global(.bg-black\/95 .text-gray-300),
+.ipoWarm :global(.bg-black\/95 .text-gray-200){color:#252a2d!important}
+.ipoWarm :global(.bg-black\/95 .text-gray-400),
+.ipoWarm :global(.bg-black\/95 .text-gray-500){color:#6f6861!important}
+.ipoWarm :global(.bg-black\/95 button){color:#9f572e!important;border-color:#c9b6a6!important}
+.ipoWarm :global(.bg-black\/95 a.bg-white){background:#c96a35!important;color:#fff!important}
+.ipoWarm :global(.bg-black\/95 .bg-black\/40){background:#e7e2da!important}
+.ipoWarm :global(.bg-black\/95 .bg-white\/\[0\.02\]){background:#e7e2da!important}
+.ipoWarm :global(.bg-black\/95 .bg-white\/5),
+.ipoWarm :global(.bg-black\/95 .bg-white\/10){background:#e3dcd2!important}
+.ipoWarm :global(.bg-black\/95 .text-green-400){color:#126b4e!important}
+.ipoWarm :global(.bg-black\/95 .bg-neon-purple.text-white),
+.ipoWarm :global(.bg-black\/95 .bg-blue-600.text-white){color:#fff!important}
+
+/* Muted, natural accents and outlined issuer logos in the warm theme. */
+.ipoWarm :global(.bg-black\/95 div.bg-white:has(> img)),
+.ipoWarm :global(main section div.bg-white:has(> img)){background:#fbf9f5!important;border:1px solid #b8a695!important;box-shadow:0 2px 7px #62513e1a!important}
+.ipoWarm :global([class*="conic-gradient"]){background:conic-gradient(from 0deg,transparent 0deg,transparent 170deg,#a87f62 180deg,transparent 190deg,transparent 350deg,#a87f62 360deg)!important}
+.ipoWarm :global(.text-turquoise){color:#946747!important}
+.ipoWarm :global(.border-turquoise){border-color:#b8a695!important}
+.ipoWarm :global(.bg-blue-600){background:#6c786e!important;color:#fff!important}
+.ipoWarm :global(.bg-green-500){background:#126b4e!important}
+.ipoWarm :global(.bg-green-500\/10){background:#126b4e18!important}
+.ipoWarm :global([class*="from-neon-purple"]){--tw-gradient-from:#a66d4c!important;--tw-gradient-to:#b78d6b!important}
+.ipoWarm :global([class*="to-purple-500"]),.ipoWarm :global([class*="to-indigo-500"]){--tw-gradient-to:#b78d6b!important}

@@ -156,9 +156,7 @@ export default function ApiCacheLayer() {
         const response = originalFetch(request);
         const invalidatePrefix = shouldInvalidateAfter(request);
         if (invalidatePrefix && request.method.toUpperCase() !== 'GET') {
-          response.finally(() => {
-            clearByPrefix(invalidatePrefix);
-          });
+          void response.then(() => clearByPrefix(invalidatePrefix), () => clearByPrefix(invalidatePrefix));
         }
         return response;
       }
@@ -167,9 +165,7 @@ export default function ApiCacheLayer() {
         const response = originalFetch(request);
         const invalidatePrefix = shouldInvalidateAfter(request);
         if (invalidatePrefix && request.method.toUpperCase() !== 'GET') {
-          response.finally(() => {
-            clearByPrefix(invalidatePrefix);
-          });
+          void response.then(() => clearByPrefix(invalidatePrefix), () => clearByPrefix(invalidatePrefix));
         }
         return response;
       }

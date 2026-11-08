@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import SymbolLogo from "@/components/SymbolLogo";
+import PortfolioWarmNav from '@/components/PortfolioWarmNav';
+import styles from '../../portfolio/portfolio-warm.module.css';
+import marketStyles from '../markets-warm.module.css';
 import { ChevronLeft, TrendingUp, TrendingDown, RefreshCw, Search, ExternalLink } from 'lucide-react';
 // import { BrainCircuit, Activity, BarChart3, Waves, Info } from 'lucide-react'; // New icons commented out
 import { getCachedValue, setCachedValue } from '@/lib/inMemoryTTLCache';
@@ -11,6 +14,10 @@ import { getCachedValue, setCachedValue } from '@/lib/inMemoryTTLCache';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function IndexDetailsPage() {
+  const [warmTheme, setWarmTheme] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setWarmTheme(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (warm: boolean) => { localStorage.setItem('alborsa-landing-theme', warm ? 'warm' : 'dark'); setWarmTheme(warm); };
   const params = useParams();
   const router = useRouter();
   const symbol = params.symbol as string;
@@ -18,6 +25,12 @@ export default function IndexDetailsPage() {
   
   const [mounted, setMounted] = useState(false);
   const [indexData, setIndexData] = useState<any>(null);
+  const [dataError, setDataError] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [answerSources, setAnswerSources] = useState<{title: string; url: string; date: string | null}[]>([]);
+  const [questionError, setQuestionError] = useState('');
+  const [questionLoading, setQuestionLoading] = useState(false);
   const [components, setComponents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
@@ -33,6 +46,22 @@ export default function IndexDetailsPage() {
   const [selectedKap, setSelectedKap] = useState<any | null>(null);
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
+
+  useEffect(() => { setQuestion(''); setAnswer(''); setAnswerSources([]); setQuestionError(''); }, [symbol]);
+  const askStock = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (question.trim().length < 3 || questionLoading) return;
+    setQuestionLoading(true); setQuestionError(''); setAnswer(''); setAnswerSources([]);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Soru sormak için giriş yapın.');
+      const res = await fetch(`${API_URL}/stocks/${encodeURIComponent(symbol)}/question`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ question }) });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || 'Araştırma tamamlanamadı.');
+      setAnswer(result.answer); setAnswerSources(result.sources || []);
+    } catch (error) { setQuestionError(error instanceof TypeError ? 'Sunucuya ulaşılamadı. Lütfen tekrar deneyin.' : error instanceof Error ? error.message : 'Bir hata oluştu.'); }
+    finally { setQuestionLoading(false); }
+  };
 
   const parseJsonResponse = async <T,>(res: Response): Promise<T> => {
     const readJsonFromResponse = async (response: Response): Promise<T> => {
@@ -120,7 +149,7 @@ export default function IndexDetailsPage() {
         }
         setKapDisclosures(kapData);
       } catch (err) {
-        console.error('KAP fetch error:', err);
+        if (!(err instanceof TypeError)) console.warn('KAP fetch error:', err);
       } finally {
         setKapLoading(false);
       }
@@ -146,7 +175,7 @@ export default function IndexDetailsPage() {
         }
         setNews(newsData);
       } catch (err) {
-        console.error('News fetch error:', err);
+        if (!(err instanceof TypeError)) console.warn('News fetch error:', err);
       } finally {
         setNewsLoading(false);
       }
@@ -187,6 +216,7 @@ export default function IndexDetailsPage() {
         const indexRes = await fetch(`${API_URL}/stocks/${symbol}?range=${timeRange.id}&interval=${timeRange.interval}`, {
           headers: { 'X-Bypass-API-Cache': '1' }
         });
+        if (!indexRes.ok) throw new Error(`Piyasa verisi alınamadı (${indexRes.status})`);
         indexInfo = await indexRes.json();
         setCachedValue(indexCacheKey, indexInfo, { ttlMs: CACHE_TTL_MS });
       }
@@ -213,8 +243,10 @@ export default function IndexDetailsPage() {
       }
       
       setLastUpdated(new Date().toLocaleTimeString('tr-TR'));
+      setDataError(false);
     } catch (error: any) {
-      console.error('Data fetch error:', error);
+      if (!(error instanceof TypeError)) console.warn('Piyasa verisi alınamadı:', error);
+      setDataError(true);
     } finally {
       if (!silent) {
         setLoading(false);
@@ -274,7 +306,19 @@ export default function IndexDetailsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-6 md:p-12">
+    <div className={`min-h-screen bg-[#050505] text-white p-6 md:p-12 ${warmTheme ? `${styles.warm} ${marketStyles.marketWarm} ${marketStyles.detail}` : ''}`}>
+      {warmTheme ? <PortfolioWarmNav onDark={() => changeTheme(false)} /> : <button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button>}
+      {dataError && <div role="status" className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500">Piyasa verileri alınamadı. Gösterilen bilgiler güncel olmayabilir. <button type="button" className="font-bold underline" onClick={() => fetchData(false, true, false)}>Tekrar dene</button></div>}
+      {!symbol.startsWith('^') && <section className="mb-8 rounded-3xl border border-white/10 bg-white/5 p-6" aria-label="Hisse hakkında soru sor">
+        <h2 className="text-xl font-bold">Hisse hakkında soru sor</h2>
+        <p className="mt-2 text-sm text-gray-500">{symbol} hakkında güncel kaynaklarda araştırma yapın.</p>
+        <form onSubmit={askStock} className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <input aria-label="Hisse ile ilgili sorunuz" value={question} onChange={e => setQuestion(e.target.value)} maxLength={400} placeholder="Örneğin: Bu hisse neden düştü?" className="min-w-0 flex-1 rounded-xl border border-gray-400/30 bg-transparent p-3" />
+          <button type="submit" disabled={questionLoading || question.trim().length < 3} className="rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white disabled:opacity-50">{questionLoading ? 'Araştırılıyor…' : 'Araştır'}</button>
+        </form>
+        {questionError && <p role="alert" className="mt-4 text-sm text-red-500">{questionError}</p>}
+        {answer && <div aria-live="polite" className="mt-5"><p className="whitespace-pre-wrap text-sm leading-relaxed">{answer}</p>{answerSources.length > 0 && <div className="mt-4"><p className="text-sm font-bold">Kaynaklar</p><ol className="mt-2 space-y-2 text-sm">{answerSources.map((source, i) => <li key={source.url}>[{i + 1}] <a className="underline" href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a>{source.date ? ` · ${new Date(source.date).toLocaleDateString('tr-TR')}` : ''}</li>)}</ol></div>}</div>}
+      </section>}
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <motion.button 

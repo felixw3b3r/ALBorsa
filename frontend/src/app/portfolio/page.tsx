@@ -4,136 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, TrendingDown, Wallet, PieChart, Activity, MoreVertical, Plus, Edit2, Check, X, Trash2, RefreshCw, Search } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import PortfolioWarmNav from '@/components/PortfolioWarmNav';
+import styles from './portfolio-warm.module.css';
 import { useRouter } from 'next/navigation';
 
-const BIST100_STOCKS = [
-  "AEFES", "AGHOL", "AHGAZ", "AKBNK", "AKCNS", "AKFGY", "AKSA", "AKSEN", "ALARK", "ALBRK",
-  "ALFAS", "ARCLK", "ASELS", "ASTOR", "AYGAZ", "BERA", "BIENY", "BIMAS", "BRSAN", "CANTE",
-  "CCOLA", "CIMSA", "CWENE", "DOAS", "DOHOL", "ECILC", "ECZYT", "EGEEN", "EKGYO", "ENJSA",
-  "ENKAI", "EREGL", "EUPWR", "EUREN", "FROTO", "GARAN", "GENIL", "GESAN", "GLYHO", "GUBRF",
-  "GWIND", "HALKB", "HEKTS", "HKTM", "HLGYO", "IMASM", "INVEO", "INVES", "IPEKE", "ISCTR",
-  "ISDMR", "ISFIN", "ISGYO", "ISMEN", "IZENR", "KCAER", "KCHOL", "KMPUR", "KONTR", "KONYA",
-  "KOZAA", "KOZAL", "KRDMD", "KZBGY", "MAVI", "MGROS", "MIATK", "ODAS", "OTKAR", "OYAKC",
-  "PENTA", "PETKM", "PGSUS", "PNLSN", "QUAGR", "SAHOL", "SASA", "SAYAS", "SISE", "SKBNK",
-  "SMRTG", "SOKM", "SUWEN", "TAVHL", "TCELL", "THYAO", "TKFEN", "TOASO", "TSKB", "TTKOM",
-  "TTRAK", "TUKAS", "TUPRS", "ULKER", "VAKBN", "VESBE", "VESTL", "YEOTK", "YKBNK", "YYLGD", "ZOREN"
-].sort();
-
-const BIST_STOCK_NAMES: Record<string, string> = {
-  A1CAP: "A1 Capital Yatırım Menkul Değerler A.Ş.",
-  ACSEL: "Acıpayam Selüloz Sanayi ve Ticaret A.Ş.",
-  ADEL: "Adel Kalemcilik Ticaret ve Sanayi A.Ş.",
-  ADESE: "Adese Gayrimenkul Yatırım A.Ş.",
-  ADGYO: "Adra Gayrimenkul Yatırım Ortaklığı A.Ş.",
-  AEFES: "Anadolu Efes Biracılık ve Malt Sanayii A.Ş.",
-  AGROT: "Agrotech Yüksek Teknoloji ve Agro Ticaret A.Ş.",
-  AKBNK: "Akbank T.A.Ş.",
-  AKCNS: "Akçansa Çimento Sanayi ve Ticaret A.Ş.",
-  AKFGY: "Akfen Gayrimenkul Yatırım Ortaklığı A.Ş.",
-  AKFYE: "Akfen Yenilenebilir Enerji A.Ş.",
-  AKGRT: "Aksigorta A.Ş.",
-  AKSA: "Aksa Akrilik Kimya Sanayii A.Ş.",
-  AKSEN: "Aksa Enerji Üretim A.Ş.",
-  ALARK: "Alarko Holding A.Ş.",
-  ALBRK: "Albaraka Türk Katılım Bankası A.Ş.",
-  ALFAS: "Alfa Solar Enerji Sanayi ve Ticaret A.Ş.",
-  ANSGR: "Anadolu Anonim Türk Sigorta Şirketi",
-  ARCLK: "Arçelik A.Ş.",
-  ASELS: "Aselsan Elektronik Sanayi ve Ticaret A.Ş.",
-  ASTOR: "Astor Enerji A.Ş.",
-  AVOD: "A.V.O.D. Kurutulmuş Gıda ve Tarım Ürünleri A.Ş.",
-  AYDEM: "Aydem Yenilenebilir Enerji A.Ş.",
-  BAGFS: "Bağfaş Bandırma Gübre Fabrikaları A.Ş.",
-  BERA: "Bera Holding A.Ş.",
-  BIMAS: "BİM Birleşik Mağazalar A.Ş.",
-  BIOEN: "Biotrend Çevre ve Enerji Yatırımları A.Ş.",
-  BOBET: "Boğaziçi Beton Sanayi ve Ticaret A.Ş.",
-  BRISA: "Brisa Bridgestone Sabancı Lastik Sanayi ve Ticaret A.Ş.",
-  BRSAN: "Borusan Birleşik Boru Fabrikaları A.Ş.",
-  BTCIM: "Batıçim Batı Anadolu Çimento Sanayii A.Ş.",
-  BUCIM: "Bursa Çimento Fabrikası A.Ş.",
-  CANTE: "Çan2 Termik A.Ş.",
-  CCOLA: "Coca-Cola İçecek A.Ş.",
-  CEALK: "Reeder Teknoloji Sanayi ve Ticaret A.Ş.",
-  CIMSA: "Çimsa Çimento Sanayi ve Ticaret A.Ş.",
-  CWENE: "CW Enerji Mühendislik Ticaret ve Sanayi A.Ş.",
-  DOAS: "Doğuş Otomotiv Servis ve Ticaret A.Ş.",
-  DOHOL: "Doğan Şirketler Grubu Holding A.Ş.",
-  ECILC: "Eczacıbaşı İlaç Sınai ve Finansal Yatırımlar Sanayi ve Ticaret A.Ş.",
-  ECZYT: "Eczacıbaşı Yatırım Holding Ortaklığı A.Ş.",
-  EGEEN: "Ege Endüstri ve Ticaret A.Ş.",
-  EKGYO: "Emlak Konut Gayrimenkul Yatırım Ortaklığı A.Ş.",
-  ENJSA: "Enerjisa Enerji A.Ş.",
-  ENKAI: "Enka İnşaat ve Sanayi A.Ş.",
-  EREGL: "Ereğli Demir ve Çelik Fabrikaları T.A.Ş.",
-  EUPWR: "Europower Enerji ve Otomasyon Teknolojileri Sanayi Ticaret A.Ş.",
-  FROTO: "Ford Otomotiv Sanayi A.Ş.",
-  GARAN: "Türkiye Garanti Bankası A.Ş.",
-  GENIL: "Gen İlaç ve Sağlık Ürünleri Sanayi ve Ticaret A.Ş.",
-  GESAN: "Girişim Elektrik Taahhüt Ticaret ve Sanayi A.Ş.",
-  GOLTS: "Göltaş Göller Bölgesi Çimento Sanayi ve Ticaret A.Ş.",
-  GSDHO: "GSD Holding A.Ş.",
-  GUBRF: "Gübre Fabrikaları T.A.Ş.",
-  GWIND: "Galata Wind Enerji A.Ş.",
-  HALKB: "Türkiye Halk Bankası A.Ş.",
-  HEKTS: "Hektaş Ticaret T.A.Ş.",
-  IPEKE: "İpek Doğal Enerji Kaynakları Araştırma ve Üretim A.Ş.",
-  ISCTR: "Türkiye İş Bankası A.Ş.",
-  ISGYO: "İş Gayrimenkul Yatırım Ortaklığı A.Ş.",
-  ISMEN: "İş Yatırım Menkul Değerler A.Ş.",
-  IZMDC: "İzmir Demir Çelik Sanayi A.Ş.",
-  KAYSE: "Kayseri Şeker Fabrikası A.Ş.",
-  KBORU: "Kuzey Boru A.Ş.",
-  KCAER: "Kocaer Çelik Sanayi ve Ticaret A.Ş.",
-  KCHOL: "Koç Holding A.Ş.",
-  KENT: "Kent Gıda Maddeleri Sanayii ve Ticaret A.Ş.",
-  KONTR: "Kontrolmatik Teknoloji Enerji ve Mühendislik A.Ş.",
-  KONYA: "Konya Çimento Sanayii A.Ş.",
-  KORDS: "Kordsa Teknik Tekstil A.Ş.",
-  KOZAA: "Koza Anadolu Metal Madencilik İşletmeleri A.Ş.",
-  KOZAL: "Koza Altın İşletmeleri A.Ş.",
-  KRDMD: "Kardemir Karabük Demir Çelik Sanayi ve Ticaret A.Ş.",
-  LMKDC: "Limak Doğu Anadolu Çimento Sanayi ve Ticaret A.Ş.",
-  MAVI: "Mavi Giyim Sanayi ve Ticaret A.Ş.",
-  MGROS: "Migros Ticaret A.Ş.",
-  MIATK: "Mia Teknoloji A.Ş.",
-  NETAS: "Netaş Telekomünikasyon A.Ş.",
-  ODAS: "Odaş Elektrik Üretim Sanayi Ticaret A.Ş.",
-  OTKAR: "Otokar Otomotiv ve Savunma Sanayi A.Ş.",
-  OYAKC: "Oyak Çimento Fabrikaları A.Ş.",
-  PEKGY: "Peker Gayrimenkul Yatırım Ortaklığı A.Ş.",
-  PETKM: "Petkim Petrokimya Holding A.Ş.",
-  PGSUS: "Pegasus Hava Taşımacılığı A.Ş.",
-  QUAGR: "Qua Granite Hayal Yapı ve Ürünleri Sanayi Ticaret A.Ş.",
-  REEDR: "Reeder Teknoloji Sanayi ve Ticaret A.Ş.",
-  SAHOL: "Hacı Ömer Sabancı Holding A.Ş.",
-  SASA: "Sasa Polyester Sanayi A.Ş.",
-  SAYAS: "Say Yenilenebilir Enerji Ekipmanları Sanayi ve Ticaret A.Ş.",
-  SDTTR: "SDT Uzay ve Savunma Teknolojileri A.Ş.",
-  SISE: "Türkiye Şişe ve Cam Fabrikaları A.Ş.",
-  SKBNK: "Şekerbank T.A.Ş.",
-  SMRTG: "Smart Güneş Enerjisi Teknolojileri AR-GE Üretim Sanayi ve Ticaret A.Ş.",
-  SOKM: "Şok Marketler Ticaret A.Ş.",
-  TAVHL: "TAV Havalimanları Holding A.Ş.",
-  TCELL: "Turkcell İletişim Hizmetleri A.Ş.",
-  THYAO: "Türk Hava Yolları Anonim Ortaklığı",
-  TMSN: "Tümosan Motor ve Traktör Sanayi A.Ş.",
-  TOASO: "Tofaş Türk Otomobil Fabrikası A.Ş.",
-  TSKB: "Türkiye Sınai Kalkınma Bankası A.Ş.",
-  TUPRS: "Türkiye Petrol Rafinerileri A.Ş."
-};
-
-const ALL_BIST_STOCKS = Array.from(new Set([...BIST100_STOCKS, ...Object.keys(BIST_STOCK_NAMES)])).sort();
-
-const normalizeSearchText = (value: string) =>
-  value
-    .toLocaleUpperCase('tr-TR')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-const NASDAQ500_STOCKS = [
-  "A", "AAL", "AAP", "AAPL", "ABBV", "ABC", "ABT", "ACGL", "ACN", "ADAY", "ADBE", "ADI", "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALK", "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP", "AMT", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APTV", "ARE", "ATO", "ATRC", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP", "AYI", "AZO", "BA", "BAC", "BALL", "BAX", "BBWI", "BBY", "BDX", "BEN", "BF.B", "BG", "BIIB", "BIO", "BK", "BKNG", "BKR", "BLDR", "BLK", "BMY", "BR", "BRK.B", "BRO", "BSX", "BWA", "BX", "BXP", "C", "CAG", "CAH", "CARR", "CAT", "CB", "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CE", "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR", "CI", "CINF", "CL", "CLX", "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS", "CNC", "CNP", "COF", "COO", "COP", "COR", "COST", "CPB", "CPRT", "CPT", "CRL", "CRM", "CRWD", "CSCO", "CSGP", "CSX", "CTAS", "CTLT", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "CZR", "D", "DAL", "DAN", "DAY", "DD", "DE", "DECK", "DFS", "DG", "DGX", "DHI", "DHR", "DIS", "DLR", "DLTR", "DOC", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK", "DVA", "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX", "EG", "EIX", "EL", "ELV", "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX", "EQR", "EQT", "ES", "ESS", "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPD", "EXPE", "EXR", "F", "FANG", "FAST", "FI", "FICO", "FIS", "FITB", "FLT", "FMC", "FOX", "FOXA", "FRT", "FSLR", "FTNT", "FTV", "GD", "GE", "GEV", "GGG", "GILD", "GIS", "GL", "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWRE", "GWW", "HAL", "HAS", "HBAN", "HCA", "HD", "HES", "HIG", "HII", "HLDX", "HOLX", "HON", "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUBB", "HUM", "HWM", "IBM", "ICE", "IDXX", "IEX", "IFF", "ILMN", "INCY", "INTC", "INTU", "INVH", "IP", "IPG", "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT", "JBL", "JCI", "JKHY", "JNJ", "JNPR", "JPM", "K", "KDP", "KEY", "KEYS", "KHC", "KIM", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "KVUE", "L", "LDOS", "LEN", "LH", "LHX", "LIN", "LKQ", "LLY", "LMT", "LNC", "LNT", "LOW", "LRCX", "LULU", "LUV", "LVS", "LW", "LYB", "LYV", "MA", "MAA", "MAR", "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "METC", "MGM", "MHK", "MKC", "MKTX", "MLM", "MMC", "MMM", "MNST", "MO", "MOH", "MOS", "MPC", "MPWR", "MRK", "MRNA", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH", "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP", "NTR", "NTRS", "NUE", "NVDA", "NVR", "NWC", "NWL", "NWS", "NWSA", "NXPI", "O", "ODFL", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS", "OXY", "PANW", "PARA", "PAYC", "PAYX", "PCAR", "PCG", "PEG", "PEP", "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PKI", "PLD", "PM", "PNC", "PNR", "PNW", "POOL", "PPG", "PPL", "PRU", "PSA", "PTC", "PWR", "PYPL", "QCOM", "QRVO", "RCL", "RE", "REG", "REGN", "RF", "RHI", "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "RVTY", "SBAC", "SBUX", "SCHW", "SHW", "SIRI", "SITM", "SJM", "SLB", "SMCI", "SNA", "SNPS", "SO", "SPG", "SPGI", "SRE", "STE", "STLD", "STT", "STX", "STZ", "SWK", "SWKS", "SYK", "SYY", "T", "TAP", "TDG", "TDY", "TECH", "TEL", "TER", "TFT", "TFC", "TFX", "TGT", "TJX", "TMO", "TMUS", "TPR", "TRGP", "TRMB", "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT", "TTWO", "TXN", "TXT", "TYL", "UAL", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI", "USB", "V", "VICI", "VLO", "VMC", "VRSK", "VRTX", "VTR", "VZ", "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL", "WFC", "WFRD", "WHR", "WM", "WMB", "WMT", "WRB", "WST", "WTW", "WY", "WYNN", "XEL", "XOM", "XRAY", "XYL", "YUM", "ZBH", "ZBRA", "ZTS", "SKHYV", "SPCX"
-].sort();
+import { ALL_BIST_STOCKS, BIST_STOCK_NAMES, NASDAQ500_STOCKS, normalizeSearchText } from '@/lib/stockCatalog';
 
 interface StockWheelPickerProps {
   stocks: any[];
@@ -226,7 +101,7 @@ function StockWheelPicker({ stocks, hoveredStock, setHoveredStock }: StockWheelP
                 <div
                   onMouseEnter={() => setHoveredStock(stock.name)}
                   onMouseLeave={() => setHoveredStock(null)}
-                  className="w-full h-full p-4 rounded-2xl border cursor-pointer shadow-lg flex items-center justify-between pointer-events-auto transition-all duration-200"
+                  className={`${styles.wheelItem} w-full h-full p-4 rounded-2xl border cursor-pointer shadow-lg flex items-center justify-between pointer-events-auto transition-all duration-200`}
                   style={{
                     transform: hoveredStock === stock.name ? `scale(1.05)` : `scale(1)`,
                     backgroundColor: hoveredStock === stock.name ? `${stock.color}15` : 'rgba(255,255,255,0.05)',
@@ -281,6 +156,9 @@ function StockWheelPicker({ stocks, hoveredStock, setHoveredStock }: StockWheelP
 }
 
 export default function PortfolioPage() {
+  const [warmTheme, setWarmTheme] = useState(false);
+  useEffect(() => { setWarmTheme(localStorage.getItem('alborsa-landing-theme') === 'warm'); }, []);
+  const changeTheme = (warm: boolean) => { localStorage.setItem('alborsa-landing-theme', warm ? 'warm' : 'dark'); setWarmTheme(warm); };
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [portfolio, setPortfolio] = useState<any[]>([]);
@@ -296,6 +174,11 @@ export default function PortfolioPage() {
   const [selectedMarket, setSelectedMarket] = useState("BIST 100");
   const [usdRate, setUsdRate] = useState<number>(0);
   const [historicalRates, setHistoricalRates] = useState<Record<string, number>>({});
+  const [weeklyData, setWeeklyData] = useState<{ key: string; status: 'loading' | 'ready' | 'error'; prices: Record<string, number> }>({ key: '', status: 'loading', prices: {} });
+  const [monthlyData, setMonthlyData] = useState<{ key: string; status: 'loading' | 'ready' | 'error'; prices: Record<string, number> }>({ key: '', status: 'loading', prices: {} });
+  const [weeklyRetry, setWeeklyRetry] = useState(0);
+  const [monthlyRetry, setMonthlyRetry] = useState(0);
+  const [weeklyDay, setWeeklyDay] = useState(() => new Date().toLocaleDateString('en-CA'));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -378,6 +261,97 @@ export default function PortfolioPage() {
       .slice(0, 20);
   }, [debouncedSearchTerm, selectedMarket, showSuggestions]);
   const hasSuggestionMatch = suggestionMatches.length > 0;
+
+  // Use calendar dates rather than UTC timestamps for the rolling seven-day window.
+  useEffect(() => {
+    const timer = setInterval(() => setWeeklyDay(new Date().toLocaleDateString('en-CA')), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const weeklyKey = JSON.stringify(portfolio.map(item => [item._id, item.name, item.amount, item.cost, item.purchaseDate]));
+  useEffect(() => {
+    let cancelled = false;
+    const items = JSON.parse(weeklyKey) as [string, string, number, number, string][];
+    if (!items.length) return;
+    const baseline = new Date(`${weeklyDay}T12:00:00`);
+    baseline.setDate(baseline.getDate() - 7);
+    const baselineDate = baseline.toLocaleDateString('en-CA');
+    const requests = new Map<string, Promise<number>>();
+    const getPrice = (symbol: string, date: string, market: string) => {
+      const key = `${symbol}|${date}|${market}`;
+      if (!requests.has(key)) {
+        const params = new URLSearchParams({ symbol, date, market });
+        requests.set(key, fetch(`${API_URL}/historical?${params}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }).then(async response => {
+          if (!response.ok) throw new Error('Geçmiş fiyat alınamadı');
+          const data = await response.json();
+          const returnedDate = new Date(data.date);
+          const requestedEnd = new Date(`${date}T23:59:59`);
+          if (!data.success || !Number.isFinite(data.rawPrice) || data.rawPrice <= 0 || !Number.isFinite(returnedDate.getTime()) || returnedDate > requestedEnd) throw new Error('Geçersiz geçmiş fiyat');
+          return data.rawPrice as number;
+        }));
+      }
+      return requests.get(key)!;
+    };
+    setWeeklyData({ key: weeklyKey + weeklyDay, status: 'loading', prices: {} });
+    Promise.all(items.map(async ([id, name, amount, cost, purchaseDate]) => {
+      const date = typeof purchaseDate === 'string' ? purchaseDate.slice(0, 10) : '';
+      if (!id || !name || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > weeklyDay || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || !Number.isFinite(Number(cost)) || Number(cost) <= 0) throw new Error('Eksik pozisyon bilgisi');
+      const foreign = !name.toUpperCase().endsWith('.IS') && !ALL_BIST_STOCKS.includes(name.toUpperCase());
+      const boughtInWindow = date >= baselineDate;
+      const priceDate = boughtInWindow ? date : baselineDate;
+      const price = boughtInWindow ? Number(cost) : await getPrice(name, priceDate, foreign ? 'NASDAQ' : 'BIST 100');
+      const rate = foreign ? await getPrice('USDTRY=X', priceDate, 'GLOBAL') : 1;
+      return [id, price * rate] as const;
+    })).then(entries => {
+      if (!cancelled) setWeeklyData({ key: weeklyKey + weeklyDay, status: 'ready', prices: Object.fromEntries(entries) });
+    }).catch(() => {
+      if (!cancelled) setWeeklyData({ key: weeklyKey + weeklyDay, status: 'error', prices: {} });
+    });
+    return () => { cancelled = true; };
+  }, [weeklyKey, weeklyDay, weeklyRetry, API_URL]);
+  useEffect(() => {
+    let cancelled = false;
+    const items = JSON.parse(weeklyKey) as [string, string, number, number, string][];
+    if (!items.length) return;
+    const baseline = new Date(`${weeklyDay}T12:00:00`);
+    baseline.setDate(baseline.getDate() - 30);
+    const baselineDate = baseline.toLocaleDateString('en-CA');
+    const requests = new Map<string, Promise<number>>();
+    const getPrice = (symbol: string, date: string, market: string) => {
+      const key = `${symbol}|${date}|${market}`;
+      if (!requests.has(key)) {
+        const params = new URLSearchParams({ symbol, date, market });
+        requests.set(key, fetch(`${API_URL}/historical?${params}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }).then(async response => {
+          if (!response.ok) throw new Error('Geçmiş fiyat alınamadı');
+          const data = await response.json();
+          const returnedDate = new Date(data.date);
+          const requestedEnd = new Date(`${date}T23:59:59`);
+          if (!data.success || !Number.isFinite(data.rawPrice) || data.rawPrice <= 0 || !Number.isFinite(returnedDate.getTime()) || returnedDate > requestedEnd) throw new Error('Geçersiz geçmiş fiyat');
+          return data.rawPrice as number;
+        }));
+      }
+      return requests.get(key)!;
+    };
+    setMonthlyData({ key: weeklyKey + weeklyDay, status: 'loading', prices: {} });
+    Promise.all(items.map(async ([id, name, amount, cost, purchaseDate]) => {
+      const date = typeof purchaseDate === 'string' ? purchaseDate.slice(0, 10) : '';
+      if (!id || !name || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > weeklyDay || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || !Number.isFinite(Number(cost)) || Number(cost) <= 0) throw new Error('Eksik pozisyon bilgisi');
+      const foreign = !name.toUpperCase().endsWith('.IS') && !ALL_BIST_STOCKS.includes(name.toUpperCase());
+      const boughtInWindow = date >= baselineDate;
+      const priceDate = boughtInWindow ? date : baselineDate;
+      const price = boughtInWindow ? Number(cost) : await getPrice(name, priceDate, foreign ? 'NASDAQ' : 'BIST 100');
+      const rate = foreign ? await getPrice('USDTRY=X', priceDate, 'GLOBAL') : 1;
+      return [id, price * rate] as const;
+    })).then(entries => {
+      if (!cancelled) setMonthlyData({ key: weeklyKey + weeklyDay, status: 'ready', prices: Object.fromEntries(entries) });
+    }).catch(() => {
+      if (!cancelled) setMonthlyData({ key: weeklyKey + weeklyDay, status: 'error', prices: {} });
+    });
+    return () => { cancelled = true; };
+  }, [weeklyKey, weeklyDay, monthlyRetry, API_URL]);
 
   const handleDeleteStock = async (name: string) => {
     if (!confirm(`${name || 'İsimsiz varlık'} silinsin mi?`)) return;
@@ -668,8 +642,8 @@ export default function PortfolioPage() {
 
     try {
       const stockColors: { [key: string]: string } = {
-        "THYAO": "#ff4d4d", "ASELS": "#8b00e8", "EREGL": "#00f2ff", "SISE": "#33ff77",
-        "GARAN": "#ffcc00", "AKBNK": "#ff66aa", "KCHOL": "#aa66ff", "SAHOL": "#66aaff"
+        "THYAO": "#ff4d4d", "ASELS": "#7c3aed", "EREGL": "#00f2ff", "SISE": "#33ff77",
+        "GARAN": "#ffcc00", "AKBNK": "#ff66aa", "KCHOL": "#ff9955", "SAHOL": "#66aaff"
       };
       const color = stockColors[finalName] || `hsl(${Math.random() * 360}, 70%, 60%)`;
 
@@ -699,7 +673,7 @@ export default function PortfolioPage() {
 
   // Her hisse ismine özel sabit bir renk üret
   const getStockColor = (name: string, index: number) => {
-    const colors = ["#8b00e8", "#00f2ff", "#ff4d4d", "#33ff77", "#ffcc00", "#ff66aa", "#aa66ff", "#66aaff"];
+    const colors = ["#7c3aed", "#00f2ff", "#ff4d4d", "#33ff77", "#ffcc00", "#ff66aa", "#ff9955", "#66aaff"];
     return colors[index % colors.length];
   };
 
@@ -806,6 +780,34 @@ export default function PortfolioPage() {
   const totalBaseValue = totalValue - totalDailyChangeTL;
   const totalDailyChangePercent = totalBaseValue > 0 ? (totalDailyChangeTL / totalBaseValue) * 100 : 0;
 
+  const weeklyReady = portfolio.length > 0 && weeklyData.key === weeklyKey + weeklyDay && weeklyData.status === 'ready';
+  const weeklyLiveAvailable = processedData.every(item => {
+    const symbol = String(item.name || '').trim().toUpperCase();
+    const quote = livePrices.find(s => [symbol, `${symbol}.IS`].includes(String(s.code || '').trim().toUpperCase()));
+    return quote && Number.isFinite(Number(quote.price)) && Number(quote.price) > 0 && (!item.isForeignStock || usdRate > 0);
+  });
+  const weeklyBase = weeklyReady ? processedData.reduce((sum, item) => {
+    // Keep the same cost normalization as the rest of the portfolio for recent purchases.
+    const purchaseDate = String(item.purchaseDate).slice(0, 10);
+    const start = new Date(`${weeklyDay}T12:00:00`);
+    start.setDate(start.getDate() - 7);
+    const adjustment = purchaseDate >= start.toLocaleDateString('en-CA') && item.isForeignStock ? item.costOriginal / Number(portfolio.find(p => p._id === item._id)?.cost) : 1;
+    return sum + Number(item.amount) * weeklyData.prices[item._id] * adjustment;
+  }, 0) : 0;
+  const weeklyChange = totalValue - weeklyBase;
+  const weeklyPercent = weeklyBase > 0 ? weeklyChange / weeklyBase * 100 : 0;
+  const monthlyReady = portfolio.length > 0 && monthlyData.key === weeklyKey + weeklyDay && monthlyData.status === 'ready';
+  const monthlyBase = monthlyReady ? processedData.reduce((sum, item) => {
+    // Keep the same cost normalization as the rest of the portfolio for recent purchases.
+    const purchaseDate = String(item.purchaseDate).slice(0, 10);
+    const start = new Date(`${weeklyDay}T12:00:00`);
+    start.setDate(start.getDate() - 30);
+    const adjustment = purchaseDate >= start.toLocaleDateString('en-CA') && item.isForeignStock ? item.costOriginal / Number(portfolio.find(p => p._id === item._id)?.cost) : 1;
+    return sum + Number(item.amount) * monthlyData.prices[item._id] * adjustment;
+  }, 0) : 0;
+  const monthlyChange = totalValue - monthlyBase;
+  const monthlyPercent = monthlyBase > 0 ? monthlyChange / monthlyBase * 100 : 0;
+
   const processedWithPercentage = processedData.map(item => ({
     ...item,
     percentage: totalValue > 0 ? Math.round((item.valueTL / totalValue) * 100) : 0
@@ -813,7 +815,7 @@ export default function PortfolioPage() {
 
   const maxStock = processedWithPercentage.length > 0
     ? processedWithPercentage.reduce((prev, current) => (prev.percentage > current.percentage) ? prev : current)
-    : { name: "Hisse Yok", percentage: 0, color: "#8b00e8" };
+    : { name: "Hisse Yok", percentage: 0, color: "#7c3aed" };
 
   const displayStock = hoveredStock
     ? processedWithPercentage.find(s => s.name === hoveredStock)
@@ -822,8 +824,8 @@ export default function PortfolioPage() {
   if (!mounted) return null;
 
   return (
-    <main className="min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30">
-      <Navbar />
+    <main className={`min-h-screen bg-black text-white font-sans selection:bg-neon-purple/30 ${warmTheme ? styles.warm : ''}`}>
+      {warmTheme ? <PortfolioWarmNav onDark={() => changeTheme(false)} /> : <><Navbar /><button type="button" onClick={() => changeTheme(true)} className={styles.themeButton}>◐ Sıcak tema</button></>}
 
       {/* Background Glow */}
       <div className="fixed inset-0 pointer-events-none">
@@ -868,7 +870,7 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
 
           {/* Left: Stats List */}
-          <div className="h-[480px] bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex flex-col justify-center gap-8 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+          <div className="min-h-[480px] bg-white/5 border border-white/10 rounded-[2.5rem] p-8 backdrop-blur-xl flex flex-col justify-center gap-8 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
             <div className="group transition-transform hover:translate-x-2">
               <p className="text-sm text-neon-purple font-bold uppercase tracking-wider mb-2">
                 {totalPL >= 0 ? 'Toplam Kar' : 'Toplam Zarar'}
@@ -902,32 +904,34 @@ export default function PortfolioPage() {
 
             <div className="h-px bg-white/5 w-full" />
 
-            <div className="opacity-40 select-none">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-500 font-bold uppercase tracking-wider">
-                  {totalPL >= 0 ? 'Haftalık Kar' : 'Haftalık Zarar'}
-                </p>
-                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-400 font-black uppercase tracking-tighter">Yakında</span>
-              </div>
-              <div className="flex items-center gap-3 grayscale">
-                <span className="text-3xl font-black tracking-tighter text-gray-500">₺0,00</span>
-                <TrendingUp className="text-gray-600 w-6 h-6" />
-              </div>
-              <p className="text-xs font-bold mt-1 text-gray-600">Veri analizi hazırlanıyor...</p>
+            <div aria-live="polite">
+              <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2">
+                {weeklyReady && weeklyLiveAvailable ? (weeklyChange > 0 ? 'Haftalık Kâr' : weeklyChange < 0 ? 'Haftalık Zarar' : 'Haftalık Değişim') : 'Haftalık Değişim'}
+              </p>
+              {!portfolio.length ? <p className="text-sm text-gray-500">Hesaplama için portföyünüze varlık ekleyin.</p> : weeklyData.key !== weeklyKey + weeklyDay || weeklyData.status === 'loading' ? <p className="text-sm text-gray-500">Haftalık veriler yükleniyor...</p> : weeklyData.status === 'error' || !weeklyLiveAvailable ? (
+                <div className="text-sm text-gray-500"><p>Fiyat, kur veya alım tarihi eksik olduğu için hesaplanamıyor.</p><button type="button" onClick={() => { setWeeklyRetry(value => value + 1); fetchUsdRate(); fetchPortfolio(); }} className="mt-2 underline font-bold">Tekrar dene</button></div>
+              ) : <>
+                <div className={`flex items-center gap-3 ${weeklyChange > 0 ? 'text-green-400' : weeklyChange < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                  <span className="text-3xl font-black tracking-tighter">{weeklyChange > 0 ? '+' : weeklyChange < 0 ? '-' : ''}₺{Math.abs(weeklyChange).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  {weeklyChange > 0 ? <TrendingUp className="w-6 h-6" aria-hidden="true" /> : weeklyChange < 0 ? <TrendingDown className="w-6 h-6" aria-hidden="true" /> : null}
+                </div>
+                <p className={`text-sm font-bold mt-1 ${weeklyChange > 0 ? 'text-green-400/60' : weeklyChange < 0 ? 'text-red-400/60' : 'text-gray-500'}`}>%{weeklyPercent.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Son 7 gün</p>
+              </>}
             </div>
 
-            <div className="opacity-40 select-none">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-500 font-bold uppercase tracking-wider">
-                  {totalPL >= 0 ? 'Aylık Kar' : 'Aylık Zarar'}
-                </p>
-                <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-gray-400 font-black uppercase tracking-tighter">Yakında</span>
-              </div>
-              <div className="flex items-center gap-3 grayscale">
-                <span className="text-3xl font-black tracking-tighter text-gray-500">₺0,00</span>
-                <TrendingUp className="text-gray-600 w-6 h-6" />
-              </div>
-              <p className="text-xs font-bold mt-1 text-gray-600">Yapay zeka tahmini bekliyor...</p>
+            <div aria-live="polite">
+              <p className="text-sm text-gray-500 font-bold uppercase tracking-wider mb-2">
+                {monthlyReady && weeklyLiveAvailable ? (monthlyChange > 0 ? 'Aylık Kâr' : monthlyChange < 0 ? 'Aylık Zarar' : 'Aylık Değişim') : 'Aylık Değişim'}
+              </p>
+              {!portfolio.length ? <p className="text-sm text-gray-500">Hesaplama için portföyünüze varlık ekleyin.</p> : monthlyData.key !== weeklyKey + weeklyDay || monthlyData.status === 'loading' ? <p className="text-sm text-gray-500">Aylık veriler yükleniyor...</p> : monthlyData.status === 'error' || !weeklyLiveAvailable ? (
+                <div className="text-sm text-gray-500"><p>Fiyat, kur veya alım tarihi eksik olduğu için hesaplanamıyor.</p><button type="button" onClick={() => { setMonthlyRetry(value => value + 1); fetchUsdRate(); fetchPortfolio(); }} className="mt-2 underline font-bold">Tekrar dene</button></div>
+              ) : <>
+                <div className={`flex items-center gap-3 ${monthlyChange > 0 ? 'text-green-400' : monthlyChange < 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                  <span className="text-3xl font-black tracking-tighter">{monthlyChange > 0 ? '+' : monthlyChange < 0 ? '-' : ''}₺{Math.abs(monthlyChange).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  {monthlyChange > 0 ? <TrendingUp className="w-6 h-6" aria-hidden="true" /> : monthlyChange < 0 ? <TrendingDown className="w-6 h-6" aria-hidden="true" /> : null}
+                </div>
+                <p className={`text-sm font-bold mt-1 ${monthlyChange > 0 ? 'text-green-400/60' : monthlyChange < 0 ? 'text-red-400/60' : 'text-gray-500'}`}>%{monthlyPercent.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Son 30 gün</p>
+              </>}
             </div>
           </div>
 
@@ -1359,7 +1363,7 @@ export default function PortfolioPage() {
         {editingStock && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingStock(null)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 w-full max-w-md shadow-[0_20px_50px_rgba(139,0,232,0.3)]">
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 w-full max-w-md shadow-[0_20px_50px_rgba(124,58,237,0.3)]">
               <div className="flex justify-between items-center mb-8">
                 <h2 className="text-2xl font-black tracking-tight flex items-center gap-3"><Edit2 className="text-neon-purple" /> {editingStock.name} Düzenle</h2>
                 <button onClick={() => setEditingStock(null)} className="text-gray-500 hover:text-white transition-colors"><X size={24} /></button>
@@ -1414,7 +1418,7 @@ export default function PortfolioPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-[2] bg-neon-purple text-white py-4 rounded-2xl font-black text-lg hover:bg-neon-purple-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(139,0,232,0.4)]"
+                    className="flex-[2] bg-neon-purple text-white py-4 rounded-2xl font-black text-lg hover:bg-neon-purple-hover transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(124,58,237,0.4)]"
                   >
                     <Check size={20} /> Kaydet
                   </button>

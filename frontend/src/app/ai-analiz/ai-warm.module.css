@@ -1,0 +1,12 @@
+.aiWarm > :global(.fixed.inset-0.pointer-events-none){display:none}
+.aiWarm :global(.bg-\[\#0A0A0A\]),.aiWarm :global(.bg-\[\#0a0a0a\]),.aiWarm :global(.bg-black\/60),.aiWarm :global(.bg-black\/20){background:#f1eee8!important;border-color:#d2c8bc!important}
+.aiWarm :global(.text-gray-200){color:#252a2d!important}
+.aiWarm :global(.text-emerald-400),.aiWarm :global(.text-emerald-400\/80),.aiWarm :global(.text-emerald-500){color:#126b4e!important}
+.aiWarm :global(.text-rose-400),.aiWarm :global(.text-rose-400\/80){color:#c44747!important}
+.aiWarm :global(.text-amber-400),.aiWarm :global(.text-amber-500),.aiWarm :global(.text-cyan-300),.aiWarm :global(.text-blue-300),.aiWarm :global(.text-blue-400){color:#96623e!important}
+.aiWarm :global(.bg-neon-purple){background:#b26940!important}
+.aiWarm :global(.bg-neon-purple\/10),.aiWarm :global(.bg-blue-500\/10),.aiWarm :global(.bg-amber-500\/10){background:#b78d6b26!important}
+.aiWarm :global(.bg-emerald-500\/10){background:#126b4e1a!important}
+.aiWarm :global(.bg-rose-500\/10){background:#c447471a!important}
+.aiWarm :global(button.text-white > span){color:#fff!important}
+@media(min-width:601px){.aiWarm > main{position:relative;left:38px;width:calc(100% - 100px);padding-top:5rem}}
